@@ -29,6 +29,18 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased] — Production readiness
 
+### Changed — feature-parity audit + README
+
+- **Feature-parity audit:** confirmed the full feature surface is present —
+  **37 MCP tools**, all 16 core crates (+2 mock-pod crates), 8 apps + web
+  console, 13 skills — across every surface (RAG, REST/system, master data,
+  custom code, graph, gated workflows). Net-additive vs. the original scope.
+- **Revised `README.md`** into a sharper deep-tech-startup product page:
+  problem/approach framing, a verifiable "by the numbers" strip (37 tools, 4
+  retrieval layers, P95 < 80 ms, 216 tests, 7 invariants), and corrected doc
+  links (`SECURITY.md` / `RELEASING.md` at root, `docs/SLO.md`). Test count
+  updated 205 → 216.
+
 ### Added — Phase 12: CD / release pipeline
 
 See [`RELEASING.md`](RELEASING.md) for the release + rollback runbook.
