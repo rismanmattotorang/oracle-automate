@@ -1,23 +1,23 @@
-//! Offline mock ADT client.
+//! Offline mock Oracle artifact client.
 //!
-//! Seeded with realistic FI/MM/SD fixtures:
-//!   - Programs: ZFIN_POST_JE, ZMM_GRN_CHECK
-//!   - Classes:  ZCL_FIN_POSTER, ZCL_MM_GRN_VALIDATOR
-//!   - Interfaces: ZIF_FIN_POSTABLE
-//!   - Includes: ZFIN_TOP, ZFIN_F01
-//!   - Function modules: Z_FIN_VALIDATE_BUKRS in group ZFIN_UTIL
-//!   - CDS views: Z_C_SALES_ORDER_KPI
-//!   - Packages: ZFIN, ZMM
-//!   - Where-used data wired between the above so impact analysis is
+//! Seeded with realistic Kalbe Fusion / OIC fixtures:
+//!   - Integrations: KLB_GL_JOURNAL_IMPORT, KLB_PO_RECEIPT_SYNC
+//!   - Groovy scripts: KLB_INVOICE_HOLD_RULE, KLB_ITEM_DEFAULTING
+//!   - Connections: KLB_FUSION_ERP_REST
+//!   - Lookups: KLB_COMPANY_XREF
+//!   - ESS jobs: JournalImportLauncher in package GL
+//!   - BI Publisher reports: KLB_GL_JOURNAL_EXTRACT
+//!   - Projects/packages: KLB_FINANCE_INTEGRATIONS
+//!   - Where-used links wired between the above so impact analysis is
 //!     meaningful in demos.
 
 use crate::client::{AdtCallContext, AdtClient};
 use crate::destination::AdtDestination;
 use crate::error::{AdtError, AdtResult};
 use crate::types::{
-    AbapObjectKind, ActivationOutcome, ActivationRequest, AdtSearchHit, AdtSearchRequest,
-    CdsView, PackageContents, PackageMember, ProgramSource, TableRow, WhereUsedHit,
-    WhereUsedRequest, MAX_TABLE_ROWS,
+    ActivationOutcome, ActivationRequest, AdtSearchHit, AdtSearchRequest, CdsView, OracleArtifactKind,
+    PackageContents, PackageMember, ProgramSource, TableRow, WhereUsedHit, WhereUsedRequest,
+    MAX_TABLE_ROWS,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -32,7 +32,7 @@ pub struct MockAdtClient {
     function_modules: HashMap<(String, String), ProgramSource>,
     cds_views: HashMap<String, CdsView>,
     packages: HashMap<String, PackageContents>,
-    where_used: HashMap<(String, AbapObjectKind), Vec<WhereUsedHit>>,
+    where_used: HashMap<(String, OracleArtifactKind), Vec<WhereUsedHit>>,
     tables: HashMap<String, Vec<TableRow>>,
 }
 
@@ -55,104 +55,104 @@ impl MockAdtClient {
     }
 
     fn seed(&mut self) {
-        // Programs
-        self.programs.insert("ZFIN_POST_JE".into(), prog(
-            "ZFIN_POST_JE", AbapObjectKind::Program, "ZFIN", "Post FI journal entries",
-            "REPORT zfin_post_je.\n\nINCLUDE zfin_top.\nINCLUDE zfin_f01.\n\nSTART-OF-SELECTION.\n  PERFORM validate.\n  CALL FUNCTION 'BAPI_ACC_DOCUMENT_POST'\n    EXPORTING documentheader = ls_header.\n  CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'.\n",
+        // Integrations (OIC integration flows)
+        self.programs.insert("KLB_GL_JOURNAL_IMPORT".into(), prog(
+            "KLB_GL_JOURNAL_IMPORT", OracleArtifactKind::Integration, "KLB_FINANCE_INTEGRATIONS",
+            "Stage and import GL journals via FBDI",
+            "<integration name=\"KLB_GL_JOURNAL_IMPORT\" version=\"01.00.0000\">\n  <trigger adapter=\"rest\"/>\n  <invoke connection=\"KLB_FUSION_ERP_REST\" operation=\"importBulkData\"/>\n  <!-- builds JournalImportTemplate FBDI zip, calls erpintegrations.importBulkData,\n       then polls the Journal Import ESS request to completion -->\n</integration>\n",
         ));
-        self.programs.insert("ZMM_GRN_CHECK".into(), prog(
-            "ZMM_GRN_CHECK", AbapObjectKind::Program, "ZMM", "Goods receipt reconciliation",
-            "REPORT zmm_grn_check.\n\nSTART-OF-SELECTION.\n  CALL FUNCTION 'Z_MM_GRN_VALIDATE'.\n  CALL FUNCTION 'BAPI_GOODSMVT_CREATE'.\n",
-        ));
-
-        // Classes
-        self.classes.insert("ZCL_FIN_POSTER".into(), prog(
-            "ZCL_FIN_POSTER", AbapObjectKind::Class, "ZFIN", "FI posting helper class",
-            "CLASS zcl_fin_poster DEFINITION PUBLIC FINAL.\n  PUBLIC SECTION.\n    INTERFACES zif_fin_postable.\n    METHODS post_document\n      IMPORTING is_header TYPE bapiache09\n      EXPORTING ev_obj_key TYPE awkey.\nENDCLASS.\n\nCLASS zcl_fin_poster IMPLEMENTATION.\n  METHOD zif_fin_postable~validate.\n    \" cost-centre check\n  ENDMETHOD.\n  METHOD post_document.\n    CALL FUNCTION 'BAPI_ACC_DOCUMENT_POST'\n      EXPORTING documentheader = is_header.\n  ENDMETHOD.\nENDCLASS.\n",
-        ));
-        self.classes.insert("ZCL_MM_GRN_VALIDATOR".into(), prog(
-            "ZCL_MM_GRN_VALIDATOR", AbapObjectKind::Class, "ZMM", "Goods receipt validator",
-            "CLASS zcl_mm_grn_validator DEFINITION PUBLIC FINAL.\n  PUBLIC SECTION.\n    METHODS validate IMPORTING is_grn TYPE mseg RETURNING VALUE(rv_ok) TYPE abap_bool.\nENDCLASS.\n",
+        self.programs.insert("KLB_PO_RECEIPT_SYNC".into(), prog(
+            "KLB_PO_RECEIPT_SYNC", OracleArtifactKind::Integration, "KLB_FINANCE_INTEGRATIONS",
+            "Sync warehouse receipts to Fusion Receiving",
+            "<integration name=\"KLB_PO_RECEIPT_SYNC\" version=\"01.00.0000\">\n  <trigger adapter=\"rest\"/>\n  <invoke connection=\"KLB_FUSION_ERP_REST\" resource=\"receivingReceiptRequests\" method=\"POST\"/>\n</integration>\n",
         ));
 
-        // Interfaces
-        self.interfaces.insert("ZIF_FIN_POSTABLE".into(), prog(
-            "ZIF_FIN_POSTABLE", AbapObjectKind::Interface, "ZFIN", "Postable contract",
-            "INTERFACE zif_fin_postable PUBLIC.\n  METHODS validate IMPORTING is_header TYPE bapiache09\n                    RETURNING VALUE(rv_ok) TYPE abap_bool.\nENDINTERFACE.\n",
+        // Groovy scripts (Application Composer)
+        self.classes.insert("KLB_INVOICE_HOLD_RULE".into(), prog(
+            "KLB_INVOICE_HOLD_RULE", OracleArtifactKind::GroovyScript, "KLB_FINANCE_INTEGRATIONS",
+            "AP invoice hold trigger (Application Composer)",
+            "// Application Composer object trigger (Groovy)\nif (InvoiceAmount > 100000000 && ApprovalStatus == 'PENDING') {\n  adf.util.applyHold('AMOUNT_THRESHOLD', 'Exceeds IDR 100,000,000 — needs controller approval')\n}\n",
+        ));
+        self.classes.insert("KLB_ITEM_DEFAULTING".into(), prog(
+            "KLB_ITEM_DEFAULTING", OracleArtifactKind::GroovyScript, "KLB_SCM_EXTENSIONS",
+            "Default item attributes on creation",
+            "// Groovy: default primary UOM for pharma raw materials\nif (ItemClass == 'ACTIVE_INGREDIENT' && PrimaryUOMValue == null) {\n  setAttribute('PrimaryUOMValue', 'KG')\n}\n",
         ));
 
-        // Includes
-        self.includes.insert("ZFIN_TOP".into(), prog(
-            "ZFIN_TOP", AbapObjectKind::Include, "ZFIN", "ZFIN top include",
-            "* Global data definitions for ZFIN_POST_JE\nTYPES: BEGIN OF ty_line,\n         bukrs TYPE bukrs,\n         hkont TYPE hkont,\n         wrbtr TYPE wrbtr,\n       END OF ty_line.\nDATA: gt_lines TYPE STANDARD TABLE OF ty_line.\n",
-        ));
-        self.includes.insert("ZFIN_F01".into(), prog(
-            "ZFIN_F01", AbapObjectKind::Include, "ZFIN", "ZFIN form routines",
-            "FORM validate.\n  IF gt_lines IS INITIAL.\n    MESSAGE 'No lines to post' TYPE 'E'.\n  ENDIF.\nENDFORM.\n",
+        // Connections (OIC adapter instances)
+        self.interfaces.insert("KLB_FUSION_ERP_REST".into(), prog(
+            "KLB_FUSION_ERP_REST", OracleArtifactKind::Connection, "KLB_FINANCE_INTEGRATIONS",
+            "Connection to Fusion Cloud ERP REST",
+            "{\n  \"name\": \"KLB_FUSION_ERP_REST\",\n  \"adapter\": \"oracle-erp-cloud\",\n  \"baseUri\": \"https://kalbe.fa.ocs.oraclecloud.com\",\n  \"securityPolicy\": \"OAuth Client Credentials\"\n}\n",
         ));
 
-        // Function modules
-        self.function_modules.insert(("ZFIN_UTIL".into(), "Z_FIN_VALIDATE_BUKRS".into()), prog(
-            "Z_FIN_VALIDATE_BUKRS", AbapObjectKind::FunctionModule, "ZFIN", "Validate company code",
-            "FUNCTION z_fin_validate_bukrs.\n*\"--------------------------------------------------------------\n*\"*\"Local Interface:\n*\"  IMPORTING\n*\"     VALUE(IV_BUKRS) TYPE  BUKRS\n*\"  EXPORTING\n*\"     VALUE(EV_OK) TYPE  ABAP_BOOL\n*\"--------------------------------------------------------------\n  SELECT SINGLE bukrs FROM t001 INTO @DATA(lv_bukrs) WHERE bukrs = @iv_bukrs.\n  ev_ok = COND #( WHEN sy-subrc = 0 THEN abap_true ELSE abap_false ).\nENDFUNCTION.\n",
+        // Lookups (DVM / cross-reference)
+        self.includes.insert("KLB_COMPANY_XREF".into(), prog(
+            "KLB_COMPANY_XREF", OracleArtifactKind::Lookup, "KLB_FINANCE_INTEGRATIONS",
+            "Legacy company code -> Fusion ledger cross-reference",
+            "LEGACY_CODE,FUSION_LEDGER\nKF01,Kalbe Primary Ledger\nKF02,Kalbe USD Reporting\n",
         ));
 
-        // CDS views
-        self.cds_views.insert("Z_C_SALES_ORDER_KPI".into(), CdsView {
-            name: "Z_C_SALES_ORDER_KPI".into(),
-            root_entity: "Z_C_SalesOrderKpi".into(),
+        // ESS jobs (scheduled processes)
+        self.function_modules.insert(("GL".into(), "JournalImportLauncher".into()), prog(
+            "JournalImportLauncher", OracleArtifactKind::EssJob, "GL",
+            "GL Journal Import ESS job",
+            "Job: /oracle/apps/ess/financials/generalLedger/programs/common/JournalImportLauncher\nParameters: InterfaceRunId, LedgerId, Source=KALBE_OIC, GroupId\n",
+        ));
+
+        // BI Publisher report (data extract)
+        self.cds_views.insert("KLB_GL_JOURNAL_EXTRACT".into(), CdsView {
+            name: "KLB_GL_JOURNAL_EXTRACT".into(),
+            root_entity: "GL_JE_LINES".into(),
             annotations: serde_json::json!({
-                "AbapCatalog.sqlViewName": "ZSO_KPI",
-                "AccessControl.authorizationCheck": "#NOT_REQUIRED",
-                "EndUserText.label": "Sales order KPIs"
+                "catalogPath": "/Custom/Kalbe/Finance/KLB_GL_JOURNAL_EXTRACT.xdo",
+                "dataModel": "KLB_GL_JOURNAL_DM",
+                "outputFormat": "csv",
+                "label": "GL journal line extract"
             }),
-            source: "@AbapCatalog.sqlViewName: 'ZSO_KPI'\n@AccessControl.authorizationCheck: #NOT_REQUIRED\n@EndUserText.label: 'Sales order KPIs'\ndefine view Z_C_SalesOrderKpi as select from vbak\n  inner join vbap on vbak.vbeln = vbap.vbeln\n{\n  key vbak.vbeln,\n      vbak.erdat,\n      vbak.auart,\n      vbak.kunnr,\n      sum( vbap.netwr ) as total_net_value\n}\ngroup by vbak.vbeln, vbak.erdat, vbak.auart, vbak.kunnr;\n".into(),
-            line_count: 12,
+            source: "SELECT jl.je_header_id, jl.je_line_num, l.name ledger, jl.code_combination_id,\n       jl.period_name, jl.entered_dr, jl.entered_cr, jl.currency_code\n  FROM gl_je_lines jl\n  JOIN gl_ledgers l ON l.ledger_id = jl.ledger_id\n WHERE jl.period_name = :p_period\n   AND l.ledger_id = :p_ledger_id\n".into(),
+            line_count: 8,
         });
 
-        // Packages
-        self.packages.insert("ZFIN".into(), PackageContents {
-            package: "ZFIN".into(),
-            description: Some("Finance customisations".into()),
+        // Projects / packages
+        self.packages.insert("KLB_FINANCE_INTEGRATIONS".into(), PackageContents {
+            package: "KLB_FINANCE_INTEGRATIONS".into(),
+            description: Some("Kalbe Finance OIC integrations + extensions".into()),
             members: vec![
-                PackageMember { name: "ZFIN_POST_JE".into(), kind: AbapObjectKind::Program, description: Some("Post FI journal entries".into()) },
-                PackageMember { name: "ZCL_FIN_POSTER".into(), kind: AbapObjectKind::Class, description: Some("FI posting helper".into()) },
-                PackageMember { name: "ZIF_FIN_POSTABLE".into(), kind: AbapObjectKind::Interface, description: Some("Postable contract".into()) },
-                PackageMember { name: "ZFIN_TOP".into(), kind: AbapObjectKind::Include, description: Some("ZFIN top include".into()) },
-                PackageMember { name: "ZFIN_F01".into(), kind: AbapObjectKind::Include, description: Some("ZFIN form routines".into()) },
-                PackageMember { name: "ZFIN_UTIL".into(), kind: AbapObjectKind::FunctionGroup, description: Some("FI utility functions".into()) },
-                PackageMember { name: "Z_C_SALES_ORDER_KPI".into(), kind: AbapObjectKind::CdsView, description: Some("Sales order KPIs".into()) },
+                PackageMember { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration, description: Some("GL journal FBDI import".into()) },
+                PackageMember { name: "KLB_PO_RECEIPT_SYNC".into(), kind: OracleArtifactKind::Integration, description: Some("Receiving sync".into()) },
+                PackageMember { name: "KLB_FUSION_ERP_REST".into(), kind: OracleArtifactKind::Connection, description: Some("Fusion ERP REST connection".into()) },
+                PackageMember { name: "KLB_COMPANY_XREF".into(), kind: OracleArtifactKind::Lookup, description: Some("Company cross-reference".into()) },
+                PackageMember { name: "KLB_INVOICE_HOLD_RULE".into(), kind: OracleArtifactKind::GroovyScript, description: Some("AP invoice hold".into()) },
+                PackageMember { name: "KLB_GL_JOURNAL_EXTRACT".into(), kind: OracleArtifactKind::BipReport, description: Some("GL journal extract".into()) },
             ],
         });
-        self.packages.insert("ZMM".into(), PackageContents {
-            package: "ZMM".into(),
-            description: Some("Materials Management customisations".into()),
+        self.packages.insert("KLB_SCM_EXTENSIONS".into(), PackageContents {
+            package: "KLB_SCM_EXTENSIONS".into(),
+            description: Some("Kalbe SCM Application Composer extensions".into()),
             members: vec![
-                PackageMember { name: "ZMM_GRN_CHECK".into(), kind: AbapObjectKind::Program, description: Some("Goods receipt reconciliation".into()) },
-                PackageMember { name: "ZCL_MM_GRN_VALIDATOR".into(), kind: AbapObjectKind::Class, description: Some("Goods receipt validator".into()) },
+                PackageMember { name: "KLB_ITEM_DEFAULTING".into(), kind: OracleArtifactKind::GroovyScript, description: Some("Item attribute defaulting".into()) },
             ],
         });
 
         // Where-used links — the value of impact analysis at demo time.
-        self.where_used.insert(("ZIF_FIN_POSTABLE".into(), AbapObjectKind::Interface), vec![
-            WhereUsedHit { object: "ZCL_FIN_POSTER".into(), kind: AbapObjectKind::Class, location: "DEFINITION line 3".into(), usage: "implements".into() },
+        self.where_used.insert(("KLB_FUSION_ERP_REST".into(), OracleArtifactKind::Connection), vec![
+            WhereUsedHit { object: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration, location: "invoke activity 'importJournals'".into(), usage: "invoke".into() },
+            WhereUsedHit { object: "KLB_PO_RECEIPT_SYNC".into(), kind: OracleArtifactKind::Integration, location: "invoke activity 'postReceipt'".into(), usage: "invoke".into() },
         ]);
-        self.where_used.insert(("ZCL_FIN_POSTER".into(), AbapObjectKind::Class), vec![
-            WhereUsedHit { object: "ZFIN_POST_JE".into(), kind: AbapObjectKind::Program, location: "INCLUDE zfin_f01 line 8".into(), usage: "call method".into() },
-        ]);
-        self.where_used.insert(("ZFIN_TOP".into(), AbapObjectKind::Include), vec![
-            WhereUsedHit { object: "ZFIN_POST_JE".into(), kind: AbapObjectKind::Program, location: "main line 3".into(), usage: "include".into() },
+        self.where_used.insert(("KLB_COMPANY_XREF".into(), OracleArtifactKind::Lookup), vec![
+            WhereUsedHit { object: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration, location: "map 'enrichLedger'".into(), usage: "read".into() },
         ]);
 
-        // Tables for ADT-side data preview
-        self.tables.insert("T001".into(), vec![
-            row(&[("BUKRS", "1000"), ("BUTXT", "Acme Global HQ"), ("WAERS", "USD")]),
-            row(&[("BUKRS", "2000"), ("BUTXT", "Acme EMEA"), ("WAERS", "EUR")]),
+        // Tables for the data-preview surface (Oracle objects)
+        self.tables.insert("GL_LEDGERS".into(), vec![
+            row(&[("LEDGER_ID", "300100001"), ("NAME", "Kalbe Primary Ledger"), ("CURRENCY_CODE", "IDR")]),
+            row(&[("LEDGER_ID", "300100002"), ("NAME", "Kalbe USD Reporting"), ("CURRENCY_CODE", "USD")]),
         ]);
     }
 }
 
-fn prog(name: &str, kind: AbapObjectKind, package: &str, description: &str, source: &str) -> ProgramSource {
+fn prog(name: &str, kind: OracleArtifactKind, package: &str, description: &str, source: &str) -> ProgramSource {
     let line_count = source.lines().count();
     ProgramSource {
         name: name.into(),
@@ -167,39 +167,43 @@ fn prog(name: &str, kind: AbapObjectKind, package: &str, description: &str, sour
 
 fn row(pairs: &[(&str, &str)]) -> TableRow {
     let mut m = serde_json::Map::new();
-    for (k, v) in pairs { m.insert((*k).into(), serde_json::Value::String((*v).into())); }
+    for (k, v) in pairs {
+        m.insert((*k).into(), serde_json::Value::String((*v).into()));
+    }
     TableRow { values: m }
 }
 
 #[async_trait]
 impl AdtClient for MockAdtClient {
-    fn destination(&self) -> &AdtDestination { &self.destination }
+    fn destination(&self) -> &AdtDestination {
+        &self.destination
+    }
 
     async fn get_program(&self, name: &str) -> AdtResult<ProgramSource> {
-        get_object(&self.programs, name, AbapObjectKind::Program)
+        get_object(&self.programs, name, OracleArtifactKind::Integration)
     }
     async fn get_class(&self, name: &str) -> AdtResult<ProgramSource> {
-        get_object(&self.classes, name, AbapObjectKind::Class)
+        get_object(&self.classes, name, OracleArtifactKind::GroovyScript)
     }
     async fn get_interface(&self, name: &str) -> AdtResult<ProgramSource> {
-        get_object(&self.interfaces, name, AbapObjectKind::Interface)
+        get_object(&self.interfaces, name, OracleArtifactKind::Connection)
     }
     async fn get_include(&self, name: &str) -> AdtResult<ProgramSource> {
-        get_object(&self.includes, name, AbapObjectKind::Include)
+        get_object(&self.includes, name, OracleArtifactKind::Lookup)
     }
     async fn get_function_module(&self, group: &str, name: &str) -> AdtResult<ProgramSource> {
         self.function_modules
-            .get(&(group.to_uppercase(), name.to_uppercase()))
+            .get(&(group.to_uppercase(), name.to_string()))
             .cloned()
-            .ok_or_else(|| AdtError::NotFound { kind: "FunctionModule".into(), name: format!("{group}/{name}") })
+            .ok_or_else(|| AdtError::NotFound { kind: "EssJob".into(), name: format!("{group}/{name}") })
     }
     async fn get_package_contents(&self, package: &str) -> AdtResult<PackageContents> {
         self.packages.get(&package.to_uppercase()).cloned()
-            .ok_or_else(|| AdtError::NotFound { kind: "Package".into(), name: package.into() })
+            .ok_or_else(|| AdtError::NotFound { kind: "Project".into(), name: package.into() })
     }
     async fn get_cds_view(&self, name: &str) -> AdtResult<CdsView> {
         self.cds_views.get(&name.to_uppercase()).cloned()
-            .ok_or_else(|| AdtError::NotFound { kind: "CdsView".into(), name: name.into() })
+            .ok_or_else(|| AdtError::NotFound { kind: "BipReport".into(), name: name.into() })
     }
 
     async fn search(&self, request: AdtSearchRequest) -> AdtResult<Vec<AdtSearchHit>> {
@@ -207,11 +211,12 @@ impl AdtClient for MockAdtClient {
         let terms: Vec<&str> = q.split_whitespace().collect();
         let mut hits: Vec<AdtSearchHit> = Vec::new();
 
-        let kind_match = |k: AbapObjectKind| request.kind.map(|wanted| wanted == k).unwrap_or(true);
-        let mut push = |name: &str, kind: AbapObjectKind, desc: Option<&str>, pkg: Option<&str>, score: usize| {
+        let kind_match = |k: OracleArtifactKind| request.kind.map(|wanted| wanted == k).unwrap_or(true);
+        let mut push = |name: &str, kind: OracleArtifactKind, desc: Option<&str>, pkg: Option<&str>, score: usize| {
             if kind_match(kind) && score > 0 {
                 hits.push(AdtSearchHit {
-                    name: name.into(), kind,
+                    name: name.into(),
+                    kind,
                     description: desc.map(String::from),
                     package: pkg.map(String::from),
                     score: score as f32,
@@ -240,7 +245,7 @@ impl AdtClient for MockAdtClient {
                  score_of(&format!("{n} {}", p.description.as_deref().unwrap_or(""))));
         }
         for (n, v) in &self.cds_views {
-            push(n, AbapObjectKind::CdsView, None, None,
+            push(n, OracleArtifactKind::BipReport, None, None,
                  score_of(&format!("{n} {}", v.root_entity)));
         }
 
@@ -260,15 +265,16 @@ impl AdtClient for MockAdtClient {
         if max_rows == 0 || max_rows > MAX_TABLE_ROWS {
             return Err(AdtError::InvalidObjectName(format!("max_rows must be in 1..={MAX_TABLE_ROWS}, got {max_rows}")));
         }
-        // Simulate the BTP backend block path on a labelled table so demos
-        // exercise the fallback advice.
-        if table.eq_ignore_ascii_case("BSEG") {
+        // Some Fusion objects can't be read through the REST/describe surface
+        // (subledger detail, large fact tables). Surface the block so the
+        // agent falls back to a BI Publisher extract.
+        if table.eq_ignore_ascii_case("XLA_AE_LINES") {
             return Err(AdtError::DataPreviewBlocked(format!(
-                "table {table} is blocked from ADT data preview; fall back to sap.table.read (RFC) or RFC_READ_TABLE",
+                "object {table} is not exposed for direct preview; fall back to a BI Publisher extract (oracle.bip.runReport)",
             )));
         }
         let rows = self.tables.get(&table.to_uppercase()).cloned()
-            .ok_or_else(|| AdtError::NotFound { kind: "Table".into(), name: table.into() })?;
+            .ok_or_else(|| AdtError::NotFound { kind: "BipDataModel".into(), name: table.into() })?;
         let mut out = rows;
         out.truncate(max_rows);
         Ok(out)
@@ -281,8 +287,8 @@ impl AdtClient for MockAdtClient {
                 request.kind.label(), request.name,
             )));
         }
-        // Acknowledge activation; in real ADT this triggers the activation
-        // queue and may produce warnings.
+        // Acknowledge activation/publish; in OIC this activates the
+        // integration (or publishes the sandbox) and may produce warnings.
         Ok(ActivationOutcome {
             name: request.name.clone(),
             kind: request.kind,
@@ -295,7 +301,7 @@ impl AdtClient for MockAdtClient {
 fn get_object(
     map: &HashMap<String, ProgramSource>,
     name: &str,
-    kind: AbapObjectKind,
+    kind: OracleArtifactKind,
 ) -> AdtResult<ProgramSource> {
     map.get(&name.to_uppercase()).cloned()
         .ok_or_else(|| AdtError::NotFound { kind: kind.label().into(), name: name.into() })
@@ -312,9 +318,9 @@ mod tests {
     #[tokio::test]
     async fn get_program_returns_source() {
         let c = client();
-        let p = c.get_program("zfin_post_je").await.unwrap();
-        assert_eq!(p.name, "ZFIN_POST_JE");
-        assert!(p.source.contains("BAPI_ACC_DOCUMENT_POST"));
+        let p = c.get_program("klb_gl_journal_import").await.unwrap();
+        assert_eq!(p.name, "KLB_GL_JOURNAL_IMPORT");
+        assert!(p.source.contains("importBulkData"));
         assert!(p.line_count > 0);
     }
 
@@ -322,32 +328,32 @@ mod tests {
     async fn search_filters_by_kind() {
         let c = client();
         let hits = c.search(AdtSearchRequest {
-            query: "fin".into(),
-            kind: Some(AbapObjectKind::Class),
+            query: "invoice hold".into(),
+            kind: Some(OracleArtifactKind::GroovyScript),
             max_results: 20,
         }).await.unwrap();
         assert!(!hits.is_empty());
-        assert!(hits.iter().all(|h| h.kind == AbapObjectKind::Class));
-        assert!(hits.iter().any(|h| h.name == "ZCL_FIN_POSTER"));
+        assert!(hits.iter().all(|h| h.kind == OracleArtifactKind::GroovyScript));
+        assert!(hits.iter().any(|h| h.name == "KLB_INVOICE_HOLD_RULE"));
     }
 
     #[tokio::test]
     async fn where_used_traces_dependency_chain() {
         let c = client();
-        // The interface should report ZCL_FIN_POSTER implementing it.
+        // The connection should report the integrations that invoke it.
         let hits = c.where_used(WhereUsedRequest {
-            name: "ZIF_FIN_POSTABLE".into(),
-            kind: AbapObjectKind::Interface,
+            name: "KLB_FUSION_ERP_REST".into(),
+            kind: OracleArtifactKind::Connection,
         }).await.unwrap();
-        assert_eq!(hits.len(), 1);
-        assert_eq!(hits[0].object, "ZCL_FIN_POSTER");
-        assert_eq!(hits[0].usage, "implements");
+        assert_eq!(hits.len(), 2);
+        assert!(hits.iter().any(|h| h.object == "KLB_GL_JOURNAL_IMPORT"));
+        assert!(hits.iter().all(|h| h.usage == "invoke"));
     }
 
     #[tokio::test]
     async fn data_preview_block_is_surfaced() {
         let c = client();
-        let err = c.get_table_contents("BSEG", 10).await.unwrap_err();
+        let err = c.get_table_contents("XLA_AE_LINES", 10).await.unwrap_err();
         assert!(matches!(err, AdtError::DataPreviewBlocked(_)));
     }
 
@@ -355,7 +361,7 @@ mod tests {
     async fn activate_blocked_in_read_only() {
         let c = client();
         let err = c.activate(
-            ActivationRequest { name: "ZFIN_POST_JE".into(), kind: AbapObjectKind::Program },
+            ActivationRequest { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration },
             AdtCallContext { read_only: true },
         ).await.unwrap_err();
         assert!(matches!(err, AdtError::PermissionDenied(_)));
@@ -365,7 +371,7 @@ mod tests {
     async fn activate_allowed_when_writes_enabled() {
         let c = client();
         let outcome = c.activate(
-            ActivationRequest { name: "ZFIN_POST_JE".into(), kind: AbapObjectKind::Program },
+            ActivationRequest { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration },
             AdtCallContext { read_only: false },
         ).await.unwrap();
         assert!(outcome.activated);
@@ -374,16 +380,16 @@ mod tests {
     #[tokio::test]
     async fn package_contents_includes_seeded_objects() {
         let c = client();
-        let pkg = c.get_package_contents("ZFIN").await.unwrap();
-        assert!(pkg.members.iter().any(|m| m.name == "ZCL_FIN_POSTER"));
-        assert!(pkg.members.iter().any(|m| m.name == "Z_C_SALES_ORDER_KPI"));
+        let pkg = c.get_package_contents("KLB_FINANCE_INTEGRATIONS").await.unwrap();
+        assert!(pkg.members.iter().any(|m| m.name == "KLB_FUSION_ERP_REST"));
+        assert!(pkg.members.iter().any(|m| m.name == "KLB_GL_JOURNAL_EXTRACT"));
     }
 
     #[tokio::test]
     async fn function_module_lookup_uses_group_namespace() {
         let c = client();
-        let fm = c.get_function_module("ZFIN_UTIL", "Z_FIN_VALIDATE_BUKRS").await.unwrap();
-        assert_eq!(fm.name, "Z_FIN_VALIDATE_BUKRS");
-        assert!(fm.source.contains("FROM t001"));
+        let fm = c.get_function_module("GL", "JournalImportLauncher").await.unwrap();
+        assert_eq!(fm.name, "JournalImportLauncher");
+        assert!(fm.source.contains("JournalImportLauncher"));
     }
 }

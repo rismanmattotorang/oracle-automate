@@ -31,8 +31,8 @@ pub use destination::{AdtAuth, AdtDestination};
 pub use error::{AdtError, AdtErrorCode, AdtResult};
 pub use mock::MockAdtClient;
 pub use types::{
-    AbapObjectKind, ActivationOutcome, ActivationRequest, AdtSearchHit, AdtSearchRequest,
-    CdsView, PackageMember, PackageContents, ProgramSource, TableRow, WhereUsedHit,
+    ActivationOutcome, ActivationRequest, AdtSearchHit, AdtSearchRequest, CdsView,
+    OracleArtifactKind, PackageContents, PackageMember, ProgramSource, TableRow, WhereUsedHit,
     WhereUsedRequest, MAX_TABLE_ROWS,
 };
 

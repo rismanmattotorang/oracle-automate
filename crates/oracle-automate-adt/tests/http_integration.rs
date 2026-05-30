@@ -32,7 +32,7 @@ use axum::{
     Router,
 };
 use oracle_automate_adt::{
-    AbapObjectKind, AdtAuth, AdtCallContext, AdtClient, AdtDestination, AdtError,
+    OracleArtifactKind, AdtAuth, AdtCallContext, AdtClient, AdtDestination, AdtError,
     AdtSearchRequest, ActivationRequest, HttpAdtClient, WhereUsedRequest,
 };
 use std::collections::HashMap;
@@ -501,7 +501,7 @@ async fn where_used_posts_xml_with_correct_content_type() {
     let client = HttpAdtClient::new(destination(addr)).unwrap();
     let hits = client.where_used(WhereUsedRequest {
         name: "ZIF_FIN_POSTABLE".into(),
-        kind: AbapObjectKind::Interface,
+        kind: OracleArtifactKind::Connection,
     }).await.unwrap();
     assert_eq!(hits.len(), 2);
     assert!(hits.iter().any(|h| h.object == "ZCL_FIN_POSTER"));
@@ -559,7 +559,7 @@ async fn activate_fetches_csrf_token_then_posts() {
     let (addr, state) = spawn_mock_server().await;
     let client = HttpAdtClient::new(destination(addr)).unwrap();
     let outcome = client.activate(
-        ActivationRequest { name: "ZFIN_POST_JE".into(), kind: AbapObjectKind::Program },
+        ActivationRequest { name: "ZFIN_POST_JE".into(), kind: OracleArtifactKind::Integration },
         AdtCallContext { read_only: false },
     ).await.unwrap();
     assert!(outcome.activated, "activation should succeed when CSRF flow completes");
@@ -587,7 +587,7 @@ async fn activate_in_read_only_mode_short_circuits_before_any_http_call() {
     let (addr, state) = spawn_mock_server().await;
     let client = HttpAdtClient::new(destination(addr)).unwrap();
     let err = client.activate(
-        ActivationRequest { name: "ZFIN_POST_JE".into(), kind: AbapObjectKind::Program },
+        ActivationRequest { name: "ZFIN_POST_JE".into(), kind: OracleArtifactKind::Integration },
         AdtCallContext { read_only: true },
     ).await.unwrap_err();
     assert!(matches!(err, AdtError::PermissionDenied(_)));

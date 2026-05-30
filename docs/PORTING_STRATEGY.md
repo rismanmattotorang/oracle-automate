@@ -227,4 +227,19 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
   request/meta structs and the `BapiRet2*` return-parser (functionally generic,
   re-framed in comments); live SOAP/OData transports await the Fusion REST
   rewrite; the server tool namespace (`sap.*`→`oracle.*`) lands in P5.
-- _Subsequent phases (P3+) update this section as they land._
+- **P3 — done (custom-code surface, offline-core).** `oracle-automate-adt`
+  re-modeled to the Oracle custom-code/integration surface. `AbapObjectKind` →
+  `OracleArtifactKind` (Integration, GroovyScript, Connection, Lookup,
+  IntegrationPackage, EssJob, BipDataModel, BipReport, ValueSet, Project,
+  SandboxCustomization, …). Mock fixtures are now Oracle/Kalbe: OIC
+  integrations (`KLB_GL_JOURNAL_IMPORT`, `KLB_PO_RECEIPT_SYNC`), Application
+  Composer Groovy (`KLB_INVOICE_HOLD_RULE`), a Fusion ERP REST connection,
+  a company cross-reference lookup, a GL Journal Import ESS job, a BI Publisher
+  extract, and a finance integration project — with where-used impact links and
+  Oracle data-preview→BIP fallback. Connection helper (`destination.rs`) hosts
+  Oracle-ized. Per the chosen approach, the **live ADT/HTTP client is adapted
+  (renamed to compile), not rewritten** — its SAP-ADT URL scheme is retained as
+  the legacy transport pending the Oracle OIC/BIP/Fusion-REST rewrite, and the
+  trait method names + the `abap.adt.*` tool namespace are renamed alongside the
+  server tools in P5. **Whole workspace builds; 208 tests pass.**
+- _Subsequent phases (P4+) update this section as they land._

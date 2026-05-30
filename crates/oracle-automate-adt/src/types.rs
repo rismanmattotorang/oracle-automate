@@ -1,93 +1,127 @@
-//! Request and response types shared by every ADT backend.
+//! Request and response types shared by every Oracle artifact backend.
+//!
+//! Port note: these model Oracle Fusion / OIC development artifacts (the
+//! analog of the SAP ABAP/ADT object surface). The `ErpClient`-style trait
+//! method names (`get_program`, `get_class`, …) are renamed alongside the
+//! server tool namespace in P5; here the *artifact taxonomy* and the
+//! *fixtures* are Oracle.
 
 use serde::{Deserialize, Serialize};
 
 pub const MAX_TABLE_ROWS: usize = 1000;
 
+/// Kinds of Oracle development / configuration artifact this surface serves.
+///
+/// The Oracle analog of the SAP ABAP object taxonomy: instead of programs,
+/// classes and CDS views, Oracle custom logic lives in OIC integrations,
+/// Application Composer Groovy, BI Publisher, value sets and sandboxes.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
-pub enum AbapObjectKind {
-    Program,
-    Class,
-    Interface,
-    Include,
-    FunctionGroup,
-    FunctionModule,
-    Table,
-    Structure,
-    DataElement,
-    Domain,
-    Package,
-    CdsView,
-    BehaviorDefinition,
-    ServiceDefinition,
-    MetadataExtension,
-    EnhancementSpot,
-    Transaction,
+pub enum OracleArtifactKind {
+    /// OIC integration flow.
+    Integration,
+    /// Application Composer / OIC Groovy script.
+    GroovyScript,
+    /// OIC connection (adapter instance).
+    Connection,
+    /// OIC lookup (DVM / cross-reference table).
+    Lookup,
+    /// OIC integration package / project.
+    IntegrationPackage,
+    /// Enterprise Scheduler (ESS) scheduled process / job.
+    EssJob,
+    /// BI Publisher data model.
+    BipDataModel,
+    /// Custom Fusion REST resource (Application Composer).
+    RestResource,
+    /// Application Composer object attribute / field.
+    Attribute,
+    /// Oracle value set (flexfield value set).
+    ValueSet,
+    /// OIC project / IAR deployment unit.
+    Project,
+    /// BI Publisher report.
+    BipReport,
+    /// Business rule (Process Automation / Application Composer).
+    BusinessRule,
+    /// Custom REST service definition.
+    RestService,
+    /// Sandbox customization (metadata change in a sandbox).
+    SandboxCustomization,
+    /// Application Composer extension.
+    AppComposerExtension,
+    /// Scheduled process definition (ESS job definition).
+    ScheduledProcess,
 }
 
-impl AbapObjectKind {
+impl OracleArtifactKind {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Program => "Program",
-            Self::Class => "Class",
-            Self::Interface => "Interface",
-            Self::Include => "Include",
-            Self::FunctionGroup => "Function Group",
-            Self::FunctionModule => "Function Module",
-            Self::Table => "Table",
-            Self::Structure => "Structure",
-            Self::DataElement => "Data Element",
-            Self::Domain => "Domain",
-            Self::Package => "Package",
-            Self::CdsView => "CDS View",
-            Self::BehaviorDefinition => "Behavior Definition",
-            Self::ServiceDefinition => "Service Definition",
-            Self::MetadataExtension => "Metadata Extension",
-            Self::EnhancementSpot => "Enhancement Spot",
-            Self::Transaction => "Transaction",
+            Self::Integration => "Integration",
+            Self::GroovyScript => "Groovy Script",
+            Self::Connection => "Connection",
+            Self::Lookup => "Lookup",
+            Self::IntegrationPackage => "Integration Package",
+            Self::EssJob => "ESS Job",
+            Self::BipDataModel => "BI Publisher Data Model",
+            Self::RestResource => "REST Resource",
+            Self::Attribute => "Attribute",
+            Self::ValueSet => "Value Set",
+            Self::Project => "Project",
+            Self::BipReport => "BI Publisher Report",
+            Self::BusinessRule => "Business Rule",
+            Self::RestService => "REST Service",
+            Self::SandboxCustomization => "Sandbox Customization",
+            Self::AppComposerExtension => "Application Composer Extension",
+            Self::ScheduledProcess => "Scheduled Process",
         }
     }
 
-    /// ADT URI fragment, e.g. `programs/programs/Z_FOO/source/main`.
+    /// Legacy SAP-ADT URL fragment used by the not-yet-ported live HTTP
+    /// transport (`http.rs`). The offline mock does not use this; it remains
+    /// the SAP-ADT path builder until the live client is rewritten against
+    /// the Oracle OIC / BI Publisher / Fusion REST endpoints in the
+    /// live-transport sub-phase. Variant *names* are Oracle; the URLs are
+    /// still SAP and exist only to keep the legacy client + its tests green.
     pub fn adt_path(self, name: &str) -> String {
         let n = name.to_lowercase();
         match self {
-            Self::Program => format!("/sap/bc/adt/programs/programs/{n}/source/main"),
-            Self::Class => format!("/sap/bc/adt/oo/classes/{n}/source/main"),
-            Self::Interface => format!("/sap/bc/adt/oo/interfaces/{n}/source/main"),
-            Self::Include => format!("/sap/bc/adt/programs/includes/{n}/source/main"),
-            Self::FunctionGroup => format!("/sap/bc/adt/functions/groups/{n}/source/main"),
-            Self::FunctionModule => format!("/sap/bc/adt/functions/groups/{{group}}/fmodules/{n}/source/main"),
-            Self::Table => format!("/sap/bc/adt/ddic/tables/{n}/source/main"),
-            Self::Structure => format!("/sap/bc/adt/ddic/structures/{n}/source/main"),
-            Self::DataElement => format!("/sap/bc/adt/ddic/dataelements/{n}"),
-            Self::Domain => format!("/sap/bc/adt/ddic/domains/{n}/source/main"),
-            Self::CdsView => format!("/sap/bc/adt/ddic/ddl/sources/{n}/source/main"),
-            // Package nodestructure is POST not GET (see http.rs); the
-            // path here is just the base URL.
-            Self::Package => "/sap/bc/adt/repository/nodestructure".to_string(),
-            Self::Transaction => format!(
+            Self::Integration => format!("/sap/bc/adt/programs/programs/{n}/source/main"),
+            Self::GroovyScript => format!("/sap/bc/adt/oo/classes/{n}/source/main"),
+            Self::Connection => format!("/sap/bc/adt/oo/interfaces/{n}/source/main"),
+            Self::Lookup => format!("/sap/bc/adt/programs/includes/{n}/source/main"),
+            Self::IntegrationPackage => format!("/sap/bc/adt/functions/groups/{n}/source/main"),
+            Self::EssJob => format!("/sap/bc/adt/functions/groups/{{group}}/fmodules/{n}/source/main"),
+            Self::BipDataModel => format!("/sap/bc/adt/ddic/tables/{n}/source/main"),
+            Self::RestResource => format!("/sap/bc/adt/ddic/structures/{n}/source/main"),
+            Self::Attribute => format!("/sap/bc/adt/ddic/dataelements/{n}"),
+            Self::ValueSet => format!("/sap/bc/adt/ddic/domains/{n}/source/main"),
+            Self::BipReport => format!("/sap/bc/adt/ddic/ddl/sources/{n}/source/main"),
+            Self::Project => "/sap/bc/adt/repository/nodestructure".to_string(),
+            Self::ScheduledProcess => format!(
                 "/sap/bc/adt/repository/informationsystem/objectproperties/values?uri=%2Fsap%2Fbc%2Fadt%2Fvit%2Fwb%2Fobject_type%2Ftrant%2Fobject_name%2F{n}",
             ),
-            Self::EnhancementSpot
-            | Self::BehaviorDefinition
-            | Self::ServiceDefinition
-            | Self::MetadataExtension => format!("/sap/bc/adt/objects/{n}"),
+            Self::AppComposerExtension
+            | Self::BusinessRule
+            | Self::RestService
+            | Self::SandboxCustomization => format!("/sap/bc/adt/objects/{n}"),
         }
     }
 }
 
+/// Source/representation of a single artifact (integration XML/JSON, Groovy,
+/// BIP report definition, …). Keeps the field shape stable across backends.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProgramSource {
     pub name: String,
-    pub kind: AbapObjectKind,
-    /// Package / development class.
+    pub kind: OracleArtifactKind,
+    /// Owning OIC package / Fusion offering.
     pub package: Option<String>,
-    /// Description / short text from object header.
+    /// Description / short text from the artifact header.
     pub description: Option<String>,
     pub source: String,
-    /// Whether the object is currently activated (vs. saved-but-inactive).
+    /// Whether the artifact is currently active/activated (vs. configured but
+    /// not yet activated/published).
     pub active: bool,
     /// Lines counted from the source.
     pub line_count: usize,
@@ -97,9 +131,9 @@ pub struct ProgramSource {
 pub struct CdsView {
     pub name: String,
     pub source: String,
-    /// e.g. `Z_DEMO_CDS`
+    /// Primary data source / view object the report's data model selects from.
     pub root_entity: String,
-    /// CDS annotations distilled into a structured map for quick access.
+    /// Structured metadata distilled for quick access (data model params, etc.).
     pub annotations: serde_json::Value,
     pub line_count: usize,
 }
@@ -107,7 +141,7 @@ pub struct CdsView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageMember {
     pub name: String,
-    pub kind: AbapObjectKind,
+    pub kind: OracleArtifactKind,
     pub description: Option<String>,
 }
 
@@ -122,17 +156,19 @@ pub struct PackageContents {
 pub struct AdtSearchRequest {
     pub query: String,
     #[serde(default)]
-    pub kind: Option<AbapObjectKind>,
+    pub kind: Option<OracleArtifactKind>,
     #[serde(default = "default_max_results")]
     pub max_results: usize,
 }
 
-fn default_max_results() -> usize { 25 }
+fn default_max_results() -> usize {
+    25
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdtSearchHit {
     pub name: String,
-    pub kind: AbapObjectKind,
+    pub kind: OracleArtifactKind,
     pub description: Option<String>,
     pub package: Option<String>,
     pub score: f32,
@@ -141,16 +177,16 @@ pub struct AdtSearchHit {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WhereUsedRequest {
     pub name: String,
-    pub kind: AbapObjectKind,
+    pub kind: OracleArtifactKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WhereUsedHit {
     pub object: String,
-    pub kind: AbapObjectKind,
-    /// Where in the object the reference appears (e.g. line, method).
+    pub kind: OracleArtifactKind,
+    /// Where in the artifact the reference appears (activity, mapping, line).
     pub location: String,
-    /// e.g. `read`, `write`, `call`, `inherits`, `implements`.
+    /// e.g. `read`, `write`, `invoke`, `maps`, `implements`.
     pub usage: String,
 }
 
@@ -162,13 +198,13 @@ pub struct TableRow {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActivationRequest {
     pub name: String,
-    pub kind: AbapObjectKind,
+    pub kind: OracleArtifactKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActivationOutcome {
     pub name: String,
-    pub kind: AbapObjectKind,
+    pub kind: OracleArtifactKind,
     pub activated: bool,
     pub messages: Vec<String>,
 }

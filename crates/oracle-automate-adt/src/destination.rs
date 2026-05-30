@@ -19,7 +19,7 @@ pub struct AdtDestination {
     /// on-disk label can't silently drift from the name it's loaded under.
     #[serde(default)]
     pub name: String,
-    /// e.g. `https://s4hana.example.com:44300`
+    /// e.g. `https://kalbe.fa.ocs.oraclecloud.com`
     pub base_url: String,
     /// SAP client number, e.g. `100`.
     pub client: String,
@@ -39,7 +39,7 @@ pub enum AdtAuth {
     Basic { user: String, password: String },
     /// Bearer token (JWT, XSUAA, etc.).
     Bearer { token: String },
-    /// SAP BTP service key file — for environments using XSUAA.  The path
+    /// OAuth2 / IDCS confidential-app key file (Oracle analog of an XSUAA service key). The path
     /// is loaded lazily by the HTTP client.
     ServiceKey { path: String },
     /// Mutual TLS via PEM files (on-premise only per fr0ster's note).
@@ -52,7 +52,7 @@ impl AdtDestination {
     pub fn mock(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            base_url: "https://mock.sap.example".into(),
+            base_url: "https://mock.fa.oraclecloud.com".into(),
             client: "100".into(),
             language: "EN".into(),
             auth: AdtAuth::Mock,
@@ -97,7 +97,7 @@ mod loader_tests {
         let path = temp_toml(
             r#"
             name = "stale-on-disk-label"
-            base_url = "https://s4dev.example.com:44300"
+            base_url = "https://kalbe-dev.fa.ocs.oraclecloud.com"
             client = "100"
             language = "EN"
 
@@ -107,12 +107,12 @@ mod loader_tests {
             password = "s3cret"
         "#,
         );
-        let dest = AdtDestination::load_from_path(&path, "dev-s4").unwrap();
+        let dest = AdtDestination::load_from_path(&path, "dev-fusion").unwrap();
         std::fs::remove_file(&path).ok();
 
         // The lookup key wins over the on-disk label.
-        assert_eq!(dest.name, "dev-s4");
-        assert_eq!(dest.base_url, "https://s4dev.example.com:44300");
+        assert_eq!(dest.name, "dev-fusion");
+        assert_eq!(dest.base_url, "https://kalbe-dev.fa.ocs.oraclecloud.com");
         assert_eq!(dest.client, "100");
         match &dest.auth {
             AdtAuth::Basic { user, password } => {
@@ -127,7 +127,7 @@ mod loader_tests {
     fn name_field_is_optional_in_file() {
         let path = temp_toml(
             r#"
-            base_url = "https://s4dev.example.com:44300"
+            base_url = "https://kalbe-dev.fa.ocs.oraclecloud.com"
             client = "100"
 
             [auth]
@@ -135,9 +135,9 @@ mod loader_tests {
             token = "jwt-abc"
         "#,
         );
-        let dest = AdtDestination::load_from_path(&path, "dev-s4").unwrap();
+        let dest = AdtDestination::load_from_path(&path, "dev-fusion").unwrap();
         std::fs::remove_file(&path).ok();
-        assert_eq!(dest.name, "dev-s4");
+        assert_eq!(dest.name, "dev-fusion");
         assert_eq!(dest.language, "EN"); // serde default
         assert_eq!(dest.auth.label(), "bearer");
     }
@@ -146,7 +146,7 @@ mod loader_tests {
     fn redacted_never_leaks_password() {
         let path = temp_toml(
             r#"
-            base_url = "https://s4dev.example.com:44300"
+            base_url = "https://kalbe-dev.fa.ocs.oraclecloud.com"
             client = "100"
 
             [auth]
@@ -155,7 +155,7 @@ mod loader_tests {
             password = "do-not-leak"
         "#,
         );
-        let dest = AdtDestination::load_from_path(&path, "dev-s4").unwrap();
+        let dest = AdtDestination::load_from_path(&path, "dev-fusion").unwrap();
         std::fs::remove_file(&path).ok();
         let redacted = dest.redacted().to_string();
         assert!(!redacted.contains("do-not-leak"), "password leaked: {redacted}");
@@ -167,20 +167,20 @@ mod loader_tests {
     fn search_paths_order_with_dir_override() {
         // Pure builder — no env mutation, fully deterministic.
         let paths = AdtDestination::build_search_paths(
-            "dev-s4",
-            Some("/etc/sap-dest"),
+            "dev-fusion",
+            Some("/etc/oracle-dest"),
             Some(std::path::PathBuf::from("/home/u/.config")),
         );
-        assert_eq!(paths[0], std::path::PathBuf::from("/etc/sap-dest/dev-s4.toml"));
-        assert_eq!(paths[1], std::path::PathBuf::from("./.oracle-automate/destinations/dev-s4.toml"));
-        assert_eq!(paths[2], std::path::PathBuf::from("/home/u/.config/oracle-automate/destinations/dev-s4.toml"));
+        assert_eq!(paths[0], std::path::PathBuf::from("/etc/oracle-dest/dev-fusion.toml"));
+        assert_eq!(paths[1], std::path::PathBuf::from("./.oracle-automate/destinations/dev-fusion.toml"));
+        assert_eq!(paths[2], std::path::PathBuf::from("/home/u/.config/oracle-automate/destinations/dev-fusion.toml"));
     }
 
     #[test]
     fn search_paths_without_override_start_project_local() {
-        let paths = AdtDestination::build_search_paths("dev-s4", None, None);
+        let paths = AdtDestination::build_search_paths("dev-fusion", None, None);
         assert_eq!(paths.len(), 1);
-        assert_eq!(paths[0], std::path::PathBuf::from("./.oracle-automate/destinations/dev-s4.toml"));
+        assert_eq!(paths[0], std::path::PathBuf::from("./.oracle-automate/destinations/dev-fusion.toml"));
     }
 }
 

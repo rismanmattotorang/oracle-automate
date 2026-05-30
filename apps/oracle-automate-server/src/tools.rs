@@ -13,7 +13,7 @@ use crate::context::ServerContext;
 use mcp_core::{CallToolResult, ToolContent, ToolInputSchema};
 use mcp_server::{registry::ToolFn, ToolDescriptor};
 use oracle_automate_adt::{
-    AbapObjectKind, AdtCallContext, AdtSearchRequest, ActivationRequest, WhereUsedRequest,
+    OracleArtifactKind, AdtCallContext, AdtSearchRequest, ActivationRequest, WhereUsedRequest,
 };
 use oracle_automate_kb::Domain;
 use oracle_automate_rag::Query;
@@ -1003,7 +1003,7 @@ fn adt_get_cds_view(ctx: &Arc<ServerContext>) -> ToolDescriptor {
 struct AdtSearchArgs {
     query: String,
     #[serde(default)]
-    kind: Option<AbapObjectKind>,
+    kind: Option<OracleArtifactKind>,
     #[serde(default = "default_max_results")]
     max_results: usize,
 }
@@ -1047,7 +1047,7 @@ fn adt_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
 }
 
 #[derive(Deserialize)]
-struct WhereUsedArgs { name: String, kind: AbapObjectKind }
+struct WhereUsedArgs { name: String, kind: OracleArtifactKind }
 
 fn adt_where_used(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let ctx = Arc::clone(ctx);
@@ -1118,7 +1118,7 @@ fn adt_get_table_contents(ctx: &Arc<ServerContext>) -> ToolDescriptor {
 }
 
 #[derive(Deserialize)]
-struct ActivateArgs { name: String, kind: AbapObjectKind }
+struct ActivateArgs { name: String, kind: OracleArtifactKind }
 
 fn adt_activate(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let ctx = Arc::clone(ctx);

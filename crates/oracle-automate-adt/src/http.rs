@@ -21,7 +21,7 @@ use crate::client::{AdtCallContext, AdtClient};
 use crate::destination::{AdtAuth, AdtDestination};
 use crate::error::{AdtError, AdtResult};
 use crate::types::{
-    AbapObjectKind, ActivationOutcome, ActivationRequest, AdtSearchHit, AdtSearchRequest,
+    OracleArtifactKind, ActivationOutcome, ActivationRequest, AdtSearchHit, AdtSearchRequest,
     CdsView, PackageContents, PackageMember, ProgramSource, TableRow, WhereUsedHit,
     WhereUsedRequest, MAX_TABLE_ROWS,
 };
@@ -276,24 +276,24 @@ impl AdtClient for HttpAdtClient {
     fn destination(&self) -> &AdtDestination { &self.destination }
 
     async fn get_program(&self, name: &str) -> AdtResult<ProgramSource> {
-        adt_source(self, name, AbapObjectKind::Program).await
+        adt_source(self, name, OracleArtifactKind::Integration).await
     }
     async fn get_class(&self, name: &str) -> AdtResult<ProgramSource> {
-        adt_source(self, name, AbapObjectKind::Class).await
+        adt_source(self, name, OracleArtifactKind::GroovyScript).await
     }
     async fn get_interface(&self, name: &str) -> AdtResult<ProgramSource> {
-        adt_source(self, name, AbapObjectKind::Interface).await
+        adt_source(self, name, OracleArtifactKind::Connection).await
     }
     async fn get_include(&self, name: &str) -> AdtResult<ProgramSource> {
-        adt_source(self, name, AbapObjectKind::Include).await
+        adt_source(self, name, OracleArtifactKind::Lookup).await
     }
     async fn get_function_module(&self, group: &str, name: &str) -> AdtResult<ProgramSource> {
-        let path = AbapObjectKind::FunctionModule.adt_path(name).replace("{group}", &group.to_lowercase());
+        let path = OracleArtifactKind::EssJob.adt_path(name).replace("{group}", &group.to_lowercase());
         let source = self.fetch_text(&path).await?;
         let line_count = source.lines().count();
         Ok(ProgramSource {
             name: name.to_uppercase(),
-            kind: AbapObjectKind::FunctionModule,
+            kind: OracleArtifactKind::EssJob,
             package: None,
             description: None,
             source,
@@ -342,7 +342,7 @@ impl AdtClient for HttpAdtClient {
         })
     }
     async fn get_cds_view(&self, name: &str) -> AdtResult<CdsView> {
-        let source = self.fetch_text(&AbapObjectKind::CdsView.adt_path(name)).await?;
+        let source = self.fetch_text(&OracleArtifactKind::BipReport.adt_path(name)).await?;
         Ok(CdsView {
             name: name.to_uppercase(),
             root_entity: name.into(),
@@ -451,9 +451,9 @@ impl AdtClient for HttpAdtClient {
         let body = format!(
             r#"<?xml version="1.0" encoding="UTF-8"?><adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core"><adtcore:objectReference adtcore:uri="/sap/bc/adt/{kind}/{name}" adtcore:name="{name}"/></adtcore:objectReferences>"#,
             kind = match request.kind {
-                AbapObjectKind::Program => "programs/programs",
-                AbapObjectKind::Class => "oo/classes",
-                AbapObjectKind::Interface => "oo/interfaces",
+                OracleArtifactKind::Integration => "programs/programs",
+                OracleArtifactKind::GroovyScript => "oo/classes",
+                OracleArtifactKind::Connection => "oo/interfaces",
                 _ => "objects",
             },
             name = request.name.to_lowercase(),
@@ -474,7 +474,7 @@ impl AdtClient for HttpAdtClient {
     }
 }
 
-async fn adt_source(client: &HttpAdtClient, name: &str, kind: AbapObjectKind) -> AdtResult<ProgramSource> {
+async fn adt_source(client: &HttpAdtClient, name: &str, kind: OracleArtifactKind) -> AdtResult<ProgramSource> {
     let path = kind.adt_path(name);
     let source = client.fetch_text(&path).await?;
     let line_count = source.lines().count();
@@ -777,7 +777,7 @@ fn attr_named(e: &quick_xml::events::BytesStart<'_>, target: &str) -> Option<Str
 /// `usageReferences` endpoint.  Each `<referencedObject>` element carries
 /// an `adtcore:name`, an `adtcore:type`, and an `adtcore:uri` we map back
 /// to our domain.
-fn parse_usage_references(xml: &str, _from_kind: AbapObjectKind) -> Vec<WhereUsedHit> {
+fn parse_usage_references(xml: &str, _from_kind: OracleArtifactKind) -> Vec<WhereUsedHit> {
     use quick_xml::events::Event;
     use quick_xml::Reader;
     let mut out = Vec::new();
@@ -819,18 +819,18 @@ fn parse_usage_references(xml: &str, _from_kind: AbapObjectKind) -> Vec<WhereUse
     out
 }
 
-fn map_kind(token: &str) -> AbapObjectKind {
+fn map_kind(token: &str) -> OracleArtifactKind {
     match token {
-        "CLAS/OC" | "CLAS" => AbapObjectKind::Class,
-        "INTF/OI" | "INTF" => AbapObjectKind::Interface,
-        "PROG/P" | "PROG/I" | "PROG" => AbapObjectKind::Program,
-        "FUGR/F" | "FUGR" => AbapObjectKind::FunctionGroup,
-        "FUGR/FF" | "FUNC" => AbapObjectKind::FunctionModule,
-        "DDLS/DF" | "DDLS" => AbapObjectKind::CdsView,
-        "TABL/DT" | "TABL" => AbapObjectKind::Table,
-        "STRU/DS" | "STRU" => AbapObjectKind::Structure,
-        "DEVC/K" | "DEVC" => AbapObjectKind::Package,
-        _ => AbapObjectKind::Program, // unknown -> Program as default
+        "CLAS/OC" | "CLAS" => OracleArtifactKind::GroovyScript,
+        "INTF/OI" | "INTF" => OracleArtifactKind::Connection,
+        "PROG/P" | "PROG/I" | "PROG" => OracleArtifactKind::Integration,
+        "FUGR/F" | "FUGR" => OracleArtifactKind::IntegrationPackage,
+        "FUGR/FF" | "FUNC" => OracleArtifactKind::EssJob,
+        "DDLS/DF" | "DDLS" => OracleArtifactKind::BipReport,
+        "TABL/DT" | "TABL" => OracleArtifactKind::BipDataModel,
+        "STRU/DS" | "STRU" => OracleArtifactKind::RestResource,
+        "DEVC/K" | "DEVC" => OracleArtifactKind::Project,
+        _ => OracleArtifactKind::Integration, // unknown -> Program as default
     }
 }
 
