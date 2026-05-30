@@ -18,7 +18,7 @@ use crate::client::{OicCallContext, OicClient};
 use crate::destination::{OicAuth, OicDestination};
 use crate::error::{OicError, OicResult};
 use crate::types::{
-    ActivationOutcome, ActivationRequest, OicSearchHit, OicSearchRequest, CdsView,
+    ActivationOutcome, ActivationRequest, CdsView, OicSearchHit, OicSearchRequest,
     OracleArtifactKind, PackageContents, PackageMember, ProgramSource, TableRow, WhereUsedHit,
     WhereUsedRequest, MAX_TABLE_ROWS,
 };
@@ -39,7 +39,11 @@ impl HttpOicClient {
     }
 
     fn url(&self, path: &str) -> String {
-        format!("{}{}", self.destination.base_url.trim_end_matches('/'), path)
+        format!(
+            "{}{}",
+            self.destination.base_url.trim_end_matches('/'),
+            path
+        )
     }
 
     fn authed(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
@@ -65,9 +69,10 @@ impl HttpOicClient {
                 .json()
                 .await
                 .map_err(|e| OicError::Internal(format!("invalid JSON from {url}: {e}"))),
-            reqwest::StatusCode::NOT_FOUND => {
-                Err(OicError::NotFound { kind: "artifact".into(), name: path.into() })
-            }
+            reqwest::StatusCode::NOT_FOUND => Err(OicError::NotFound {
+                kind: "artifact".into(),
+                name: path.into(),
+            }),
             reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN => {
                 Err(OicError::AuthFailed(format!("{} on {url}", resp.status())))
             }
@@ -83,7 +88,11 @@ impl HttpOicClient {
     }
 
     /// Fetch an artifact and project the JSON into a `ProgramSource`.
-    async fn fetch_artifact(&self, kind: OracleArtifactKind, name: &str) -> OicResult<ProgramSource> {
+    async fn fetch_artifact(
+        &self,
+        kind: OracleArtifactKind,
+        name: &str,
+    ) -> OicResult<ProgramSource> {
         let body = self.get_json(&kind.oic_path(name)).await?;
         let source = body
             .get("code")
@@ -91,7 +100,10 @@ impl HttpOicClient {
             .or_else(|| body.get("source"))
             .map(value_to_text)
             .unwrap_or_else(|| serde_json::to_string_pretty(&body).unwrap_or_default());
-        let description = body.get("description").and_then(|v| v.as_str()).map(String::from);
+        let description = body
+            .get("description")
+            .and_then(|v| v.as_str())
+            .map(String::from);
         let package = body
             .get("project")
             .or_else(|| body.get("package"))
@@ -129,13 +141,16 @@ impl OicClient for HttpOicClient {
     }
 
     async fn get_integration(&self, name: &str) -> OicResult<ProgramSource> {
-        self.fetch_artifact(OracleArtifactKind::Integration, name).await
+        self.fetch_artifact(OracleArtifactKind::Integration, name)
+            .await
     }
     async fn get_groovy_script(&self, name: &str) -> OicResult<ProgramSource> {
-        self.fetch_artifact(OracleArtifactKind::GroovyScript, name).await
+        self.fetch_artifact(OracleArtifactKind::GroovyScript, name)
+            .await
     }
     async fn get_connection(&self, name: &str) -> OicResult<ProgramSource> {
-        self.fetch_artifact(OracleArtifactKind::Connection, name).await
+        self.fetch_artifact(OracleArtifactKind::Connection, name)
+            .await
     }
     async fn get_lookup(&self, name: &str) -> OicResult<ProgramSource> {
         self.fetch_artifact(OracleArtifactKind::Lookup, name).await
@@ -145,7 +160,9 @@ impl OicClient for HttpOicClient {
     }
 
     async fn get_project_contents(&self, package: &str) -> OicResult<PackageContents> {
-        let body = self.get_json(&OracleArtifactKind::Project.oic_path(package)).await?;
+        let body = self
+            .get_json(&OracleArtifactKind::Project.oic_path(package))
+            .await?;
         let members = body
             .get("integrations")
             .or_else(|| body.get("members"))
@@ -153,11 +170,17 @@ impl OicClient for HttpOicClient {
             .map(|arr| {
                 arr.iter()
                     .filter_map(|m| {
-                        let name = m.get("code").or_else(|| m.get("name")).and_then(|v| v.as_str())?;
+                        let name = m
+                            .get("code")
+                            .or_else(|| m.get("name"))
+                            .and_then(|v| v.as_str())?;
                         Some(PackageMember {
                             name: name.to_string(),
                             kind: OracleArtifactKind::Integration,
-                            description: m.get("description").and_then(|v| v.as_str()).map(String::from),
+                            description: m
+                                .get("description")
+                                .and_then(|v| v.as_str())
+                                .map(String::from),
                         })
                     })
                     .collect()
@@ -165,18 +188,31 @@ impl OicClient for HttpOicClient {
             .unwrap_or_default();
         Ok(PackageContents {
             package: package.to_string(),
-            description: body.get("description").and_then(|v| v.as_str()).map(String::from),
+            description: body
+                .get("description")
+                .and_then(|v| v.as_str())
+                .map(String::from),
             members,
         })
     }
 
     async fn get_bip_report(&self, name: &str) -> OicResult<CdsView> {
-        let body = self.get_json(&OracleArtifactKind::BipReport.oic_path(name)).await?;
-        let source = body.get("dataModel").or_else(|| body.get("sql")).map(value_to_text).unwrap_or_default();
+        let body = self
+            .get_json(&OracleArtifactKind::BipReport.oic_path(name))
+            .await?;
+        let source = body
+            .get("dataModel")
+            .or_else(|| body.get("sql"))
+            .map(value_to_text)
+            .unwrap_or_default();
         Ok(CdsView {
             name: name.to_string(),
             source: source.clone(),
-            root_entity: body.get("dataSource").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            root_entity: body
+                .get("dataSource")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             annotations: body,
             line_count: source.lines().count(),
         })
@@ -198,11 +234,17 @@ impl OicClient for HttpOicClient {
                 arr.iter()
                     .take(request.max_results.max(1))
                     .filter_map(|it| {
-                        let name = it.get("code").or_else(|| it.get("name")).and_then(|v| v.as_str())?;
+                        let name = it
+                            .get("code")
+                            .or_else(|| it.get("name"))
+                            .and_then(|v| v.as_str())?;
                         Some(OicSearchHit {
                             name: name.to_string(),
                             kind,
-                            description: it.get("description").and_then(|v| v.as_str()).map(String::from),
+                            description: it
+                                .get("description")
+                                .and_then(|v| v.as_str())
+                                .map(String::from),
                             package: it.get("project").and_then(|v| v.as_str()).map(String::from),
                             score: 1.0,
                         })
@@ -221,7 +263,10 @@ impl OicClient for HttpOicClient {
             _ => "integrations",
         };
         let body = self
-            .get_json(&format!("/ic/api/integration/v1/{}/{}/usages", resource, request.name))
+            .get_json(&format!(
+                "/ic/api/integration/v1/{}/{}/usages",
+                resource, request.name
+            ))
             .await
             .unwrap_or(Value::Null);
         let hits = body
@@ -230,11 +275,18 @@ impl OicClient for HttpOicClient {
             .map(|arr| {
                 arr.iter()
                     .filter_map(|it| {
-                        let obj = it.get("code").or_else(|| it.get("name")).and_then(|v| v.as_str())?;
+                        let obj = it
+                            .get("code")
+                            .or_else(|| it.get("name"))
+                            .and_then(|v| v.as_str())?;
                         Some(WhereUsedHit {
                             object: obj.to_string(),
                             kind: OracleArtifactKind::Integration,
-                            location: it.get("usage").and_then(|v| v.as_str()).unwrap_or("invoke").to_string(),
+                            location: it
+                                .get("usage")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("invoke")
+                                .to_string(),
                             usage: "invoke".into(),
                         })
                     })
@@ -257,7 +309,11 @@ impl OicClient for HttpOicClient {
         )))
     }
 
-    async fn activate(&self, request: ActivationRequest, ctx: OicCallContext) -> OicResult<ActivationOutcome> {
+    async fn activate(
+        &self,
+        request: ActivationRequest,
+        ctx: OicCallContext,
+    ) -> OicResult<ActivationOutcome> {
         if ctx.read_only {
             return Err(OicError::PermissionDenied(format!(
                 "activate({} {}) blocked: read-only mode",
@@ -285,7 +341,11 @@ impl OicClient for HttpOicClient {
                 "{} {} activation {} ({status})",
                 request.kind.label(),
                 request.name,
-                if status.is_success() { "succeeded" } else { "failed" },
+                if status.is_success() {
+                    "succeeded"
+                } else {
+                    "failed"
+                },
             )],
         })
     }

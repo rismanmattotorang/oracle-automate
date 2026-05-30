@@ -41,7 +41,9 @@ pub enum ErpErrorCode {
 }
 
 impl ErpErrorCode {
-    pub fn as_i32(self) -> i32 { self as i32 }
+    pub fn as_i32(self) -> i32 {
+        self as i32
+    }
 
     /// Whether the caller should retry after backoff.
     pub fn is_transient(self) -> bool {
@@ -110,7 +112,9 @@ impl ErpError {
         }
     }
 
-    pub fn is_transient(&self) -> bool { self.code().is_transient() }
+    pub fn is_transient(&self) -> bool {
+        self.code().is_transient()
+    }
 }
 
 #[cfg(test)]
@@ -120,18 +124,24 @@ mod tests {
     #[test]
     fn transient_classification_only_matches_transient_range() {
         for c in [
-            ErpErrorCode::Timeout, ErpErrorCode::DestinationDown,
-            ErpErrorCode::PoolExhausted, ErpErrorCode::CircuitOpen,
+            ErpErrorCode::Timeout,
+            ErpErrorCode::DestinationDown,
+            ErpErrorCode::PoolExhausted,
+            ErpErrorCode::CircuitOpen,
             ErpErrorCode::UpstreamRateLimit,
         ] {
             assert!(c.is_transient(), "{c:?} should be transient");
         }
         for c in [
-            ErpErrorCode::AuthFailed, ErpErrorCode::NotFound,
-            ErpErrorCode::TableBufferOverflow, ErpErrorCode::InvalidParameter,
-            ErpErrorCode::PermissionDenied, ErpErrorCode::SchemaViolation,
+            ErpErrorCode::AuthFailed,
+            ErpErrorCode::NotFound,
+            ErpErrorCode::TableBufferOverflow,
+            ErpErrorCode::InvalidParameter,
+            ErpErrorCode::PermissionDenied,
+            ErpErrorCode::SchemaViolation,
             ErpErrorCode::Internal,
-            ErpErrorCode::PartialBulk, ErpErrorCode::StaleMetadata,
+            ErpErrorCode::PartialBulk,
+            ErpErrorCode::StaleMetadata,
         ] {
             assert!(!c.is_transient(), "{c:?} should NOT be transient");
         }

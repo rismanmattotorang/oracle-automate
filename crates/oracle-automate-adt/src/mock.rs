@@ -15,9 +15,9 @@ use crate::client::{OicCallContext, OicClient};
 use crate::destination::OicDestination;
 use crate::error::{OicError, OicResult};
 use crate::types::{
-    ActivationOutcome, ActivationRequest, OicSearchHit, OicSearchRequest, CdsView, OracleArtifactKind,
-    PackageContents, PackageMember, ProgramSource, TableRow, WhereUsedHit, WhereUsedRequest,
-    MAX_TABLE_ROWS,
+    ActivationOutcome, ActivationRequest, CdsView, OicSearchHit, OicSearchRequest,
+    OracleArtifactKind, PackageContents, PackageMember, ProgramSource, TableRow, WhereUsedHit,
+    WhereUsedRequest, MAX_TABLE_ROWS,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -87,11 +87,16 @@ impl MockOicClient {
         ));
 
         // Lookups (DVM / cross-reference)
-        self.includes.insert("KLB_COMPANY_XREF".into(), prog(
-            "KLB_COMPANY_XREF", OracleArtifactKind::Lookup, "KLB_FINANCE_INTEGRATIONS",
-            "Legacy company code -> Fusion ledger cross-reference",
-            "LEGACY_CODE,FUSION_LEDGER\nKF01,Kalbe Primary Ledger\nKF02,Kalbe USD Reporting\n",
-        ));
+        self.includes.insert(
+            "KLB_COMPANY_XREF".into(),
+            prog(
+                "KLB_COMPANY_XREF",
+                OracleArtifactKind::Lookup,
+                "KLB_FINANCE_INTEGRATIONS",
+                "Legacy company code -> Fusion ledger cross-reference",
+                "LEGACY_CODE,FUSION_LEDGER\nKF01,Kalbe Primary Ledger\nKF02,Kalbe USD Reporting\n",
+            ),
+        );
 
         // ESS jobs (scheduled processes)
         self.function_modules.insert(("GL".into(), "JournalImportLauncher".into()), prog(
@@ -115,44 +120,112 @@ impl MockOicClient {
         });
 
         // Projects / packages
-        self.packages.insert("KLB_FINANCE_INTEGRATIONS".into(), PackageContents {
-            package: "KLB_FINANCE_INTEGRATIONS".into(),
-            description: Some("Kalbe Finance OIC integrations + extensions".into()),
-            members: vec![
-                PackageMember { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration, description: Some("GL journal FBDI import".into()) },
-                PackageMember { name: "KLB_PO_RECEIPT_SYNC".into(), kind: OracleArtifactKind::Integration, description: Some("Receiving sync".into()) },
-                PackageMember { name: "KLB_FUSION_ERP_REST".into(), kind: OracleArtifactKind::Connection, description: Some("Fusion ERP REST connection".into()) },
-                PackageMember { name: "KLB_COMPANY_XREF".into(), kind: OracleArtifactKind::Lookup, description: Some("Company cross-reference".into()) },
-                PackageMember { name: "KLB_INVOICE_HOLD_RULE".into(), kind: OracleArtifactKind::GroovyScript, description: Some("AP invoice hold".into()) },
-                PackageMember { name: "KLB_GL_JOURNAL_EXTRACT".into(), kind: OracleArtifactKind::BipReport, description: Some("GL journal extract".into()) },
-            ],
-        });
-        self.packages.insert("KLB_SCM_EXTENSIONS".into(), PackageContents {
-            package: "KLB_SCM_EXTENSIONS".into(),
-            description: Some("Kalbe SCM Application Composer extensions".into()),
-            members: vec![
-                PackageMember { name: "KLB_ITEM_DEFAULTING".into(), kind: OracleArtifactKind::GroovyScript, description: Some("Item attribute defaulting".into()) },
-            ],
-        });
+        self.packages.insert(
+            "KLB_FINANCE_INTEGRATIONS".into(),
+            PackageContents {
+                package: "KLB_FINANCE_INTEGRATIONS".into(),
+                description: Some("Kalbe Finance OIC integrations + extensions".into()),
+                members: vec![
+                    PackageMember {
+                        name: "KLB_GL_JOURNAL_IMPORT".into(),
+                        kind: OracleArtifactKind::Integration,
+                        description: Some("GL journal FBDI import".into()),
+                    },
+                    PackageMember {
+                        name: "KLB_PO_RECEIPT_SYNC".into(),
+                        kind: OracleArtifactKind::Integration,
+                        description: Some("Receiving sync".into()),
+                    },
+                    PackageMember {
+                        name: "KLB_FUSION_ERP_REST".into(),
+                        kind: OracleArtifactKind::Connection,
+                        description: Some("Fusion ERP REST connection".into()),
+                    },
+                    PackageMember {
+                        name: "KLB_COMPANY_XREF".into(),
+                        kind: OracleArtifactKind::Lookup,
+                        description: Some("Company cross-reference".into()),
+                    },
+                    PackageMember {
+                        name: "KLB_INVOICE_HOLD_RULE".into(),
+                        kind: OracleArtifactKind::GroovyScript,
+                        description: Some("AP invoice hold".into()),
+                    },
+                    PackageMember {
+                        name: "KLB_GL_JOURNAL_EXTRACT".into(),
+                        kind: OracleArtifactKind::BipReport,
+                        description: Some("GL journal extract".into()),
+                    },
+                ],
+            },
+        );
+        self.packages.insert(
+            "KLB_SCM_EXTENSIONS".into(),
+            PackageContents {
+                package: "KLB_SCM_EXTENSIONS".into(),
+                description: Some("Kalbe SCM Application Composer extensions".into()),
+                members: vec![PackageMember {
+                    name: "KLB_ITEM_DEFAULTING".into(),
+                    kind: OracleArtifactKind::GroovyScript,
+                    description: Some("Item attribute defaulting".into()),
+                }],
+            },
+        );
 
         // Where-used links — the value of impact analysis at demo time.
-        self.where_used.insert(("KLB_FUSION_ERP_REST".into(), OracleArtifactKind::Connection), vec![
-            WhereUsedHit { object: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration, location: "invoke activity 'importJournals'".into(), usage: "invoke".into() },
-            WhereUsedHit { object: "KLB_PO_RECEIPT_SYNC".into(), kind: OracleArtifactKind::Integration, location: "invoke activity 'postReceipt'".into(), usage: "invoke".into() },
-        ]);
-        self.where_used.insert(("KLB_COMPANY_XREF".into(), OracleArtifactKind::Lookup), vec![
-            WhereUsedHit { object: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration, location: "map 'enrichLedger'".into(), usage: "read".into() },
-        ]);
+        self.where_used.insert(
+            ("KLB_FUSION_ERP_REST".into(), OracleArtifactKind::Connection),
+            vec![
+                WhereUsedHit {
+                    object: "KLB_GL_JOURNAL_IMPORT".into(),
+                    kind: OracleArtifactKind::Integration,
+                    location: "invoke activity 'importJournals'".into(),
+                    usage: "invoke".into(),
+                },
+                WhereUsedHit {
+                    object: "KLB_PO_RECEIPT_SYNC".into(),
+                    kind: OracleArtifactKind::Integration,
+                    location: "invoke activity 'postReceipt'".into(),
+                    usage: "invoke".into(),
+                },
+            ],
+        );
+        self.where_used.insert(
+            ("KLB_COMPANY_XREF".into(), OracleArtifactKind::Lookup),
+            vec![WhereUsedHit {
+                object: "KLB_GL_JOURNAL_IMPORT".into(),
+                kind: OracleArtifactKind::Integration,
+                location: "map 'enrichLedger'".into(),
+                usage: "read".into(),
+            }],
+        );
 
         // Tables for the data-preview surface (Oracle objects)
-        self.tables.insert("GL_LEDGERS".into(), vec![
-            row(&[("LEDGER_ID", "300100001"), ("NAME", "Kalbe Primary Ledger"), ("CURRENCY_CODE", "IDR")]),
-            row(&[("LEDGER_ID", "300100002"), ("NAME", "Kalbe USD Reporting"), ("CURRENCY_CODE", "USD")]),
-        ]);
+        self.tables.insert(
+            "GL_LEDGERS".into(),
+            vec![
+                row(&[
+                    ("LEDGER_ID", "300100001"),
+                    ("NAME", "Kalbe Primary Ledger"),
+                    ("CURRENCY_CODE", "IDR"),
+                ]),
+                row(&[
+                    ("LEDGER_ID", "300100002"),
+                    ("NAME", "Kalbe USD Reporting"),
+                    ("CURRENCY_CODE", "USD"),
+                ]),
+            ],
+        );
     }
 }
 
-fn prog(name: &str, kind: OracleArtifactKind, package: &str, description: &str, source: &str) -> ProgramSource {
+fn prog(
+    name: &str,
+    kind: OracleArtifactKind,
+    package: &str,
+    description: &str,
+    source: &str,
+) -> ProgramSource {
     let line_count = source.lines().count();
     ProgramSource {
         name: name.into(),
@@ -195,15 +268,28 @@ impl OicClient for MockOicClient {
         self.function_modules
             .get(&(group.to_uppercase(), name.to_string()))
             .cloned()
-            .ok_or_else(|| OicError::NotFound { kind: "EssJob".into(), name: format!("{group}/{name}") })
+            .ok_or_else(|| OicError::NotFound {
+                kind: "EssJob".into(),
+                name: format!("{group}/{name}"),
+            })
     }
     async fn get_project_contents(&self, package: &str) -> OicResult<PackageContents> {
-        self.packages.get(&package.to_uppercase()).cloned()
-            .ok_or_else(|| OicError::NotFound { kind: "Project".into(), name: package.into() })
+        self.packages
+            .get(&package.to_uppercase())
+            .cloned()
+            .ok_or_else(|| OicError::NotFound {
+                kind: "Project".into(),
+                name: package.into(),
+            })
     }
     async fn get_bip_report(&self, name: &str) -> OicResult<CdsView> {
-        self.cds_views.get(&name.to_uppercase()).cloned()
-            .ok_or_else(|| OicError::NotFound { kind: "BipReport".into(), name: name.into() })
+        self.cds_views
+            .get(&name.to_uppercase())
+            .cloned()
+            .ok_or_else(|| OicError::NotFound {
+                kind: "BipReport".into(),
+                name: name.into(),
+            })
     }
 
     async fn search(&self, request: OicSearchRequest) -> OicResult<Vec<OicSearchHit>> {
@@ -211,8 +297,13 @@ impl OicClient for MockOicClient {
         let terms: Vec<&str> = q.split_whitespace().collect();
         let mut hits: Vec<OicSearchHit> = Vec::new();
 
-        let kind_match = |k: OracleArtifactKind| request.kind.map(|wanted| wanted == k).unwrap_or(true);
-        let mut push = |name: &str, kind: OracleArtifactKind, desc: Option<&str>, pkg: Option<&str>, score: usize| {
+        let kind_match =
+            |k: OracleArtifactKind| request.kind.map(|wanted| wanted == k).unwrap_or(true);
+        let mut push = |name: &str,
+                        kind: OracleArtifactKind,
+                        desc: Option<&str>,
+                        pkg: Option<&str>,
+                        score: usize| {
             if kind_match(kind) && score > 0 {
                 hits.push(OicSearchHit {
                     name: name.into(),
@@ -229,33 +320,71 @@ impl OicClient for MockOicClient {
         };
 
         for (n, p) in &self.programs {
-            push(n, p.kind, p.description.as_deref(), p.package.as_deref(),
-                 score_of(&format!("{n} {} {}", p.description.as_deref().unwrap_or(""), p.package.as_deref().unwrap_or(""))));
+            push(
+                n,
+                p.kind,
+                p.description.as_deref(),
+                p.package.as_deref(),
+                score_of(&format!(
+                    "{n} {} {}",
+                    p.description.as_deref().unwrap_or(""),
+                    p.package.as_deref().unwrap_or("")
+                )),
+            );
         }
         for (n, p) in &self.classes {
-            push(n, p.kind, p.description.as_deref(), p.package.as_deref(),
-                 score_of(&format!("{n} {} {}", p.description.as_deref().unwrap_or(""), p.package.as_deref().unwrap_or(""))));
+            push(
+                n,
+                p.kind,
+                p.description.as_deref(),
+                p.package.as_deref(),
+                score_of(&format!(
+                    "{n} {} {}",
+                    p.description.as_deref().unwrap_or(""),
+                    p.package.as_deref().unwrap_or("")
+                )),
+            );
         }
         for (n, p) in &self.interfaces {
-            push(n, p.kind, p.description.as_deref(), p.package.as_deref(),
-                 score_of(&format!("{n} {}", p.description.as_deref().unwrap_or(""))));
+            push(
+                n,
+                p.kind,
+                p.description.as_deref(),
+                p.package.as_deref(),
+                score_of(&format!("{n} {}", p.description.as_deref().unwrap_or(""))),
+            );
         }
         for ((_g, n), p) in &self.function_modules {
-            push(n, p.kind, p.description.as_deref(), p.package.as_deref(),
-                 score_of(&format!("{n} {}", p.description.as_deref().unwrap_or(""))));
+            push(
+                n,
+                p.kind,
+                p.description.as_deref(),
+                p.package.as_deref(),
+                score_of(&format!("{n} {}", p.description.as_deref().unwrap_or(""))),
+            );
         }
         for (n, v) in &self.cds_views {
-            push(n, OracleArtifactKind::BipReport, None, None,
-                 score_of(&format!("{n} {}", v.root_entity)));
+            push(
+                n,
+                OracleArtifactKind::BipReport,
+                None,
+                None,
+                score_of(&format!("{n} {}", v.root_entity)),
+            );
         }
 
-        hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        hits.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         hits.truncate(request.max_results.max(1));
         Ok(hits)
     }
 
     async fn where_used(&self, request: WhereUsedRequest) -> OicResult<Vec<WhereUsedHit>> {
-        Ok(self.where_used
+        Ok(self
+            .where_used
             .get(&(request.name.to_uppercase(), request.kind))
             .cloned()
             .unwrap_or_default())
@@ -263,7 +392,9 @@ impl OicClient for MockOicClient {
 
     async fn preview_data(&self, table: &str, max_rows: usize) -> OicResult<Vec<TableRow>> {
         if max_rows == 0 || max_rows > MAX_TABLE_ROWS {
-            return Err(OicError::InvalidObjectName(format!("max_rows must be in 1..={MAX_TABLE_ROWS}, got {max_rows}")));
+            return Err(OicError::InvalidObjectName(format!(
+                "max_rows must be in 1..={MAX_TABLE_ROWS}, got {max_rows}"
+            )));
         }
         // Some Fusion objects can't be read through the REST/describe surface
         // (subledger detail, large fact tables). Surface the block so the
@@ -273,18 +404,29 @@ impl OicClient for MockOicClient {
                 "object {table} is not exposed for direct preview; fall back to a BI Publisher extract (oracle.bip.runReport)",
             )));
         }
-        let rows = self.tables.get(&table.to_uppercase()).cloned()
-            .ok_or_else(|| OicError::NotFound { kind: "BipDataModel".into(), name: table.into() })?;
+        let rows = self
+            .tables
+            .get(&table.to_uppercase())
+            .cloned()
+            .ok_or_else(|| OicError::NotFound {
+                kind: "BipDataModel".into(),
+                name: table.into(),
+            })?;
         let mut out = rows;
         out.truncate(max_rows);
         Ok(out)
     }
 
-    async fn activate(&self, request: ActivationRequest, ctx: OicCallContext) -> OicResult<ActivationOutcome> {
+    async fn activate(
+        &self,
+        request: ActivationRequest,
+        ctx: OicCallContext,
+    ) -> OicResult<ActivationOutcome> {
         if ctx.read_only {
             return Err(OicError::PermissionDenied(format!(
                 "activate({} {}) blocked: read-only mode",
-                request.kind.label(), request.name,
+                request.kind.label(),
+                request.name,
             )));
         }
         // Acknowledge activation/publish; in OIC this activates the
@@ -293,7 +435,11 @@ impl OicClient for MockOicClient {
             name: request.name.clone(),
             kind: request.kind,
             activated: true,
-            messages: vec![format!("{} {} activated (mock)", request.kind.label(), request.name)],
+            messages: vec![format!(
+                "{} {} activated (mock)",
+                request.kind.label(),
+                request.name
+            )],
         })
     }
 }
@@ -303,8 +449,12 @@ fn get_object(
     name: &str,
     kind: OracleArtifactKind,
 ) -> OicResult<ProgramSource> {
-    map.get(&name.to_uppercase()).cloned()
-        .ok_or_else(|| OicError::NotFound { kind: kind.label().into(), name: name.into() })
+    map.get(&name.to_uppercase())
+        .cloned()
+        .ok_or_else(|| OicError::NotFound {
+            kind: kind.label().into(),
+            name: name.into(),
+        })
 }
 
 #[cfg(test)]
@@ -327,13 +477,18 @@ mod tests {
     #[tokio::test]
     async fn search_filters_by_kind() {
         let c = client();
-        let hits = c.search(OicSearchRequest {
-            query: "invoice hold".into(),
-            kind: Some(OracleArtifactKind::GroovyScript),
-            max_results: 20,
-        }).await.unwrap();
+        let hits = c
+            .search(OicSearchRequest {
+                query: "invoice hold".into(),
+                kind: Some(OracleArtifactKind::GroovyScript),
+                max_results: 20,
+            })
+            .await
+            .unwrap();
         assert!(!hits.is_empty());
-        assert!(hits.iter().all(|h| h.kind == OracleArtifactKind::GroovyScript));
+        assert!(hits
+            .iter()
+            .all(|h| h.kind == OracleArtifactKind::GroovyScript));
         assert!(hits.iter().any(|h| h.name == "KLB_INVOICE_HOLD_RULE"));
     }
 
@@ -341,10 +496,13 @@ mod tests {
     async fn where_used_traces_dependency_chain() {
         let c = client();
         // The connection should report the integrations that invoke it.
-        let hits = c.where_used(WhereUsedRequest {
-            name: "KLB_FUSION_ERP_REST".into(),
-            kind: OracleArtifactKind::Connection,
-        }).await.unwrap();
+        let hits = c
+            .where_used(WhereUsedRequest {
+                name: "KLB_FUSION_ERP_REST".into(),
+                kind: OracleArtifactKind::Connection,
+            })
+            .await
+            .unwrap();
         assert_eq!(hits.len(), 2);
         assert!(hits.iter().any(|h| h.object == "KLB_GL_JOURNAL_IMPORT"));
         assert!(hits.iter().all(|h| h.usage == "invoke"));
@@ -360,29 +518,47 @@ mod tests {
     #[tokio::test]
     async fn activate_blocked_in_read_only() {
         let c = client();
-        let err = c.activate(
-            ActivationRequest { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration },
-            OicCallContext { read_only: true },
-        ).await.unwrap_err();
+        let err = c
+            .activate(
+                ActivationRequest {
+                    name: "KLB_GL_JOURNAL_IMPORT".into(),
+                    kind: OracleArtifactKind::Integration,
+                },
+                OicCallContext { read_only: true },
+            )
+            .await
+            .unwrap_err();
         assert!(matches!(err, OicError::PermissionDenied(_)));
     }
 
     #[tokio::test]
     async fn activate_allowed_when_writes_enabled() {
         let c = client();
-        let outcome = c.activate(
-            ActivationRequest { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration },
-            OicCallContext { read_only: false },
-        ).await.unwrap();
+        let outcome = c
+            .activate(
+                ActivationRequest {
+                    name: "KLB_GL_JOURNAL_IMPORT".into(),
+                    kind: OracleArtifactKind::Integration,
+                },
+                OicCallContext { read_only: false },
+            )
+            .await
+            .unwrap();
         assert!(outcome.activated);
     }
 
     #[tokio::test]
     async fn package_contents_includes_seeded_objects() {
         let c = client();
-        let pkg = c.get_project_contents("KLB_FINANCE_INTEGRATIONS").await.unwrap();
+        let pkg = c
+            .get_project_contents("KLB_FINANCE_INTEGRATIONS")
+            .await
+            .unwrap();
         assert!(pkg.members.iter().any(|m| m.name == "KLB_FUSION_ERP_REST"));
-        assert!(pkg.members.iter().any(|m| m.name == "KLB_GL_JOURNAL_EXTRACT"));
+        assert!(pkg
+            .members
+            .iter()
+            .any(|m| m.name == "KLB_GL_JOURNAL_EXTRACT"));
     }
 
     #[tokio::test]

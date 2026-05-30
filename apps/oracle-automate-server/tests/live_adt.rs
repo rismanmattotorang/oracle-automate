@@ -19,7 +19,7 @@
 //! Override the probed class with `ORACLE_AUTOMATE_TEST_CLASS` if the default
 //! is unavailable on your stack.
 
-use oracle_automate_adt::{OicAuth, OicClient, OicDestination, HttpOicClient};
+use oracle_automate_adt::{HttpOicClient, OicAuth, OicClient, OicDestination};
 
 #[tokio::test]
 async fn live_adt_get_class_smoke() {

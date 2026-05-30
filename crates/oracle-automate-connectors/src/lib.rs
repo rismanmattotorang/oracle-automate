@@ -37,4 +37,3 @@ pub enum ConnectorError {
     #[error("auth error: {0}")]
     Auth(String),
 }
-

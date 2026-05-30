@@ -33,7 +33,10 @@ async fn connect() -> Arc<Client> {
 
     let _ = client
         .initialize(
-            Implementation { name: "cache-test".into(), version: "0".into() },
+            Implementation {
+                name: "cache-test".into(),
+                version: "0".into(),
+            },
             ClientCapabilities::default(),
         )
         .await
@@ -47,12 +50,21 @@ async fn cache_tools_and_resource_present() {
 
     let tools = client.list_tools().await.expect("list_tools");
     let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_str()).collect();
-    assert!(names.contains(&"oracle.system.cache_stats"), "missing oracle.system.cache_stats; have: {names:?}");
-    assert!(names.contains(&"oracle.system.cache_invalidate"), "missing oracle.system.cache_invalidate; have: {names:?}");
+    assert!(
+        names.contains(&"oracle.system.cache_stats"),
+        "missing oracle.system.cache_stats; have: {names:?}"
+    );
+    assert!(
+        names.contains(&"oracle.system.cache_invalidate"),
+        "missing oracle.system.cache_invalidate; have: {names:?}"
+    );
 
     let resources = client.list_resources().await.expect("list_resources");
     let uris: Vec<&str> = resources.resources.iter().map(|r| r.uri.as_str()).collect();
-    assert!(uris.contains(&"oracle-cache://stats"), "missing oracle-cache://stats; have: {uris:?}");
+    assert!(
+        uris.contains(&"oracle-cache://stats"),
+        "missing oracle-cache://stats; have: {uris:?}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -68,9 +80,15 @@ async fn second_metadata_call_hits_cache() {
         .expect("first metadata call");
 
     let stats1 = extract_json(
-        &client.call_tool("oracle.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats 1"),
+        &client
+            .call_tool("oracle.system.cache_stats", Some(serde_json::json!({})))
+            .await
+            .expect("stats 1"),
     );
-    assert!(stats1["enabled"].as_bool().unwrap_or(false), "cache should be enabled by default");
+    assert!(
+        stats1["enabled"].as_bool().unwrap_or(false),
+        "cache should be enabled by default"
+    );
     let hits1 = stats1["hits"].as_u64().unwrap_or(0);
 
     let _ = client
@@ -82,11 +100,17 @@ async fn second_metadata_call_hits_cache() {
         .expect("second metadata call");
 
     let stats2 = extract_json(
-        &client.call_tool("oracle.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats 2"),
+        &client
+            .call_tool("oracle.system.cache_stats", Some(serde_json::json!({})))
+            .await
+            .expect("stats 2"),
     );
     let hits2 = stats2["hits"].as_u64().unwrap_or(0);
 
-    assert!(hits2 > hits1, "expected hits to grow on repeat call: {hits1} -> {hits2}");
+    assert!(
+        hits2 > hits1,
+        "expected hits to grow on repeat call: {hits1} -> {hits2}"
+    );
     assert!(stats2["entries"].as_u64().unwrap_or(0) >= 1);
 }
 
@@ -102,18 +126,30 @@ async fn invalidate_drops_entries() {
         .await
         .expect("warm");
     let before = extract_json(
-        &client.call_tool("oracle.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats before"),
+        &client
+            .call_tool("oracle.system.cache_stats", Some(serde_json::json!({})))
+            .await
+            .expect("stats before"),
     );
     assert!(before["entries"].as_u64().unwrap_or(0) >= 1);
 
     let inv = extract_json(
-        &client.call_tool("oracle.system.cache_invalidate", Some(serde_json::json!({}))).await.expect("invalidate"),
+        &client
+            .call_tool(
+                "oracle.system.cache_invalidate",
+                Some(serde_json::json!({})),
+            )
+            .await
+            .expect("invalidate"),
     );
     assert_eq!(inv["ok"].as_bool(), Some(true));
     assert!(inv["entries_dropped"].as_u64().unwrap_or(0) >= 1);
 
     let after = extract_json(
-        &client.call_tool("oracle.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats after"),
+        &client
+            .call_tool("oracle.system.cache_stats", Some(serde_json::json!({})))
+            .await
+            .expect("stats after"),
     );
     assert_eq!(after["entries"].as_u64().unwrap_or(99), 0);
 }

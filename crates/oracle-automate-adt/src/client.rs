@@ -7,8 +7,8 @@
 use crate::destination::OicDestination;
 use crate::error::OicResult;
 use crate::types::{
-    ActivationOutcome, ActivationRequest, OicSearchHit, OicSearchRequest, CdsView,
-    PackageContents, ProgramSource, TableRow, WhereUsedHit, WhereUsedRequest,
+    ActivationOutcome, ActivationRequest, CdsView, OicSearchHit, OicSearchRequest, PackageContents,
+    ProgramSource, TableRow, WhereUsedHit, WhereUsedRequest,
 };
 use async_trait::async_trait;
 
@@ -44,5 +44,9 @@ pub trait OicClient: Send + Sync {
 
     // --- Write (gated by `ctx.read_only`) ---------------------------------
 
-    async fn activate(&self, request: ActivationRequest, ctx: OicCallContext) -> OicResult<ActivationOutcome>;
+    async fn activate(
+        &self,
+        request: ActivationRequest,
+        ctx: OicCallContext,
+    ) -> OicResult<ActivationOutcome>;
 }

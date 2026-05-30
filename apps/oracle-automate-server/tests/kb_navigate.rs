@@ -36,8 +36,18 @@ async fn connect_and_seed() -> Arc<Client> {
 
     // Seed one document directly through the in-process store.
     let store = ctx.rag.store();
-    let doc = Document::new("oracle_help:demo-pec", Domain::OracleHelp, "u://demo", "Period-End Close", SEED_BODY);
-    store.upsert(UpsertBatch { documents: vec![doc], chunks: vec![] })
+    let doc = Document::new(
+        "oracle_help:demo-pec",
+        Domain::OracleHelp,
+        "u://demo",
+        "Period-End Close",
+        SEED_BODY,
+    );
+    store
+        .upsert(UpsertBatch {
+            documents: vec![doc],
+            chunks: vec![],
+        })
         .await
         .expect("seed upsert");
 
@@ -52,7 +62,10 @@ async fn connect_and_seed() -> Arc<Client> {
     let client = Client::spawn(client_transport);
     let _ = client
         .initialize(
-            Implementation { name: "kb-nav-test".into(), version: "0".into() },
+            Implementation {
+                name: "kb-nav-test".into(),
+                version: "0".into(),
+            },
             ClientCapabilities::default(),
         )
         .await
@@ -65,16 +78,22 @@ async fn navigate_tool_is_registered() {
     let client = connect_and_seed().await;
     let tools = client.list_tools().await.expect("list_tools");
     let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_str()).collect();
-    assert!(names.contains(&"oracle.kb.navigate"), "missing oracle.kb.navigate; have: {names:?}");
+    assert!(
+        names.contains(&"oracle.kb.navigate"),
+        "missing oracle.kb.navigate; have: {names:?}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn navigate_root_returns_top_level_children() {
     let client = connect_and_seed().await;
     let result = client
-        .call_tool("oracle.kb.navigate", Some(serde_json::json!({
-            "document_id": "oracle_help:demo-pec",
-        })))
+        .call_tool(
+            "oracle.kb.navigate",
+            Some(serde_json::json!({
+                "document_id": "oracle_help:demo-pec",
+            })),
+        )
         .await
         .expect("call");
     let body = extract_json(&result);
@@ -92,11 +111,14 @@ async fn navigate_root_returns_top_level_children() {
 async fn navigate_subpath_returns_named_section() {
     let client = connect_and_seed().await;
     let result = client
-        .call_tool("oracle.kb.navigate", Some(serde_json::json!({
-            "document_id": "oracle_help:demo-pec",
-            "path": "1.1",
-            "depth": 2,
-        })))
+        .call_tool(
+            "oracle.kb.navigate",
+            Some(serde_json::json!({
+                "document_id": "oracle_help:demo-pec",
+                "path": "1.1",
+                "depth": 2,
+            })),
+        )
         .await
         .expect("call");
     let body = extract_json(&result);
@@ -112,17 +134,34 @@ async fn navigate_subpath_returns_named_section() {
 async fn navigate_missing_doc_returns_clean_error() {
     let client = connect_and_seed().await;
     let result = client
-        .call_tool("oracle.kb.navigate", Some(serde_json::json!({
-            "document_id": "oracle_help:does-not-exist",
-        })))
+        .call_tool(
+            "oracle.kb.navigate",
+            Some(serde_json::json!({
+                "document_id": "oracle_help:does-not-exist",
+            })),
+        )
         .await
         .expect("call");
-    assert!(result.is_error, "expected isError=true for missing document");
+    assert!(
+        result.is_error,
+        "expected isError=true for missing document"
+    );
     // Error message should mention the missing doc.
-    let text = result.content.iter().find_map(|c| {
-        if let mcp_core::ToolContent::Text { text } = c { Some(text.clone()) } else { None }
-    }).unwrap_or_default();
-    assert!(text.contains("does-not-exist") || text.contains("not found"), "got: {text}");
+    let text = result
+        .content
+        .iter()
+        .find_map(|c| {
+            if let mcp_core::ToolContent::Text { text } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default();
+    assert!(
+        text.contains("does-not-exist") || text.contains("not found"),
+        "got: {text}"
+    );
 }
 
 fn extract_json(result: &mcp_core::CallToolResult) -> serde_json::Value {

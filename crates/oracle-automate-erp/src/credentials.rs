@@ -71,23 +71,41 @@ pub trait CredentialProvider: Send + Sync {
 pub struct EnvCredentialProvider;
 
 impl EnvCredentialProvider {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 impl Default for EnvCredentialProvider {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[async_trait]
 impl CredentialProvider for EnvCredentialProvider {
     async fn fetch(&self) -> ErpResult<Option<Credentials>> {
-        let needed = ["ORACLE_FUSION_BASE_URL", "ORACLE_FUSION_INSTANCE", "ORACLE_FUSION_CLIENT", "ORACLE_FUSION_USER", "ORACLE_FUSION_PASSWORD"];
-        let present: Vec<_> = needed.iter().filter(|k| std::env::var(*k).is_ok()).collect();
-        if present.is_empty() { return Ok(None); }
+        let needed = [
+            "ORACLE_FUSION_BASE_URL",
+            "ORACLE_FUSION_INSTANCE",
+            "ORACLE_FUSION_CLIENT",
+            "ORACLE_FUSION_USER",
+            "ORACLE_FUSION_PASSWORD",
+        ];
+        let present: Vec<_> = needed
+            .iter()
+            .filter(|k| std::env::var(*k).is_ok())
+            .collect();
+        if present.is_empty() {
+            return Ok(None);
+        }
         if present.len() < needed.len() {
             return Err(ErpError::AuthFailed(format!(
                 "partial SAP env vars: missing {:?}",
-                needed.iter().filter(|k| std::env::var(*k).is_err()).collect::<Vec<_>>(),
+                needed
+                    .iter()
+                    .filter(|k| std::env::var(*k).is_err())
+                    .collect::<Vec<_>>(),
             )));
         }
         Ok(Some(Credentials {
@@ -112,7 +130,9 @@ pub struct StaticCredentialProvider {
 }
 
 impl StaticCredentialProvider {
-    pub fn new(creds: Credentials) -> Self { Self { creds } }
+    pub fn new(creds: Credentials) -> Self {
+        Self { creds }
+    }
 }
 
 #[async_trait]
@@ -133,16 +153,22 @@ pub struct LayeredCredentialProvider {
 }
 
 impl LayeredCredentialProvider {
-    pub fn new() -> Self { Self { providers: Vec::new() } }
+    pub fn new() -> Self {
+        Self {
+            providers: Vec::new(),
+        }
+    }
 
-    pub fn add(mut self, p: Arc<dyn CredentialProvider>) -> Self {
+    pub fn with_provider(mut self, p: Arc<dyn CredentialProvider>) -> Self {
         self.providers.push(p);
         self
     }
 }
 
 impl Default for LayeredCredentialProvider {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[async_trait]
@@ -184,11 +210,16 @@ mod tests {
     #[tokio::test]
     async fn layered_falls_through() {
         let layered = LayeredCredentialProvider::new()
-            .add(Arc::new(EnvCredentialProvider::new())) // unset env => None
-            .add(Arc::new(StaticCredentialProvider::new(Credentials {
-                base_url: "fallback.example".into(), instance: "01".into(), client: "100".into(),
-                user: "DEMO".into(), password: "x".into(), language: "EN".into(),
-                proxy_url: None, source: CredentialSource::Static,
+            .with_provider(Arc::new(EnvCredentialProvider::new())) // unset env => None
+            .with_provider(Arc::new(StaticCredentialProvider::new(Credentials {
+                base_url: "fallback.example".into(),
+                instance: "01".into(),
+                client: "100".into(),
+                user: "DEMO".into(),
+                password: "x".into(),
+                language: "EN".into(),
+                proxy_url: None,
+                source: CredentialSource::Static,
             })));
         let creds = layered.fetch().await.unwrap().unwrap();
         assert_eq!(creds.base_url, "fallback.example");

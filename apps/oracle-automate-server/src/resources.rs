@@ -56,11 +56,17 @@ pub fn all(ctx: &Arc<ServerContext>) -> Vec<ResourceDescriptor> {
 fn make_cache_stats(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
     struct H(Arc<ServerContext>);
     impl ResourceHandler for H {
-        fn read(&self, uri: &str) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>> {
+        fn read(
+            &self,
+            uri: &str,
+        ) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>>
+        {
             let uri = uri.to_string();
             let ctx = Arc::clone(&self.0);
             Box::pin(async move {
-                let cache = ctx.metadata_cache.as_ref()
+                let cache = ctx
+                    .metadata_cache
+                    .as_ref()
                     .ok_or_else(|| Error::Other("metadata cache disabled".into()))?;
                 let s = cache.stats().await;
                 let text = serde_json::to_string_pretty(&serde_json::json!({
@@ -69,11 +75,14 @@ fn make_cache_stats(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
                     "entries": s.entries,
                     "evictions": s.evictions,
                     "hit_ratio": s.hit_ratio(),
-                })).map_err(Error::Json)?;
+                }))
+                .map_err(Error::Json)?;
                 Ok(ReadResourceResult {
                     contents: vec![ResourceContents {
-                        uri, mime_type: Some("application/json".into()),
-                        text: Some(text), blob: None,
+                        uri,
+                        mime_type: Some("application/json".into()),
+                        text: Some(text),
+                        blob: None,
                     }],
                 })
             })
@@ -93,15 +102,21 @@ fn make_cache_stats(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
 fn make_adt_destination(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
     struct H(Arc<ServerContext>);
     impl ResourceHandler for H {
-        fn read(&self, uri: &str) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>> {
+        fn read(
+            &self,
+            uri: &str,
+        ) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>>
+        {
             let uri = uri.to_string();
             let dest = self.0.adt_client.destination().redacted();
             Box::pin(async move {
                 let text = serde_json::to_string_pretty(&dest).map_err(Error::Json)?;
                 Ok(ReadResourceResult {
                     contents: vec![ResourceContents {
-                        uri, mime_type: Some("application/json".into()),
-                        text: Some(text), blob: None,
+                        uri,
+                        mime_type: Some("application/json".into()),
+                        text: Some(text),
+                        blob: None,
                     }],
                 })
             })
@@ -121,11 +136,18 @@ fn make_adt_destination(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
 fn make_system_info(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
     struct H(Arc<ServerContext>);
     impl ResourceHandler for H {
-        fn read(&self, uri: &str) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>> {
+        fn read(
+            &self,
+            uri: &str,
+        ) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>>
+        {
             let uri = uri.to_string();
             let ctx = Arc::clone(&self.0);
             Box::pin(async move {
-                let info = ctx.erp_client.system_info().await
+                let info = ctx
+                    .erp_client
+                    .system_info()
+                    .await
                     .map_err(|e| Error::Other(e.to_string()))?;
                 let text = serde_json::to_string_pretty(&info).map_err(Error::Json)?;
                 Ok(ReadResourceResult {
@@ -151,20 +173,32 @@ fn make_system_info(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
 }
 
 fn make_table_structure(ctx: &Arc<ServerContext>, table: &str) -> ResourceDescriptor {
-    struct H { ctx: Arc<ServerContext>, table: String }
+    struct H {
+        ctx: Arc<ServerContext>,
+        table: String,
+    }
     impl ResourceHandler for H {
-        fn read(&self, uri: &str) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>> {
+        fn read(
+            &self,
+            uri: &str,
+        ) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>>
+        {
             let uri = uri.to_string();
             let ctx = Arc::clone(&self.ctx);
             let table = self.table.clone();
             Box::pin(async move {
-                let s = ctx.erp_client.table_structure(&table).await
+                let s = ctx
+                    .erp_client
+                    .table_structure(&table)
+                    .await
                     .map_err(|e| Error::Other(e.to_string()))?;
                 let text = serde_json::to_string_pretty(&s).map_err(Error::Json)?;
                 Ok(ReadResourceResult {
                     contents: vec![ResourceContents {
-                        uri, mime_type: Some("application/json".into()),
-                        text: Some(text), blob: None,
+                        uri,
+                        mime_type: Some("application/json".into()),
+                        text: Some(text),
+                        blob: None,
                     }],
                 })
             })
@@ -177,25 +211,40 @@ fn make_table_structure(ctx: &Arc<ServerContext>, table: &str) -> ResourceDescri
             description: Some(format!("Field metadata for SAP table {table}.")),
             mime_type: Some("application/json".into()),
         },
-        handler: Arc::new(H { ctx: Arc::clone(ctx), table: table.into() }),
+        handler: Arc::new(H {
+            ctx: Arc::clone(ctx),
+            table: table.into(),
+        }),
     }
 }
 
 fn make_rfc_meta(ctx: &Arc<ServerContext>, function: &str) -> ResourceDescriptor {
-    struct H { ctx: Arc<ServerContext>, function: String }
+    struct H {
+        ctx: Arc<ServerContext>,
+        function: String,
+    }
     impl ResourceHandler for H {
-        fn read(&self, uri: &str) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>> {
+        fn read(
+            &self,
+            uri: &str,
+        ) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>>
+        {
             let uri = uri.to_string();
             let ctx = Arc::clone(&self.ctx);
             let function = self.function.clone();
             Box::pin(async move {
-                let meta = ctx.erp_client.operation_metadata(&function, "EN").await
+                let meta = ctx
+                    .erp_client
+                    .operation_metadata(&function, "EN")
+                    .await
                     .map_err(|e| Error::Other(e.to_string()))?;
                 let text = serde_json::to_string_pretty(&meta).map_err(Error::Json)?;
                 Ok(ReadResourceResult {
                     contents: vec![ResourceContents {
-                        uri, mime_type: Some("application/json".into()),
-                        text: Some(text), blob: None,
+                        uri,
+                        mime_type: Some("application/json".into()),
+                        text: Some(text),
+                        blob: None,
                     }],
                 })
             })
@@ -205,24 +254,35 @@ fn make_rfc_meta(ctx: &Arc<ServerContext>, function: &str) -> ResourceDescriptor
         resource: Resource {
             uri: format!("oracle-rest://{function}"),
             name: format!("REST operation metadata: {function}"),
-            description: Some(format!("Parameter signature and read-only flag for {function}.")),
+            description: Some(format!(
+                "Parameter signature and read-only flag for {function}."
+            )),
             mime_type: Some("application/json".into()),
         },
-        handler: Arc::new(H { ctx: Arc::clone(ctx), function: function.into() }),
+        handler: Arc::new(H {
+            ctx: Arc::clone(ctx),
+            function: function.into(),
+        }),
     }
 }
 
 fn make_agents_md(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
     struct H(Arc<ServerContext>);
     impl ResourceHandler for H {
-        fn read(&self, uri: &str) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>> {
+        fn read(
+            &self,
+            uri: &str,
+        ) -> Pin<Box<dyn Future<Output = mcp_core::Result<ReadResourceResult>> + Send + '_>>
+        {
             let uri = uri.to_string();
             let text = self.0.agents_md.clone().unwrap_or_default();
             Box::pin(async move {
                 Ok(ReadResourceResult {
                     contents: vec![ResourceContents {
-                        uri, mime_type: Some("text/markdown".into()),
-                        text: Some(text), blob: None,
+                        uri,
+                        mime_type: Some("text/markdown".into()),
+                        text: Some(text),
+                        blob: None,
                     }],
                 })
             })
@@ -232,7 +292,9 @@ fn make_agents_md(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
         resource: Resource {
             uri: "agents://guardrails".into(),
             name: "Agent guardrails".into(),
-            description: Some("Project-local AGENTS.md, surfaced from disk on server start.".into()),
+            description: Some(
+                "Project-local AGENTS.md, surfaced from disk on server start.".into(),
+            ),
             mime_type: Some("text/markdown".into()),
         },
         handler: Arc::new(H(Arc::clone(ctx))),

@@ -16,7 +16,7 @@ pub mod rate_limit;
 pub mod robots;
 
 pub use chunker::{chunk_document, ChunkerConfig};
-pub use crawler::{HelpPortalCrawler, ParsedPage, parse_help_portal_html};
+pub use crawler::{parse_help_portal_html, HelpPortalCrawler, ParsedPage};
 pub use embed::{EmbeddingClient, EmbeddingError, MockEmbedder, OpenAiEmbedder};
 pub use fit_markdown::{fit_markdown_filter, FitConfig, FitStats};
 pub use pipeline::{IngestionPipeline, IngestionReport};

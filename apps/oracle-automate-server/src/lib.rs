@@ -14,13 +14,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mcp_server::Server;
-use oracle_automate_adt::{OicClient, OicDestination, MockOicClient};
+use oracle_automate_adt::{MockOicClient, OicClient, OicDestination};
+use oracle_automate_erp::{ErpClient, MetadataCache, MockErpClient};
 use oracle_automate_graph::InMemoryGraph;
 use oracle_automate_ingest::{EmbeddingClient, MockEmbedder};
 use oracle_automate_kb::{InMemoryKb, KnowledgeStore};
 use oracle_automate_observability::{AuditLog, JsonStderrSink};
 use oracle_automate_rag::{GraphEngine, MockReranker, RagEngine};
-use oracle_automate_erp::{MetadataCache, MockErpClient, ErpClient};
 use oracle_automate_skills::SkillRegistry;
 
 pub use context::ServerContext;
@@ -50,9 +50,7 @@ impl Default for TestServerOptions {
 /// Build a ready-to-run `Server` for integration tests.  Identical wiring
 /// to `main.rs`, minus the network transport setup and (optionally) the
 /// KB seed step.
-pub async fn build_test_server(
-    opts: TestServerOptions,
-) -> (Server, Arc<ServerContext>) {
+pub async fn build_test_server(opts: TestServerOptions) -> (Server, Arc<ServerContext>) {
     let store: Arc<dyn KnowledgeStore> = Arc::new(InMemoryKb::new());
     let embedder: Arc<dyn EmbeddingClient> = Arc::new(MockEmbedder::new(opts.embedding_dim));
     if opts.seed_kb {
@@ -95,14 +93,28 @@ pub async fn build_test_server(
         .exposure(policy)
         .instructions("integration test".to_string());
 
-    for desc in tools::rag_tools(&ctx) { builder = builder.tool(desc); }
-    for desc in tools::sap_tools(&ctx) { builder = builder.tool(desc); }
-    for desc in tools::adt_tools(&ctx) { builder = builder.tool(desc); }
-    for desc in tools::graph_tools(&ctx) { builder = builder.tool(desc); }
-    for desc in tools::workflow_tools(&ctx) { builder = builder.tool(desc); }
-    for desc in resources::all(&ctx) { builder = builder.resource(desc); }
+    for desc in tools::rag_tools(&ctx) {
+        builder = builder.tool(desc);
+    }
+    for desc in tools::sap_tools(&ctx) {
+        builder = builder.tool(desc);
+    }
+    for desc in tools::adt_tools(&ctx) {
+        builder = builder.tool(desc);
+    }
+    for desc in tools::graph_tools(&ctx) {
+        builder = builder.tool(desc);
+    }
+    for desc in tools::workflow_tools(&ctx) {
+        builder = builder.tool(desc);
+    }
+    for desc in resources::all(&ctx) {
+        builder = builder.resource(desc);
+    }
     let skills = SkillRegistry::new();
-    for desc in prompts::all(&skills) { builder = builder.prompt(desc); }
+    for desc in prompts::all(&skills) {
+        builder = builder.prompt(desc);
+    }
     builder = register_completers(builder);
 
     (builder.build(), ctx)
@@ -117,28 +129,45 @@ pub async fn build_test_server(
 pub fn register_completers(builder: mcp_server::ServerBuilder) -> mcp_server::ServerBuilder {
     let starts_with = |options: &[&'static str], prefix: &str| -> Vec<String> {
         let p = prefix.to_ascii_lowercase();
-        options.iter()
+        options
+            .iter()
             .filter(|o| o.to_ascii_lowercase().starts_with(&p))
             .map(|o| (*o).to_string())
             .collect()
     };
     builder
         // SoD audit: scope enum.
-        .completer("oracle.skill.security_sod_audit", "scope", move |prefix, _| {
-            starts_with(&["user", "role", "system"], prefix)
-        })
+        .completer(
+            "oracle.skill.security_sod_audit",
+            "scope",
+            move |prefix, _| starts_with(&["user", "role", "system"], prefix),
+        )
         // Custom-code review: artifact kind enum.
-        .completer("oracle.skill.custom_code_review", "kind", move |prefix, _| {
-            starts_with(&["integration", "groovy_script", "connection", "bip_report"], prefix)
-        })
+        .completer(
+            "oracle.skill.custom_code_review",
+            "kind",
+            move |prefix, _| {
+                starts_with(
+                    &["integration", "groovy_script", "connection", "bip_report"],
+                    prefix,
+                )
+            },
+        )
         // Analytics migration: target platform dropdown.
-        .completer("oracle.skill.analytics_migration", "target_release", move |prefix, _| {
-            starts_with(&[
-                "Fusion Analytics Warehouse",
-                "Oracle Analytics Cloud",
-                "Autonomous Data Warehouse",
-                "OTBI",
-                "BICC extract",
-            ], prefix)
-        })
+        .completer(
+            "oracle.skill.analytics_migration",
+            "target_release",
+            move |prefix, _| {
+                starts_with(
+                    &[
+                        "Fusion Analytics Warehouse",
+                        "Oracle Analytics Cloud",
+                        "Autonomous Data Warehouse",
+                        "OTBI",
+                        "BICC extract",
+                    ],
+                    prefix,
+                )
+            },
+        )
 }

@@ -38,7 +38,9 @@ pub enum OicErrorCode {
 }
 
 impl OicErrorCode {
-    pub fn as_i32(self) -> i32 { self as i32 }
+    pub fn as_i32(self) -> i32 {
+        self as i32
+    }
     pub fn is_transient(self) -> bool {
         let v = self as i32;
         (-32199..=-32100).contains(&v)
@@ -109,7 +111,9 @@ impl OicError {
         }
     }
 
-    pub fn is_transient(&self) -> bool { self.code().is_transient() }
+    pub fn is_transient(&self) -> bool {
+        self.code().is_transient()
+    }
 }
 
 #[cfg(test)]
@@ -119,19 +123,30 @@ mod tests {
     #[test]
     fn adt_internal_is_permanent() {
         let e = OicError::Internal("bug".into());
-        assert!(!e.is_transient(),
-            "OicError::Internal must be permanent to prevent retry-loop on programmer bugs");
+        assert!(
+            !e.is_transient(),
+            "OicError::Internal must be permanent to prevent retry-loop on programmer bugs"
+        );
     }
 
     #[test]
     fn adt_transient_kinds_are_classified_correctly() {
-        for code in [OicErrorCode::Timeout, OicErrorCode::DestinationDown,
-                     OicErrorCode::CsrfRefresh, OicErrorCode::RateLimited] {
+        for code in [
+            OicErrorCode::Timeout,
+            OicErrorCode::DestinationDown,
+            OicErrorCode::CsrfRefresh,
+            OicErrorCode::RateLimited,
+        ] {
             assert!(code.is_transient(), "{code:?} should be transient");
         }
-        for code in [OicErrorCode::AuthFailed, OicErrorCode::NotFound,
-                     OicErrorCode::Forbidden, OicErrorCode::Internal,
-                     OicErrorCode::DataPreviewBlocked, OicErrorCode::Locked] {
+        for code in [
+            OicErrorCode::AuthFailed,
+            OicErrorCode::NotFound,
+            OicErrorCode::Forbidden,
+            OicErrorCode::Internal,
+            OicErrorCode::DataPreviewBlocked,
+            OicErrorCode::Locked,
+        ] {
             assert!(!code.is_transient(), "{code:?} should NOT be transient");
         }
     }

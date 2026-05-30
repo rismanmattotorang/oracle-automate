@@ -22,11 +22,16 @@ async fn connect() -> Arc<Client> {
     let (s_rx, c_tx) = tokio::io::duplex(8192);
     let (c_rx, s_tx) = tokio::io::duplex(8192);
     let server_transport = StdioTransport::new(s_rx, s_tx);
-    tokio::spawn(async move { let _ = server.run(server_transport).await; });
+    tokio::spawn(async move {
+        let _ = server.run(server_transport).await;
+    });
     let client = Client::spawn(StdioTransport::new(c_rx, c_tx));
     let _ = client
         .initialize(
-            Implementation { name: "bp-test".into(), version: "0".into() },
+            Implementation {
+                name: "bp-test".into(),
+                version: "0".into(),
+            },
             ClientCapabilities::default(),
         )
         .await
@@ -39,36 +44,66 @@ async fn bp_tools_are_registered() {
     let client = connect().await;
     let tools = client.list_tools().await.expect("list_tools");
     let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_str()).collect();
-    assert!(names.contains(&"oracle.party.search"), "missing oracle.party.search; have: {names:?}");
-    assert!(names.contains(&"oracle.party.get"), "missing oracle.party.get; have: {names:?}");
+    assert!(
+        names.contains(&"oracle.party.search"),
+        "missing oracle.party.search; have: {names:?}"
+    );
+    assert!(
+        names.contains(&"oracle.party.get"),
+        "missing oracle.party.get; have: {names:?}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn bp_search_without_key_returns_friendly_error() {
     let client = connect().await;
     let r = client
-        .call_tool("oracle.party.search", Some(serde_json::json!({"query": "Smith"})))
+        .call_tool(
+            "oracle.party.search",
+            Some(serde_json::json!({"query": "Smith"})),
+        )
         .await
         .expect("call");
     assert!(r.is_error, "expected isError=true when hub is disabled");
-    let text = r.content.iter().find_map(|c| {
-        if let mcp_core::ToolContent::Text { text } = c { Some(text.clone()) } else { None }
-    }).unwrap_or_default();
-    assert!(text.contains("ORACLE_FUSION_BASE_URL"),
-        "error must point operator at ORACLE_FUSION_BASE_URL; got: {text}");
+    let text = r
+        .content
+        .iter()
+        .find_map(|c| {
+            if let mcp_core::ToolContent::Text { text } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default();
+    assert!(
+        text.contains("ORACLE_FUSION_BASE_URL"),
+        "error must point operator at ORACLE_FUSION_BASE_URL; got: {text}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn bp_get_without_key_returns_friendly_error() {
     let client = connect().await;
     let r = client
-        .call_tool("oracle.party.get", Some(serde_json::json!({"id": "1003764"})))
+        .call_tool(
+            "oracle.party.get",
+            Some(serde_json::json!({"id": "1003764"})),
+        )
         .await
         .expect("call");
     assert!(r.is_error);
-    let text = r.content.iter().find_map(|c| {
-        if let mcp_core::ToolContent::Text { text } = c { Some(text.clone()) } else { None }
-    }).unwrap_or_default();
+    let text = r
+        .content
+        .iter()
+        .find_map(|c| {
+            if let mcp_core::ToolContent::Text { text } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default();
     assert!(text.contains("ORACLE_FUSION_BASE_URL"));
 }
 
@@ -90,7 +125,10 @@ async fn bp_search_tool_schema_clamps_limit() {
     // on the client side eventually, but our server also clamps server-side.
     // Here we just verify the tool accepts the arg type without panicking.
     let r = client
-        .call_tool("oracle.party.search", Some(serde_json::json!({"query": "x", "limit": 5})))
+        .call_tool(
+            "oracle.party.search",
+            Some(serde_json::json!({"query": "x", "limit": 5})),
+        )
         .await
         .expect("call");
     // Will error out at the disabled-feature gate, not at validation.

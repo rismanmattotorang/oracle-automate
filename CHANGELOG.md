@@ -28,6 +28,36 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [Unreleased] — Production readiness
+
+Begins the production-readiness track (see
+[`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md) for the full
+phased strategy). Phase 1 only — no behaviour change; the offline path and the
+173-test suite are unchanged.
+
+### Fixed — Phase 1: green the quality gate
+
+The `fmt` + `clippy -D warnings` CI gate had gone **red** on the current stable
+toolchain (rustfmt/clippy rules tightened in Rust 1.94). Restored green:
+
+- Cleared all clippy findings: `LayeredCredentialProvider::add` →
+  `with_provider` (`should_implement_trait`), `iter().copied().collect()` →
+  `to_vec()`, `std::slice::from_ref` for single-element `embed` calls,
+  `useless vec!`, `manual_contains`, `doc_lazy_continuation`, unused test imports.
+- Normalised whole-workspace formatting to current stable rustfmt.
+
+Verified: `cargo fmt --all --check` clean · `cargo clippy --workspace
+--all-targets --features oracle-automate-adt/http -- -D warnings` exit 0 ·
+**173 tests pass**.
+
+### Added
+
+- `docs/PRODUCTION_READINESS.md` — authoritative phased production strategy
+  (supersedes the SAP-era `PRODUCTION_PLAN.md`), with measured ground truth, a
+  scorecard, the 6-phase plan, and a Karpathy-driven skill→phase map.
+
+---
+
 ## [1.4.0] — 2026-05-29  ·  Dev-tenant live wiring, enterprise auth, gated writes, audit
 
 Turns the "live SAP backend" tier from a public-sandbox demo into a

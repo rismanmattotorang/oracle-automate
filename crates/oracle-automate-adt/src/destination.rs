@@ -29,7 +29,9 @@ pub struct OicDestination {
     pub auth: OicAuth,
 }
 
-fn default_language() -> String { "EN".into() }
+fn default_language() -> String {
+    "EN".into()
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -158,7 +160,10 @@ mod loader_tests {
         let dest = OicDestination::load_from_path(&path, "dev-fusion").unwrap();
         std::fs::remove_file(&path).ok();
         let redacted = dest.redacted().to_string();
-        assert!(!redacted.contains("do-not-leak"), "password leaked: {redacted}");
+        assert!(
+            !redacted.contains("do-not-leak"),
+            "password leaked: {redacted}"
+        );
         assert!(!redacted.contains("TECHUSER"), "user leaked: {redacted}");
         assert!(redacted.contains("\"auth_type\":\"basic\""));
     }
@@ -171,16 +176,30 @@ mod loader_tests {
             Some("/etc/oracle-dest"),
             Some(std::path::PathBuf::from("/home/u/.config")),
         );
-        assert_eq!(paths[0], std::path::PathBuf::from("/etc/oracle-dest/dev-fusion.toml"));
-        assert_eq!(paths[1], std::path::PathBuf::from("./.oracle-automate/destinations/dev-fusion.toml"));
-        assert_eq!(paths[2], std::path::PathBuf::from("/home/u/.config/oracle-automate/destinations/dev-fusion.toml"));
+        assert_eq!(
+            paths[0],
+            std::path::PathBuf::from("/etc/oracle-dest/dev-fusion.toml")
+        );
+        assert_eq!(
+            paths[1],
+            std::path::PathBuf::from("./.oracle-automate/destinations/dev-fusion.toml")
+        );
+        assert_eq!(
+            paths[2],
+            std::path::PathBuf::from(
+                "/home/u/.config/oracle-automate/destinations/dev-fusion.toml"
+            )
+        );
     }
 
     #[test]
     fn search_paths_without_override_start_project_local() {
         let paths = OicDestination::build_search_paths("dev-fusion", None, None);
         assert_eq!(paths.len(), 1);
-        assert_eq!(paths[0], std::path::PathBuf::from("./.oracle-automate/destinations/dev-fusion.toml"));
+        assert_eq!(
+            paths[0],
+            std::path::PathBuf::from("./.oracle-automate/destinations/dev-fusion.toml")
+        );
     }
 }
 
@@ -232,7 +251,11 @@ mod loader {
                 .ok()
                 .filter(|s| !s.is_empty())
                 .map(PathBuf::from)
-                .or_else(|| std::env::var("HOME").ok().map(|h| PathBuf::from(h).join(".config")));
+                .or_else(|| {
+                    std::env::var("HOME")
+                        .ok()
+                        .map(|h| PathBuf::from(h).join(".config"))
+                });
             Self::build_search_paths(name, dir_override.as_deref(), config_home)
         }
 

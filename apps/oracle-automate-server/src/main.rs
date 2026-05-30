@@ -22,22 +22,22 @@ use oracle_automate_server_lib::{context, prompts, resources, seed, tools};
 use clap::Parser;
 use mcp_server::Server;
 use mcp_transport::{HttpServerConfig, HttpServerTransport, StdioTransport};
-use oracle_automate_observability::metrics::{MetricKind, MetricsRegistry};
-use oracle_automate_observability::{AuditEntry, AuditLog, AuditSink};
-use oracle_automate_adt::{OicAuth, OicClient, OicDestination, HttpOicClient, MockOicClient};
+use oracle_automate_adt::{HttpOicClient, MockOicClient, OicAuth, OicClient, OicDestination};
+use oracle_automate_erp::{
+    CredentialProvider, CredentialSource, Credentials, EnvCredentialProvider, ErpClient,
+    FusionConfig, HttpFusionClient, LayeredCredentialProvider, MetadataCache, MockErpClient,
+    StaticCredentialProvider,
+};
 use oracle_automate_graph::InMemoryGraph;
-use oracle_automate_rag::GraphEngine;
-use oracle_automate_skills::SkillRegistry;
 use oracle_automate_ingest::{EmbeddingClient, MockEmbedder};
 use oracle_automate_kb::{InMemoryKb, KnowledgeStore};
+use oracle_automate_observability::metrics::{MetricKind, MetricsRegistry};
+use oracle_automate_observability::{AuditEntry, AuditLog, AuditSink};
+use oracle_automate_rag::GraphEngine;
 use oracle_automate_rag::RagEngine;
-use oracle_automate_erp::{
-    Credentials, CredentialProvider, CredentialSource, EnvCredentialProvider,
-    LayeredCredentialProvider, MetadataCache, MockErpClient, ErpClient,
-    FusionConfig, HttpFusionClient, StaticCredentialProvider,
-};
-use std::time::Duration;
+use oracle_automate_skills::SkillRegistry;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
 use context::ServerContext;
@@ -46,7 +46,7 @@ use context::ServerContext;
 #[command(
     name = "oracle-automate-server",
     about = "Oracle-Automate MCP server with RAG + REST operation tools, resources, and prompts.",
-    version,
+    version
 )]
 struct Cli {
     /// Disable read-only safety; allow MCP tools to call write-side RFCs.
@@ -130,12 +130,18 @@ impl AuditSink for TracingAuditSink {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
         .with_writer(std::io::stderr)
         .init();
 
     let cli = Cli::parse();
-    let read_only = !cli.enable_writes && std::env::var("ORACLE_AUTOMATE_ENABLE_WRITES").ok().as_deref() != Some("1");
+    let read_only = !cli.enable_writes
+        && std::env::var("ORACLE_AUTOMATE_ENABLE_WRITES")
+            .ok()
+            .as_deref()
+            != Some("1");
 
     // Build the KB + embedder.
     let store: Arc<dyn KnowledgeStore> = Arc::new(InMemoryKb::new());
@@ -143,7 +149,7 @@ async fn main() -> anyhow::Result<()> {
     seed::populate_with_embeddings(&store, embedder.as_ref()).await?;
     let rag = Arc::new(
         RagEngine::new(store.clone())
-            .with_reranker(Arc::new(oracle_automate_rag::MockReranker::new()))
+            .with_reranker(Arc::new(oracle_automate_rag::MockReranker::new())),
     );
 
     // Phase 5A: cross-domain knowledge graph + GraphRAG/HippoRAG/RAPTOR.
@@ -159,8 +165,8 @@ async fn main() -> anyhow::Result<()> {
     // Build the SAP client.  Credentials are layered (env first, static
     // fallback for the offline demo).
     let creds_provider = LayeredCredentialProvider::new()
-        .add(Arc::new(EnvCredentialProvider::new()))
-        .add(Arc::new(StaticCredentialProvider::new(Credentials {
+        .with_provider(Arc::new(EnvCredentialProvider::new()))
+        .with_provider(Arc::new(StaticCredentialProvider::new(Credentials {
             base_url: "mock.fa.oraclecloud.com".into(),
             instance: "00".into(),
             client: "100".into(),
@@ -170,7 +176,9 @@ async fn main() -> anyhow::Result<()> {
             proxy_url: None,
             source: CredentialSource::Static,
         })));
-    let creds = creds_provider.fetch().await
+    let creds = creds_provider
+        .fetch()
+        .await
         .map_err(|e| anyhow::anyhow!("credential resolution failed: {e}"))?
         .ok_or_else(|| anyhow::anyhow!("no credentials available"))?;
     tracing::info!(identity = %creds.redacted(), "SAP identity resolved");
@@ -299,13 +307,14 @@ async fn main() -> anyhow::Result<()> {
         "stdio" => {
             // Split into independent read/write halves so a tool that
             // calls elicit().await doesn't block the reader.
-            let (reader, writer) = StdioTransport::new(
-                tokio::io::stdin(), tokio::io::stdout(),
-            ).into_parts();
+            let (reader, writer) =
+                StdioTransport::new(tokio::io::stdin(), tokio::io::stdout()).into_parts();
             server.run_stdio(reader, writer).await?
         }
         "http" => {
-            let bind: std::net::SocketAddr = cli.bind.parse()
+            let bind: std::net::SocketAddr = cli
+                .bind
+                .parse()
                 .map_err(|e| anyhow::anyhow!("invalid --bind '{}': {e}", cli.bind))?;
             tracing::info!(bind = %bind, "HTTP transport binding");
 
@@ -313,27 +322,50 @@ async fn main() -> anyhow::Result<()> {
             // §IV-H (mcp_tool_latency_seconds, rag_retrieval_latency_seconds,
             // sap_rfc_calls_total, sap_authz_denied_total).
             let metrics = Arc::new(MetricsRegistry::new());
-            metrics.register("mcp_tool_latency_seconds", MetricKind::Histogram,
-                "Per-tool call latency in seconds (paper §X-D gate at 0.080s)");
-            metrics.register("mcp_tool_calls_total", MetricKind::Counter,
-                "Total MCP tool invocations");
-            metrics.register("mcp_tool_errors_total", MetricKind::Counter,
-                "Total MCP tool invocations that returned isError=true");
-            metrics.register("rag_retrieval_latency_seconds", MetricKind::Histogram,
-                "RAG retrieval latency (paper §X-D gate at 0.080s)");
-            metrics.register("kb_chunks_total", MetricKind::Gauge,
-                "Total chunks currently indexed");
-            metrics.register("sap_pool_in_use", MetricKind::Gauge,
-                "SAP connection pool slots currently in use");
-            metrics.register("sap_authz_denied_total", MetricKind::Counter,
-                "Calls denied by the read-only safety gate");
-            metrics.register("sap_rfc_calls_total", MetricKind::Counter,
-                "REST operation calls dispatched to SAP, grouped by function and outcome");
+            metrics.register(
+                "mcp_tool_latency_seconds",
+                MetricKind::Histogram,
+                "Per-tool call latency in seconds (paper §X-D gate at 0.080s)",
+            );
+            metrics.register(
+                "mcp_tool_calls_total",
+                MetricKind::Counter,
+                "Total MCP tool invocations",
+            );
+            metrics.register(
+                "mcp_tool_errors_total",
+                MetricKind::Counter,
+                "Total MCP tool invocations that returned isError=true",
+            );
+            metrics.register(
+                "rag_retrieval_latency_seconds",
+                MetricKind::Histogram,
+                "RAG retrieval latency (paper §X-D gate at 0.080s)",
+            );
+            metrics.register(
+                "kb_chunks_total",
+                MetricKind::Gauge,
+                "Total chunks currently indexed",
+            );
+            metrics.register(
+                "sap_pool_in_use",
+                MetricKind::Gauge,
+                "SAP connection pool slots currently in use",
+            );
+            metrics.register(
+                "sap_authz_denied_total",
+                MetricKind::Counter,
+                "Calls denied by the read-only safety gate",
+            );
+            metrics.register(
+                "sap_rfc_calls_total",
+                MetricKind::Counter,
+                "REST operation calls dispatched to SAP, grouped by function and outcome",
+            );
 
             let metrics_for_render = Arc::clone(&metrics);
-            let render: mcp_transport::http::MetricsRenderFn = Arc::new(move || {
-                metrics_for_render.render()
-            });
+            let render: mcp_transport::http::MetricsRenderFn =
+                Arc::new(move || metrics_for_render.render());
 
             let dispatch_server = server.clone();
             let handle = HttpServerTransport::serve(
@@ -347,7 +379,8 @@ async fn main() -> anyhow::Result<()> {
                     let server = dispatch_server.clone();
                     async move { server.dispatch_message(msg).await }
                 },
-            ).await?;
+            )
+            .await?;
             tracing::info!(
                 "HTTP server ready at http://{bind}/mcp  (events: /mcp/events, metrics: /metrics)"
             );
@@ -362,7 +395,12 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn build_server(ctx: Arc<ServerContext>, agents_md: &Option<String>, read_only: bool, skills: &SkillRegistry) -> Server {
+fn build_server(
+    ctx: Arc<ServerContext>,
+    agents_md: &Option<String>,
+    read_only: bool,
+    skills: &SkillRegistry,
+) -> Server {
     let policy = if read_only {
         mcp_server::ExposurePolicy::ReadOnlyOnly
     } else {
@@ -373,26 +411,40 @@ fn build_server(ctx: Arc<ServerContext>, agents_md: &Option<String>, read_only: 
         .instructions(build_instructions(agents_md, read_only));
 
     // Existing RAG tools (Phase 1 + 1A) — all read-only.
-    for desc in tools::rag_tools(&ctx) { builder = builder.tool(desc); }
+    for desc in tools::rag_tools(&ctx) {
+        builder = builder.tool(desc);
+    }
 
     // REST operation + table tools (Phase 2).
-    for desc in tools::sap_tools(&ctx) { builder = builder.tool(desc); }
+    for desc in tools::sap_tools(&ctx) {
+        builder = builder.tool(desc);
+    }
 
     // ADT tools (Phase 2 finalisation — informed by mario-andreschak +
     // a reference exposure-policy design).
-    for desc in tools::adt_tools(&ctx) { builder = builder.tool(desc); }
+    for desc in tools::adt_tools(&ctx) {
+        builder = builder.tool(desc);
+    }
 
     // Graph tools (Phase 5A — GraphRAG + HippoRAG + RAPTOR).
-    for desc in tools::graph_tools(&ctx) { builder = builder.tool(desc); }
+    for desc in tools::graph_tools(&ctx) {
+        builder = builder.tool(desc);
+    }
 
     // Workflow tools (Phase 6 — MCP 2025-06-18 elicitation).
-    for desc in tools::workflow_tools(&ctx) { builder = builder.tool(desc); }
+    for desc in tools::workflow_tools(&ctx) {
+        builder = builder.tool(desc);
+    }
 
     // Resources.
-    for desc in resources::all(&ctx) { builder = builder.resource(desc); }
+    for desc in resources::all(&ctx) {
+        builder = builder.resource(desc);
+    }
 
     // Prompts (built-in + skills loaded from disk).
-    for desc in prompts::all(skills) { builder = builder.prompt(desc); }
+    for desc in prompts::all(skills) {
+        builder = builder.prompt(desc);
+    }
 
     // MCP 2025-06-18 completion utility — autocomplete for skill arguments.
     builder = oracle_automate_server_lib::register_completers(builder);
@@ -437,7 +489,10 @@ fn build_adt_client(cli: &Cli) -> anyhow::Result<Arc<dyn OicClient>> {
         .filter(|s| !s.is_empty());
 
     let Some(name) = dest_name else {
-        let label = cli.adt_destination.clone().unwrap_or_else(|| "default".into());
+        let label = cli
+            .adt_destination
+            .clone()
+            .unwrap_or_else(|| "default".into());
         tracing::info!("ADT client: offline MockOicClient (no --destination configured)");
         return Ok(MockOicClient::new(OicDestination::mock(label)));
     };
@@ -460,8 +515,8 @@ fn build_adt_client(cli: &Cli) -> anyhow::Result<Arc<dyn OicClient>> {
         auth = %dest.auth.label(),
         "artifact client: live HttpOicClient against Oracle OIC / Fusion"
     );
-    let client = HttpOicClient::new(dest)
-        .map_err(|e| anyhow::anyhow!("HttpOicClient init failed: {e}"))?;
+    let client =
+        HttpOicClient::new(dest).map_err(|e| anyhow::anyhow!("HttpOicClient init failed: {e}"))?;
     Ok(Arc::new(client))
 }
 
@@ -476,7 +531,10 @@ fn dirs_config_path(suffix: &str) -> std::path::PathBuf {
 async fn load_agents_md(explicit_path: Option<&str>) -> Option<String> {
     let candidates: Vec<String> = match explicit_path {
         Some(p) => vec![p.to_string()],
-        None => vec!["AGENTS.md".to_string(), ".oracle-automate/AGENTS.md".to_string()],
+        None => vec![
+            "AGENTS.md".to_string(),
+            ".oracle-automate/AGENTS.md".to_string(),
+        ],
     };
     for path in candidates {
         if let Ok(content) = tokio::fs::read_to_string(&path).await {

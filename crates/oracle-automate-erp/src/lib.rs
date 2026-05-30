@@ -18,32 +18,32 @@
 //! - `pool`: tokio-semaphore-based connection limiter
 //! - `retry`: exponential-backoff helper + circuit-breaker primitive
 
-pub mod erp_result;
 pub mod client;
 pub mod credentials;
+pub mod erp_result;
 pub mod error;
-pub mod metadata_cache;
 #[cfg(feature = "fusion")]
 pub mod fusion;
+pub mod metadata_cache;
 pub mod pool;
 pub mod retry;
 pub mod transaction;
 
-pub use erp_result::{ErpMessage, ErpSeverity, parse_erp_messages};
-pub use metadata_cache::{CacheStats, MetadataCache};
+pub use erp_result::{parse_erp_messages, ErpMessage, ErpSeverity};
 #[cfg(feature = "fusion")]
 pub use fusion::{FusionAuth, FusionConfig, FusionPartyClient, HttpFusionClient, Party};
+pub use metadata_cache::{CacheStats, MetadataCache};
 
 pub use client::{
-    BulkMetadata, MockErpClient, ReadTableRequest, ErpCallRequest, ErpOperationMeta,
-    ErpOperationSummary, ErpParameter, ErpParamDirection, ErpSearchResult, ErpClient,
-    SystemInfo, TableRow, TableStructure, TableField, MAX_ROWS_HARD_CAP,
+    BulkMetadata, ErpCallRequest, ErpClient, ErpOperationMeta, ErpOperationSummary,
+    ErpParamDirection, ErpParameter, ErpSearchResult, MockErpClient, ReadTableRequest, SystemInfo,
+    TableField, TableRow, TableStructure, MAX_ROWS_HARD_CAP,
 };
 pub use credentials::{
-    Credentials, CredentialProvider, CredentialSource, EnvCredentialProvider,
+    CredentialProvider, CredentialSource, Credentials, EnvCredentialProvider,
     LayeredCredentialProvider, StaticCredentialProvider,
 };
 pub use error::{ErpError, ErpErrorCode, ErpResult};
-pub use transaction::{execute_write_bapi, has_failure, WriteOutcome};
 pub use pool::ConnectionPool;
 pub use retry::{retry_with_backoff, BackoffPolicy, CircuitBreaker, CircuitState};
+pub use transaction::{execute_write_bapi, has_failure, WriteOutcome};

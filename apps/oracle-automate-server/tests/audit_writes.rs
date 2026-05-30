@@ -14,7 +14,11 @@ use oracle_automate_server_lib::{build_test_server, TestServerOptions};
 use std::sync::Arc;
 
 async fn connect(read_only: bool) -> Arc<Client> {
-    let (server, _ctx) = build_test_server(TestServerOptions { read_only, ..Default::default() }).await;
+    let (server, _ctx) = build_test_server(TestServerOptions {
+        read_only,
+        ..Default::default()
+    })
+    .await;
     let (s_rx, c_tx) = tokio::io::duplex(8192);
     let (c_rx, s_tx) = tokio::io::duplex(8192);
     let server_transport = StdioTransport::new(s_rx, s_tx);
@@ -24,7 +28,10 @@ async fn connect(read_only: bool) -> Arc<Client> {
     let client = Client::spawn(StdioTransport::new(c_rx, c_tx));
     client
         .initialize(
-            Implementation { name: "audit-test".into(), version: "0".into() },
+            Implementation {
+                name: "audit-test".into(),
+                version: "0".into(),
+            },
             ClientCapabilities::default(),
         )
         .await
@@ -66,7 +73,10 @@ async fn commit_write_runs_transactional_path_and_audit() {
     // The mock returns no FND return stack, so the fail-closed path must report the
     // write as not committed (and rolled back) rather than committing on faith.
     assert_eq!(v["committed"], serde_json::json!(false), "got: {v}");
-    assert!(v.get("rolled_back").is_some(), "expected rolled_back field; got: {v}");
+    assert!(
+        v.get("rolled_back").is_some(),
+        "expected rolled_back field; got: {v}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

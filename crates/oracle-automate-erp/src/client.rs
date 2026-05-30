@@ -45,7 +45,12 @@ pub struct SystemInfo {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub enum ErpParamDirection { Import, Export, Changing, Tables }
+pub enum ErpParamDirection {
+    Import,
+    Export,
+    Changing,
+    Tables,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErpParameter {
@@ -115,13 +120,25 @@ pub struct RequiredPrivilege {
 impl RequiredPrivilege {
     /// Convenience for the common "run/submit a privilege via a duty role" case.
     pub fn run(privilege: &str, duty_role: &str) -> Self {
-        Self { privilege: privilege.into(), duty_role: duty_role.into(), action: "RUN".into() }
+        Self {
+            privilege: privilege.into(),
+            duty_role: duty_role.into(),
+            action: "RUN".into(),
+        }
     }
     pub fn view(privilege: &str, duty_role: &str) -> Self {
-        Self { privilege: privilege.into(), duty_role: duty_role.into(), action: "VIEW".into() }
+        Self {
+            privilege: privilege.into(),
+            duty_role: duty_role.into(),
+            action: "VIEW".into(),
+        }
     }
     pub fn manage(privilege: &str, duty_role: &str) -> Self {
-        Self { privilege: privilege.into(), duty_role: duty_role.into(), action: "MANAGE".into() }
+        Self {
+            privilege: privilege.into(),
+            duty_role: duty_role.into(),
+            action: "MANAGE".into(),
+        }
     }
 }
 
@@ -154,8 +171,12 @@ pub struct ErpCallRequest {
     pub require_read_only_safe: bool,
 }
 
-fn default_timeout_ms() -> u64 { 30_000 }
-fn default_true() -> bool { true }
+fn default_timeout_ms() -> u64 {
+    30_000
+}
+fn default_true() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BulkMetadata {
@@ -210,7 +231,9 @@ pub struct ReadTableRequest {
     pub max_rows: usize,
 }
 
-fn default_max_rows() -> usize { 100 }
+fn default_max_rows() -> usize {
+    100
+}
 
 pub const MAX_ROWS_HARD_CAP: usize = 1000;
 
@@ -229,11 +252,23 @@ pub trait ErpClient: Send + Sync {
 
     async fn search_operations(&self, query: &str, limit: usize) -> ErpResult<ErpSearchResult>;
 
-    async fn operation_metadata(&self, function: &str, language: &str) -> ErpResult<ErpOperationMeta>;
+    async fn operation_metadata(
+        &self,
+        function: &str,
+        language: &str,
+    ) -> ErpResult<ErpOperationMeta>;
 
-    async fn bulk_operation_metadata(&self, functions: &[String], language: &str) -> ErpResult<BulkMetadata>;
+    async fn bulk_operation_metadata(
+        &self,
+        functions: &[String],
+        language: &str,
+    ) -> ErpResult<BulkMetadata>;
 
-    async fn call_operation(&self, request: ErpCallRequest, read_only_mode: bool) -> ErpResult<serde_json::Value>;
+    async fn call_operation(
+        &self,
+        request: ErpCallRequest,
+        read_only_mode: bool,
+    ) -> ErpResult<serde_json::Value>;
 
     async fn read_table(&self, request: ReadTableRequest) -> ErpResult<Vec<TableRow>>;
 
@@ -241,12 +276,18 @@ pub trait ErpClient: Send + Sync {
 
     /// Pool snapshot for the TUI / Prometheus dashboards.
     fn pool_status(&self) -> PoolStatus {
-        PoolStatus { cap: 0, available: 0 }
+        PoolStatus {
+            cap: 0,
+            available: 0,
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct PoolStatus { pub cap: usize, pub available: usize }
+pub struct PoolStatus {
+    pub cap: usize,
+    pub available: usize,
+}
 
 // ===========================================================================
 // MockErpClient — offline reference implementation
@@ -314,12 +355,20 @@ impl ErpClient for MockErpClient {
         let _p = self.pool.acquire().await?;
         let q = query.to_lowercase();
         let terms: Vec<&str> = q.split_whitespace().collect();
-        let mut hits: Vec<ErpOperationSummary> = self.functions.values()
+        let mut hits: Vec<ErpOperationSummary> = self
+            .functions
+            .values()
             .filter_map(|f| {
-                let hay = format!("{} {} {}", f.function.to_lowercase(), f.description.to_lowercase(), f.function_group.to_lowercase());
+                let hay = format!(
+                    "{} {} {}",
+                    f.function.to_lowercase(),
+                    f.description.to_lowercase(),
+                    f.function_group.to_lowercase()
+                );
                 let score: usize = terms.iter().map(|t| hay.matches(t).count()).sum();
-                if score == 0 { None }
-                else {
+                if score == 0 {
+                    None
+                } else {
                     Some(ErpOperationSummary {
                         function: f.function.clone(),
                         description: f.description.clone(),
@@ -330,19 +379,35 @@ impl ErpClient for MockErpClient {
                 }
             })
             .collect();
-        hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        hits.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         hits.truncate(limit.max(1));
-        Ok(ErpSearchResult { query: query.into(), hits })
+        Ok(ErpSearchResult {
+            query: query.into(),
+            hits,
+        })
     }
 
-    async fn operation_metadata(&self, function: &str, _language: &str) -> ErpResult<ErpOperationMeta> {
+    async fn operation_metadata(
+        &self,
+        function: &str,
+        _language: &str,
+    ) -> ErpResult<ErpOperationMeta> {
         let _p = self.pool.acquire().await?;
-        self.functions.get(function)
+        self.functions
+            .get(function)
             .cloned()
             .ok_or_else(|| ErpError::NotFound(function.into()))
     }
 
-    async fn bulk_operation_metadata(&self, functions: &[String], language: &str) -> ErpResult<BulkMetadata> {
+    async fn bulk_operation_metadata(
+        &self,
+        functions: &[String],
+        language: &str,
+    ) -> ErpResult<BulkMetadata> {
         let _p = self.pool.acquire().await?;
         let mut out = Vec::new();
         let mut missing = Vec::new();
@@ -352,12 +417,22 @@ impl ErpClient for MockErpClient {
                 None => missing.push(f.clone()),
             }
         }
-        Ok(BulkMetadata { language: language.into(), functions: out, missing })
+        Ok(BulkMetadata {
+            language: language.into(),
+            functions: out,
+            missing,
+        })
     }
 
-    async fn call_operation(&self, request: ErpCallRequest, read_only_mode: bool) -> ErpResult<serde_json::Value> {
+    async fn call_operation(
+        &self,
+        request: ErpCallRequest,
+        read_only_mode: bool,
+    ) -> ErpResult<serde_json::Value> {
         let _p = self.pool.acquire().await?;
-        let meta = self.functions.get(&request.function)
+        let meta = self
+            .functions
+            .get(&request.function)
             .ok_or_else(|| ErpError::NotFound(request.function.clone()))?;
         if read_only_mode && !meta.read_only {
             return Err(ErpError::PermissionDenied(format!(
@@ -370,13 +445,18 @@ impl ErpClient for MockErpClient {
         let args = match &request.parameters {
             serde_json::Value::Object(m) => m.clone(),
             serde_json::Value::Null => serde_json::Map::new(),
-            other => return Err(ErpError::InvalidParameter {
-                name: "parameters".into(),
-                reason: format!("expected object, got {}", other),
-            }),
+            other => {
+                return Err(ErpError::InvalidParameter {
+                    name: "parameters".into(),
+                    reason: format!("expected object, got {}", other),
+                })
+            }
         };
         for p in &meta.parameters {
-            if p.direction == ErpParamDirection::Import && !p.optional && !args.contains_key(&p.name) {
+            if p.direction == ErpParamDirection::Import
+                && !p.optional
+                && !args.contains_key(&p.name)
+            {
                 return Err(ErpError::InvalidParameter {
                     name: p.name.clone(),
                     reason: "required import parameter missing".into(),
@@ -408,15 +488,27 @@ impl ErpClient for MockErpClient {
                 max_rows: request.max_rows,
             });
         }
-        let table = self.tables.get(&request.table)
+        let table = self
+            .tables
+            .get(&request.table)
             .ok_or_else(|| ErpError::NotFound(request.table.clone()))?;
 
         // Field projection.
         let projection: Vec<String> = if request.fields.is_empty() {
-            table.structure.fields.iter().map(|f| f.name.clone()).collect()
+            table
+                .structure
+                .fields
+                .iter()
+                .map(|f| f.name.clone())
+                .collect()
         } else {
             for f in &request.fields {
-                if !table.structure.fields.iter().any(|tf| tf.name.eq_ignore_ascii_case(f)) {
+                if !table
+                    .structure
+                    .fields
+                    .iter()
+                    .any(|tf| tf.name.eq_ignore_ascii_case(f))
+                {
                     return Err(ErpError::InvalidParameter {
                         name: "fields".into(),
                         reason: format!("unknown field '{f}'"),
@@ -433,26 +525,49 @@ impl ErpClient for MockErpClient {
         // to the connection's client number so cross-client leaks are
         // impossible by construction.  This matches the behaviour of
         // SE16/SM30 and the standard a BI Publisher extract convention.
-        let client_field = table.structure.fields.first()
-            .filter(|f| (f.name == "the ledger/BU scope" || f.name == "RCLNT") && f.type_token == "CLNT")
+        let client_field = table
+            .structure
+            .fields
+            .first()
+            .filter(|f| {
+                (f.name == "the ledger/BU scope" || f.name == "RCLNT") && f.type_token == "CLNT"
+            })
             .map(|f| f.name.clone());
         if let Some(field) = client_field.as_deref() {
-            let has_client_filter = conditions.iter()
+            let has_client_filter = conditions
+                .iter()
                 .any(|(f, _, _)| f.eq_ignore_ascii_case(field));
             if !has_client_filter {
-                conditions.push((field.into(), "=".into(), self.identity.get("client")
-                    .and_then(|v| v.as_str()).unwrap_or("100").to_string()));
+                conditions.push((
+                    field.into(),
+                    "=".into(),
+                    self.identity
+                        .get("client")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("100")
+                        .to_string(),
+                ));
             }
         }
 
         let mut rows: Vec<TableRow> = Vec::new();
         for row in &table.rows {
-            if conditions.iter().all(|(field, op, value)| match_row(row, field, op, value)) {
-                let projected: serde_json::Map<String, serde_json::Value> = projection.iter()
-                    .filter_map(|f| row.iter().find(|(k, _)| k.eq_ignore_ascii_case(f)).map(|(k, v)| (k.clone(), v.clone())))
+            if conditions
+                .iter()
+                .all(|(field, op, value)| match_row(row, field, op, value))
+            {
+                let projected: serde_json::Map<String, serde_json::Value> = projection
+                    .iter()
+                    .filter_map(|f| {
+                        row.iter()
+                            .find(|(k, _)| k.eq_ignore_ascii_case(f))
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                    })
                     .collect();
                 rows.push(TableRow { values: projected });
-                if rows.len() >= request.max_rows { break; }
+                if rows.len() >= request.max_rows {
+                    break;
+                }
             }
         }
         Ok(rows)
@@ -460,21 +575,31 @@ impl ErpClient for MockErpClient {
 
     async fn table_structure(&self, table: &str) -> ErpResult<TableStructure> {
         let _p = self.pool.acquire().await?;
-        self.tables.get(table)
+        self.tables
+            .get(table)
             .map(|t| t.structure.clone())
             .ok_or_else(|| ErpError::NotFound(table.into()))
     }
 
     fn pool_status(&self) -> PoolStatus {
-        PoolStatus { cap: self.pool.cap(), available: self.pool.available() }
+        PoolStatus {
+            cap: self.pool.cap(),
+            available: self.pool.available(),
+        }
     }
 }
 
-fn mock_outputs(meta: &ErpOperationMeta, _args: &serde_json::Map<String, serde_json::Value>) -> serde_json::Value {
+fn mock_outputs(
+    meta: &ErpOperationMeta,
+    _args: &serde_json::Map<String, serde_json::Value>,
+) -> serde_json::Value {
     let mut out = serde_json::Map::new();
     for p in &meta.parameters {
         if p.direction == ErpParamDirection::Export {
-            out.insert(p.name.clone(), serde_json::Value::String(format!("<mock {}>", p.type_token)));
+            out.insert(
+                p.name.clone(),
+                serde_json::Value::String(format!("<mock {}>", p.type_token)),
+            );
         }
     }
     serde_json::Value::Object(out)
@@ -497,7 +622,9 @@ fn parse_conditions(raw: &[String]) -> ErpResult<Vec<(String, String, String)>> 
         } else {
             return Err(ErpError::InvalidParameter {
                 name: "where_conditions".into(),
-                reason: format!("unsupported clause '{s}' (expected FIELD = 'value' or FIELD LIKE 'pattern')"),
+                reason: format!(
+                    "unsupported clause '{s}' (expected FIELD = 'value' or FIELD LIKE 'pattern')"
+                ),
             });
         };
         out.push((field, op, val));
@@ -505,8 +632,14 @@ fn parse_conditions(raw: &[String]) -> ErpResult<Vec<(String, String, String)>> 
     Ok(out)
 }
 
-fn match_row(row: &serde_json::Map<String, serde_json::Value>, field: &str, op: &str, value: &str) -> bool {
-    let actual = row.iter()
+fn match_row(
+    row: &serde_json::Map<String, serde_json::Value>,
+    field: &str,
+    op: &str,
+    value: &str,
+) -> bool {
+    let actual = row
+        .iter()
         .find(|(k, _)| k.eq_ignore_ascii_case(field))
         .map(|(_, v)| match v {
             serde_json::Value::String(s) => s.clone(),
@@ -530,15 +663,23 @@ fn sql_like(haystack: &str, pattern: &str) -> bool {
         match c {
             '%' => re.push_str(".*"),
             '_' => re.push('.'),
-            c if "\\.+?^${}()|[]".contains(c) => { re.push('\\'); re.push(c); }
+            c if "\\.+?^${}()|[]".contains(c) => {
+                re.push('\\');
+                re.push(c);
+            }
             c => re.push(c),
         }
     }
     re.push('$');
     // Cheap substring fallback if pattern has no wildcards.
-    if !p.contains('%') && !p.contains('_') { return h == p; }
+    if !p.contains('%') && !p.contains('_') {
+        return h == p;
+    }
     // Without a regex crate, we approximate %prefix% and prefix% / %suffix.
-    let stripped: String = re.chars().filter(|c| !matches!(c, '^' | '$' | '\\')).collect();
+    let stripped: String = re
+        .chars()
+        .filter(|c| !matches!(c, '^' | '$' | '\\'))
+        .collect();
     if let Some(rest) = stripped.strip_prefix(".*") {
         let rest = rest.strip_suffix(".*").unwrap_or(rest);
         h.contains(rest)
@@ -562,16 +703,60 @@ fn sql_like(haystack: &str, pattern: &str) -> bool {
 // ---------------------------------------------------------------------------
 
 fn p_imp(name: &str, ty: &str, opt: bool, desc: &str) -> ErpParameter {
-    ErpParameter { name: name.into(), direction: ErpParamDirection::Import, type_token: ty.into(), optional: opt, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: None }
+    ErpParameter {
+        name: name.into(),
+        direction: ErpParamDirection::Import,
+        type_token: ty.into(),
+        optional: opt,
+        description: if desc.is_empty() {
+            None
+        } else {
+            Some(desc.into())
+        },
+        default_value: None,
+    }
 }
 fn p_exp(name: &str, ty: &str, opt: bool, desc: &str) -> ErpParameter {
-    ErpParameter { name: name.into(), direction: ErpParamDirection::Export, type_token: ty.into(), optional: opt, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: None }
+    ErpParameter {
+        name: name.into(),
+        direction: ErpParamDirection::Export,
+        type_token: ty.into(),
+        optional: opt,
+        description: if desc.is_empty() {
+            None
+        } else {
+            Some(desc.into())
+        },
+        default_value: None,
+    }
 }
 fn p_tab(name: &str, ty: &str, opt: bool, desc: &str) -> ErpParameter {
-    ErpParameter { name: name.into(), direction: ErpParamDirection::Tables, type_token: ty.into(), optional: opt, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: None }
+    ErpParameter {
+        name: name.into(),
+        direction: ErpParamDirection::Tables,
+        type_token: ty.into(),
+        optional: opt,
+        description: if desc.is_empty() {
+            None
+        } else {
+            Some(desc.into())
+        },
+        default_value: None,
+    }
 }
 fn p_imp_default(name: &str, ty: &str, default: &str, desc: &str) -> ErpParameter {
-    ErpParameter { name: name.into(), direction: ErpParamDirection::Import, type_token: ty.into(), optional: true, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: Some(default.into()) }
+    ErpParameter {
+        name: name.into(),
+        direction: ErpParamDirection::Import,
+        type_token: ty.into(),
+        optional: true,
+        description: if desc.is_empty() {
+            None
+        } else {
+            Some(desc.into())
+        },
+        default_value: Some(default.into()),
+    }
 }
 
 fn seed_functions() -> Vec<ErpOperationMeta> {
@@ -815,14 +1000,22 @@ fn seed_functions() -> Vec<ErpOperationMeta> {
 
 fn tf_key(name: &str, data_element: &str, ty: &str, length: u32, desc: &str) -> TableField {
     TableField {
-        name: name.into(), data_element: data_element.into(),
-        type_token: ty.into(), length, description: Some(desc.into()), key: true,
+        name: name.into(),
+        data_element: data_element.into(),
+        type_token: ty.into(),
+        length,
+        description: Some(desc.into()),
+        key: true,
     }
 }
 fn tf(name: &str, data_element: &str, ty: &str, length: u32, desc: &str) -> TableField {
     TableField {
-        name: name.into(), data_element: data_element.into(),
-        type_token: ty.into(), length, description: Some(desc.into()), key: false,
+        name: name.into(),
+        data_element: data_element.into(),
+        type_token: ty.into(),
+        length,
+        description: Some(desc.into()),
+        key: false,
     }
 }
 
@@ -1030,14 +1223,23 @@ mod tests {
     #[test]
     fn every_write_op_returns_standard_result() {
         for f in seed_functions() {
-            if f.read_only { continue; }
-            let has_status = f.parameters.iter().any(|p|
-                p.direction == ErpParamDirection::Export && p.name == "X_RETURN_STATUS");
-            let has_msg = f.parameters.iter().any(|p|
-                p.direction == ErpParamDirection::Tables && p.name == "X_MSG_DATA");
-            assert!(has_status && has_msg,
+            if f.read_only {
+                continue;
+            }
+            let has_status = f
+                .parameters
+                .iter()
+                .any(|p| p.direction == ErpParamDirection::Export && p.name == "X_RETURN_STATUS");
+            let has_msg = f
+                .parameters
+                .iter()
+                .any(|p| p.direction == ErpParamDirection::Tables && p.name == "X_MSG_DATA");
+            assert!(
+                has_status && has_msg,
                 "write op {} must declare X_RETURN_STATUS (export) + X_MSG_DATA (tables) \
-                 — the FND_MSG_PUB return contract", f.function);
+                 — the FND_MSG_PUB return contract",
+                f.function
+            );
         }
     }
 
@@ -1048,16 +1250,23 @@ mod tests {
     #[test]
     fn every_bulk_write_uses_interface_then_import() {
         for f in seed_functions() {
-            if f.read_only { continue; }
+            if f.read_only {
+                continue;
+            }
             let is_bulk = f.function_group == "ERP Integration Service";
-            assert_eq!(f.commit_required, is_bulk,
+            assert_eq!(
+                f.commit_required, is_bulk,
                 "op {}: commit_required ({}) must match the ERP Integration Service \
                  (bulk interface→import) family membership ({})",
-                f.function, f.commit_required, is_bulk);
+                f.function, f.commit_required, is_bulk
+            );
             if f.commit_required {
                 let note = f.erp_note.as_deref().unwrap_or("").to_lowercase();
-                assert!(note.contains("interface") || note.contains("import"),
-                    "bulk op {} must document its interface/import two-step in erp_note", f.function);
+                assert!(
+                    note.contains("interface") || note.contains("import"),
+                    "bulk op {} must document its interface/import two-step in erp_note",
+                    f.function
+                );
             }
         }
     }
@@ -1067,11 +1276,17 @@ mod tests {
     #[test]
     fn every_op_declares_required_privilege() {
         for f in seed_functions() {
-            assert!(!f.authorization.is_empty(),
-                "op {} declares no required privilege", f.function);
+            assert!(
+                !f.authorization.is_empty(),
+                "op {} declares no required privilege",
+                f.function
+            );
             for p in &f.authorization {
-                assert!(!p.privilege.is_empty() && !p.duty_role.is_empty(),
-                    "op {} has a malformed privilege entry", f.function);
+                assert!(
+                    !p.privilege.is_empty() && !p.duty_role.is_empty(),
+                    "op {} has a malformed privilege entry",
+                    f.function
+                );
             }
         }
     }
@@ -1084,14 +1299,21 @@ mod tests {
         for t in seed_tables() {
             let s = &t.structure;
             assert!(!s.fields.is_empty(), "object {} has no fields", s.table);
-            let first_key = s.key_fields.first()
+            let first_key = s
+                .key_fields
+                .first()
                 .unwrap_or_else(|| panic!("object {} has no key_fields", s.table));
-            assert!(first_key.ends_with("_ID"),
+            assert!(
+                first_key.ends_with("_ID"),
                 "object {} first key is {first_key}, expected an Oracle surrogate/scoping *_ID key",
-                s.table);
+                s.table
+            );
             // The first key must be a declared field.
-            assert!(s.fields.iter().any(|f| &f.name == first_key),
-                "object {} first key {first_key} is not a declared field", s.table);
+            assert!(
+                s.fields.iter().any(|f| &f.name == first_key),
+                "object {} first key {first_key} is not a declared field",
+                s.table
+            );
         }
     }
 
@@ -1099,29 +1321,55 @@ mod tests {
     /// VARCHAR2(300) in Fusion Product Hub, not a fixed short code.
     #[test]
     fn item_number_is_varchar2_300_per_fusion() {
-        let items = seed_tables().into_iter()
-            .find(|t| t.structure.table == "EGP_SYSTEM_ITEMS_B").unwrap();
-        let num = items.structure.fields.iter().find(|f| f.name == "ITEM_NUMBER").unwrap();
+        let items = seed_tables()
+            .into_iter()
+            .find(|t| t.structure.table == "EGP_SYSTEM_ITEMS_B")
+            .unwrap();
+        let num = items
+            .structure
+            .fields
+            .iter()
+            .find(|f| f.name == "ITEM_NUMBER")
+            .unwrap();
         assert_eq!(num.type_token, "VARCHAR2");
-        assert_eq!(num.length, 300,
-            "ITEM_NUMBER length is {}; Fusion Product Hub uses VARCHAR2(300)", num.length);
+        assert_eq!(
+            num.length, 300,
+            "ITEM_NUMBER length is {}; Fusion Product Hub uses VARCHAR2(300)",
+            num.length
+        );
     }
 
     /// GL_JE_LINES is the accounting backbone, and the fixture must record
     /// that Oracle has no single universal journal.
     #[test]
     fn gl_je_lines_is_present_as_accounting_backbone() {
-        let t = seed_tables().into_iter()
+        let t = seed_tables()
+            .into_iter()
             .find(|t| t.structure.table == "GL_JE_LINES")
             .expect("GL_JE_LINES missing — it is Oracle's GL accounting backbone");
-        let note = t.structure.storage_note.as_deref().unwrap_or("").to_lowercase();
-        assert!(note.contains("universal journal"),
-            "GL_JE_LINES must note that Oracle has no single universal journal; got: {note:?}");
+        let note = t
+            .structure
+            .storage_note
+            .as_deref()
+            .unwrap_or("")
+            .to_lowercase();
+        assert!(
+            note.contains("universal journal"),
+            "GL_JE_LINES must note that Oracle has no single universal journal; got: {note:?}"
+        );
         // And nothing should claim to *be* a universal journal.
         for t in seed_tables() {
-            let n = t.structure.storage_note.as_deref().unwrap_or("").to_lowercase();
-            assert!(!n.contains("is the universal journal"),
-                "{} must not claim to be a universal journal — Oracle has none", t.structure.table);
+            let n = t
+                .structure
+                .storage_note
+                .as_deref()
+                .unwrap_or("")
+                .to_lowercase();
+            assert!(
+                !n.contains("is the universal journal"),
+                "{} must not claim to be a universal journal — Oracle has none",
+                t.structure.table
+            );
         }
     }
 
@@ -1130,12 +1378,20 @@ mod tests {
     /// compatibility-view storage note.
     #[test]
     fn subledger_objects_note_xla_to_gl_transfer() {
-        let t = seed_tables().into_iter()
+        let t = seed_tables()
+            .into_iter()
             .find(|t| t.structure.table == "XLA_AE_LINES")
             .expect("XLA_AE_LINES fixture missing");
-        let note = t.structure.storage_note.as_deref().unwrap_or("").to_lowercase();
-        assert!(note.contains("transfer") && note.contains("gl"),
-            "XLA_AE_LINES must note the transfer to GL; got: {note:?}");
+        let note = t
+            .structure
+            .storage_note
+            .as_deref()
+            .unwrap_or("")
+            .to_lowercase();
+        assert!(
+            note.contains("transfer") && note.contains("gl"),
+            "XLA_AE_LINES must note the transfer to GL; got: {note:?}"
+        );
     }
 
     // ---- functional tests -------------------------------------------
@@ -1166,7 +1422,9 @@ mod tests {
             require_read_only_safe: true,
         };
         let err = c.call_operation(req, true).await.unwrap_err();
-        assert!(matches!(err, ErpError::InvalidParameter { ref name, .. } if name == "ITEM_NUMBER"));
+        assert!(
+            matches!(err, ErpError::InvalidParameter { ref name, .. } if name == "ITEM_NUMBER")
+        );
     }
 
     #[tokio::test]
@@ -1185,37 +1443,52 @@ mod tests {
     #[tokio::test]
     async fn read_table_filters_and_projects() {
         let c = MockErpClient::new(4, serde_json::json!({}));
-        let rows = c.read_table(ReadTableRequest {
-            table: "GL_LEDGERS".into(),
-            fields: vec!["NAME".into(), "CURRENCY_CODE".into()],
-            where_conditions: vec!["CURRENCY_CODE = 'USD'".into()],
-            max_rows: 10,
-        }).await.unwrap();
+        let rows = c
+            .read_table(ReadTableRequest {
+                table: "GL_LEDGERS".into(),
+                fields: vec!["NAME".into(), "CURRENCY_CODE".into()],
+                where_conditions: vec!["CURRENCY_CODE = 'USD'".into()],
+                max_rows: 10,
+            })
+            .await
+            .unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].values.get("NAME").unwrap(), "Kalbe USD Reporting");
         assert!(rows[0].values.get("CURRENCY_CODE").is_some());
-        assert!(rows[0].values.get("LEDGER_ID").is_none(), "field not projected");
+        assert!(
+            rows[0].values.get("LEDGER_ID").is_none(),
+            "field not projected"
+        );
     }
 
     #[tokio::test]
     async fn read_table_buffer_overflow() {
         let c = MockErpClient::new(4, serde_json::json!({}));
-        let err = c.read_table(ReadTableRequest {
-            table: "EGP_SYSTEM_ITEMS_B".into(),
-            fields: vec![],
-            where_conditions: vec![],
-            max_rows: 9999,
-        }).await.unwrap_err();
+        let err = c
+            .read_table(ReadTableRequest {
+                table: "EGP_SYSTEM_ITEMS_B".into(),
+                fields: vec![],
+                where_conditions: vec![],
+                max_rows: 9999,
+            })
+            .await
+            .unwrap_err();
         assert!(matches!(err, ErpError::TableBufferOverflow { .. }));
     }
 
     #[tokio::test]
     async fn bulk_metadata_reports_missing() {
         let c = MockErpClient::new(4, serde_json::json!({}));
-        let r = c.bulk_operation_metadata(
-            &["fusion.system.serverInformation".into(), "DOES_NOT_EXIST".into()],
-            "EN",
-        ).await.unwrap();
+        let r = c
+            .bulk_operation_metadata(
+                &[
+                    "fusion.system.serverInformation".into(),
+                    "DOES_NOT_EXIST".into(),
+                ],
+                "EN",
+            )
+            .await
+            .unwrap();
         assert_eq!(r.functions.len(), 1);
         assert_eq!(r.missing, vec!["DOES_NOT_EXIST".to_string()]);
     }

@@ -21,8 +21,8 @@ use axum::{
     Json, Router,
 };
 use oracle_automate_adt::{
-    OicAuth, OicCallContext, OicClient, OicDestination, OicError, OicSearchRequest,
-    ActivationRequest, HttpOicClient, OracleArtifactKind, WhereUsedRequest,
+    ActivationRequest, HttpOicClient, OicAuth, OicCallContext, OicClient, OicDestination, OicError,
+    OicSearchRequest, OracleArtifactKind, WhereUsedRequest,
 };
 use serde_json::json;
 use std::net::SocketAddr;
@@ -80,7 +80,10 @@ fn client(addr: SocketAddr) -> HttpOicClient {
         base_url: format!("http://{addr}"),
         client: "LIVE".into(),
         language: "EN".into(),
-        auth: OicAuth::Basic { user: "u".into(), password: "p".into() },
+        auth: OicAuth::Basic {
+            user: "u".into(),
+            password: "p".into(),
+        },
     };
     HttpOicClient::new(dest).unwrap()
 }
@@ -109,11 +112,14 @@ async fn missing_artifact_maps_to_not_found() {
 async fn search_parses_items_and_emits_auth() {
     let addr = spawn_mock().await;
     let c = client(addr);
-    let hits = c.search(OicSearchRequest {
-        query: "journal".into(),
-        kind: Some(OracleArtifactKind::Integration),
-        max_results: 10,
-    }).await.unwrap();
+    let hits = c
+        .search(OicSearchRequest {
+            query: "journal".into(),
+            kind: Some(OracleArtifactKind::Integration),
+            max_results: 10,
+        })
+        .await
+        .unwrap();
     assert_eq!(hits.len(), 2);
     assert!(hits.iter().any(|h| h.name == "KLB_GL_JOURNAL_IMPORT"));
 }
@@ -122,10 +128,13 @@ async fn search_parses_items_and_emits_auth() {
 async fn where_used_parses_connection_usages() {
     let addr = spawn_mock().await;
     let c = client(addr);
-    let hits = c.where_used(WhereUsedRequest {
-        name: "KLB_FUSION_ERP_REST".into(),
-        kind: OracleArtifactKind::Connection,
-    }).await.unwrap();
+    let hits = c
+        .where_used(WhereUsedRequest {
+            name: "KLB_FUSION_ERP_REST".into(),
+            kind: OracleArtifactKind::Connection,
+        })
+        .await
+        .unwrap();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].object, "KLB_GL_JOURNAL_IMPORT");
     assert_eq!(hits[0].usage, "invoke");
@@ -136,17 +145,26 @@ async fn table_preview_is_blocked_directs_to_bip() {
     let addr = spawn_mock().await;
     let c = client(addr);
     let err = c.preview_data("XLA_AE_LINES", 10).await.unwrap_err();
-    assert!(matches!(err, OicError::DataPreviewBlocked(_)), "got {err:?}");
+    assert!(
+        matches!(err, OicError::DataPreviewBlocked(_)),
+        "got {err:?}"
+    );
 }
 
 #[tokio::test]
 async fn activate_blocked_in_read_only_mode() {
     let addr = spawn_mock().await;
     let c = client(addr);
-    let err = c.activate(
-        ActivationRequest { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration },
-        OicCallContext { read_only: true },
-    ).await.unwrap_err();
+    let err = c
+        .activate(
+            ActivationRequest {
+                name: "KLB_GL_JOURNAL_IMPORT".into(),
+                kind: OracleArtifactKind::Integration,
+            },
+            OicCallContext { read_only: true },
+        )
+        .await
+        .unwrap_err();
     assert!(matches!(err, OicError::PermissionDenied(_)), "got {err:?}");
 }
 
@@ -154,9 +172,15 @@ async fn activate_blocked_in_read_only_mode() {
 async fn activate_succeeds_when_writes_enabled() {
     let addr = spawn_mock().await;
     let c = client(addr);
-    let outcome = c.activate(
-        ActivationRequest { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration },
-        OicCallContext { read_only: false },
-    ).await.unwrap();
+    let outcome = c
+        .activate(
+            ActivationRequest {
+                name: "KLB_GL_JOURNAL_IMPORT".into(),
+                kind: OracleArtifactKind::Integration,
+            },
+            OicCallContext { read_only: false },
+        )
+        .await
+        .unwrap();
     assert!(outcome.activated, "messages: {:?}", outcome.messages);
 }

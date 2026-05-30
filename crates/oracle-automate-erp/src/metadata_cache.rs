@@ -23,8 +23,8 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use crate::client::{
-    BulkMetadata, PoolStatus, ReadTableRequest, ErpCallRequest, ErpOperationMeta,
-    ErpSearchResult, ErpClient, SystemInfo, TableRow, TableStructure,
+    BulkMetadata, ErpCallRequest, ErpClient, ErpOperationMeta, ErpSearchResult, PoolStatus,
+    ReadTableRequest, SystemInfo, TableRow, TableStructure,
 };
 use crate::error::ErpResult;
 
@@ -40,7 +40,11 @@ pub struct CacheStats {
 impl CacheStats {
     pub fn hit_ratio(&self) -> f64 {
         let total = self.hits + self.misses;
-        if total == 0 { 0.0 } else { self.hits as f64 / total as f64 }
+        if total == 0 {
+            0.0
+        } else {
+            self.hits as f64 / total as f64
+        }
     }
 }
 
@@ -105,7 +109,13 @@ impl<C: ErpClient + ?Sized> MetadataCache<C> {
             return;
         }
         let mut entries = self.entries.write().await;
-        entries.insert(key, Entry { meta, cached_at: Instant::now() });
+        entries.insert(
+            key,
+            Entry {
+                meta,
+                cached_at: Instant::now(),
+            },
+        );
     }
 }
 
@@ -119,7 +129,11 @@ impl<C: ErpClient + ?Sized> ErpClient for MetadataCache<C> {
         self.inner.search_operations(query, limit).await
     }
 
-    async fn operation_metadata(&self, function: &str, language: &str) -> ErpResult<ErpOperationMeta> {
+    async fn operation_metadata(
+        &self,
+        function: &str,
+        language: &str,
+    ) -> ErpResult<ErpOperationMeta> {
         let key = (function.to_string(), language.to_string());
         if self.ttl.is_zero() {
             self.stats.write().await.misses += 1;
@@ -136,7 +150,11 @@ impl<C: ErpClient + ?Sized> ErpClient for MetadataCache<C> {
         Ok(meta)
     }
 
-    async fn bulk_operation_metadata(&self, functions: &[String], language: &str) -> ErpResult<BulkMetadata> {
+    async fn bulk_operation_metadata(
+        &self,
+        functions: &[String],
+        language: &str,
+    ) -> ErpResult<BulkMetadata> {
         // Split into hits and misses, then fetch only the misses from
         // the inner client in one batched call.
         let mut hits: Vec<ErpOperationMeta> = Vec::new();
@@ -160,9 +178,13 @@ impl<C: ErpClient + ?Sized> ErpClient for MetadataCache<C> {
                 missing: Vec::new(),
             });
         }
-        let fetched = self.inner.bulk_operation_metadata(&to_fetch, language).await?;
+        let fetched = self
+            .inner
+            .bulk_operation_metadata(&to_fetch, language)
+            .await?;
         for meta in &fetched.functions {
-            self.store((meta.function.clone(), language.to_string()), meta.clone()).await;
+            self.store((meta.function.clone(), language.to_string()), meta.clone())
+                .await;
         }
         let mut out = hits;
         out.extend(fetched.functions);
@@ -173,7 +195,11 @@ impl<C: ErpClient + ?Sized> ErpClient for MetadataCache<C> {
         })
     }
 
-    async fn call_operation(&self, request: ErpCallRequest, read_only_mode: bool) -> ErpResult<serde_json::Value> {
+    async fn call_operation(
+        &self,
+        request: ErpCallRequest,
+        read_only_mode: bool,
+    ) -> ErpResult<serde_json::Value> {
         self.inner.call_operation(request, read_only_mode).await
     }
 
@@ -203,8 +229,14 @@ mod tests {
     async fn first_read_is_miss_second_is_hit() {
         let cache = MetadataCache::new(mock(), Duration::from_secs(60));
         // Function names match the MockErpClient seed_functions() fixture.
-        let _ = cache.operation_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
-        let _ = cache.operation_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
+        let _ = cache
+            .operation_metadata("fusion.scm.itemsV2.get", "EN")
+            .await
+            .unwrap();
+        let _ = cache
+            .operation_metadata("fusion.scm.itemsV2.get", "EN")
+            .await
+            .unwrap();
         let stats = cache.stats().await;
         assert_eq!(stats.misses, 1, "first read should be a miss");
         assert_eq!(stats.hits, 1, "second read should be a hit");
@@ -215,8 +247,14 @@ mod tests {
     #[tokio::test]
     async fn ttl_zero_disables_cache() {
         let cache = MetadataCache::new(mock(), Duration::ZERO);
-        let _ = cache.operation_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
-        let _ = cache.operation_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
+        let _ = cache
+            .operation_metadata("fusion.scm.itemsV2.get", "EN")
+            .await
+            .unwrap();
+        let _ = cache
+            .operation_metadata("fusion.scm.itemsV2.get", "EN")
+            .await
+            .unwrap();
         let stats = cache.stats().await;
         assert_eq!(stats.misses, 2, "ttl=0 forces every call to miss");
         assert_eq!(stats.hits, 0);
@@ -226,9 +264,15 @@ mod tests {
     #[tokio::test]
     async fn ttl_expiry_re_fetches() {
         let cache = MetadataCache::new(mock(), Duration::from_millis(20));
-        let _ = cache.operation_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
+        let _ = cache
+            .operation_metadata("fusion.scm.itemsV2.get", "EN")
+            .await
+            .unwrap();
         tokio::time::sleep(Duration::from_millis(40)).await;
-        let _ = cache.operation_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
+        let _ = cache
+            .operation_metadata("fusion.scm.itemsV2.get", "EN")
+            .await
+            .unwrap();
         let stats = cache.stats().await;
         assert_eq!(stats.misses, 2, "expired entry should miss");
         assert_eq!(stats.hits, 0);
@@ -238,13 +282,19 @@ mod tests {
     async fn bulk_splits_hits_and_misses() {
         let cache = MetadataCache::new(mock(), Duration::from_secs(60));
         // Prime one entry.
-        let _ = cache.operation_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
+        let _ = cache
+            .operation_metadata("fusion.scm.itemsV2.get", "EN")
+            .await
+            .unwrap();
         let stats_before = cache.stats().await;
         assert_eq!(stats_before.misses, 1);
 
         let bulk = cache
             .bulk_operation_metadata(
-                &["fusion.scm.itemsV2.get".into(), "fusion.bip.runReport".into()],
+                &[
+                    "fusion.scm.itemsV2.get".into(),
+                    "fusion.bip.runReport".into(),
+                ],
                 "EN",
             )
             .await
@@ -252,14 +302,23 @@ mod tests {
         assert_eq!(bulk.functions.len(), 2);
         let stats = cache.stats().await;
         assert_eq!(stats.hits, 1, "fusion.scm.itemsV2.get was cached");
-        assert_eq!(stats.misses, 2, "fusion.bip.runReport was a miss (+ the primer)");
+        assert_eq!(
+            stats.misses, 2,
+            "fusion.bip.runReport was a miss (+ the primer)"
+        );
     }
 
     #[tokio::test]
     async fn invalidate_clears_entries_and_counts_evictions() {
         let cache = MetadataCache::new(mock(), Duration::from_secs(60));
-        let _ = cache.operation_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
-        let _ = cache.operation_metadata("fusion.bip.runReport", "EN").await.unwrap();
+        let _ = cache
+            .operation_metadata("fusion.scm.itemsV2.get", "EN")
+            .await
+            .unwrap();
+        let _ = cache
+            .operation_metadata("fusion.bip.runReport", "EN")
+            .await
+            .unwrap();
         assert_eq!(cache.stats().await.entries, 2);
         cache.invalidate_all().await;
         let stats = cache.stats().await;
@@ -270,8 +329,14 @@ mod tests {
     #[tokio::test]
     async fn language_is_part_of_the_key() {
         let cache = MetadataCache::new(mock(), Duration::from_secs(60));
-        let _ = cache.operation_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
-        let _ = cache.operation_metadata("fusion.scm.itemsV2.get", "DE").await.unwrap();
+        let _ = cache
+            .operation_metadata("fusion.scm.itemsV2.get", "EN")
+            .await
+            .unwrap();
+        let _ = cache
+            .operation_metadata("fusion.scm.itemsV2.get", "DE")
+            .await
+            .unwrap();
         let stats = cache.stats().await;
         assert_eq!(stats.entries, 2, "EN and DE are separate cache entries");
         assert_eq!(stats.misses, 2);

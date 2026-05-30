@@ -71,7 +71,9 @@ pub struct ErpMessage {
 }
 
 impl ErpMessage {
-    pub fn is_failure(&self) -> bool { self.severity.is_failure() }
+    pub fn is_failure(&self) -> bool {
+        self.severity.is_failure()
+    }
 }
 
 /// Parse a JSON value into FND return stack messages.  Accepts:
@@ -95,7 +97,9 @@ fn collect_candidates(value: &serde_json::Value) -> Vec<&serde_json::Value> {
 }
 
 fn walk<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a serde_json::Value>, depth: usize) {
-    if depth > 8 { return; }
+    if depth > 8 {
+        return;
+    }
     match v {
         serde_json::Value::Object(map) => {
             // Heuristic: looks like a FND return stack row if it has both TYPE
@@ -106,10 +110,14 @@ fn walk<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a serde_json::Value>, dept
                 out.push(v);
                 return; // don't descend further into a single row
             }
-            for v in map.values() { walk(v, out, depth + 1); }
+            for v in map.values() {
+                walk(v, out, depth + 1);
+            }
         }
         serde_json::Value::Array(arr) => {
-            for v in arr { walk(v, out, depth + 1); }
+            for v in arr {
+                walk(v, out, depth + 1);
+            }
         }
         _ => {}
     }
@@ -118,7 +126,11 @@ fn walk<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a serde_json::Value>, dept
 fn parse_one(v: &serde_json::Value) -> Option<ErpMessage> {
     let obj = v.as_object()?;
     let typ = first_str(obj, &["TYPE", "type"]).unwrap_or_default();
-    let sev = typ.chars().next().map(ErpSeverity::from_char).unwrap_or(ErpSeverity::Unknown(' '));
+    let sev = typ
+        .chars()
+        .next()
+        .map(ErpSeverity::from_char)
+        .unwrap_or(ErpSeverity::Unknown(' '));
     let message_class = first_str(obj, &["ID", "id"]).unwrap_or_default();
     let message_number = first_str(obj, &["NUMBER", "number"]).unwrap_or_default();
     let text = first_str(obj, &["MESSAGE", "message"]).unwrap_or_default();
@@ -137,8 +149,12 @@ fn parse_one(v: &serde_json::Value) -> Option<ErpMessage> {
 fn first_str(obj: &serde_json::Map<String, serde_json::Value>, keys: &[&str]) -> Option<String> {
     for k in keys {
         if let Some(v) = obj.get(*k) {
-            if let Some(s) = v.as_str() { return Some(s.to_string()); }
-            if v.is_number() { return Some(v.to_string()); }
+            if let Some(s) = v.as_str() {
+                return Some(s.to_string());
+            }
+            if v.is_number() {
+                return Some(v.to_string());
+            }
         }
     }
     None

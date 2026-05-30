@@ -18,7 +18,7 @@
 //! `auth` label).
 
 use crate::client::{
-    BulkMetadata, ErpClient, ReadTableRequest, ErpCallRequest, ErpOperationMeta, ErpSearchResult,
+    BulkMetadata, ErpCallRequest, ErpClient, ErpOperationMeta, ErpSearchResult, ReadTableRequest,
     SystemInfo, TableRow, TableStructure,
 };
 use crate::error::{ErpError, ErpResult};
@@ -71,7 +71,10 @@ pub struct FusionConfig {
 
 impl FusionConfig {
     pub fn new(base_url: impl Into<String>, auth: FusionAuth) -> Self {
-        Self { base_url: base_url.into().trim_end_matches('/').to_string(), auth }
+        Self {
+            base_url: base_url.into().trim_end_matches('/').to_string(),
+            auth,
+        }
     }
 
     /// Build from `ORACLE_FUSION_*` env vars.  Returns `None` when no base
@@ -84,7 +87,9 @@ impl FusionConfig {
                 password: std::env::var("ORACLE_FUSION_PASSWORD").unwrap_or_default(),
             },
             // default: OAuth2 bearer (token resolved out-of-band / injected)
-            _ => FusionAuth::Bearer(std::env::var("ORACLE_FUSION_ACCESS_TOKEN").unwrap_or_default()),
+            _ => {
+                FusionAuth::Bearer(std::env::var("ORACLE_FUSION_ACCESS_TOKEN").unwrap_or_default())
+            }
         };
         Some(Self::new(base, auth))
     }
@@ -122,7 +127,11 @@ impl HttpFusionClient {
         let http = reqwest::Client::builder()
             .build()
             .map_err(|e| ErpError::Internal(format!("failed to build HTTP client: {e}")))?;
-        Ok(Self { http, config, catalogue })
+        Ok(Self {
+            http,
+            config,
+            catalogue,
+        })
     }
 
     pub fn config(&self) -> &FusionConfig {
@@ -184,17 +193,35 @@ impl ErpClient for HttpFusionClient {
         self.catalogue.search_operations(query, limit).await
     }
 
-    async fn operation_metadata(&self, function: &str, language: &str) -> ErpResult<ErpOperationMeta> {
+    async fn operation_metadata(
+        &self,
+        function: &str,
+        language: &str,
+    ) -> ErpResult<ErpOperationMeta> {
         self.catalogue.operation_metadata(function, language).await
     }
 
-    async fn bulk_operation_metadata(&self, functions: &[String], language: &str) -> ErpResult<BulkMetadata> {
-        self.catalogue.bulk_operation_metadata(functions, language).await
+    async fn bulk_operation_metadata(
+        &self,
+        functions: &[String],
+        language: &str,
+    ) -> ErpResult<BulkMetadata> {
+        self.catalogue
+            .bulk_operation_metadata(functions, language)
+            .await
     }
 
-    async fn call_operation(&self, request: ErpCallRequest, read_only_mode: bool) -> ErpResult<Value> {
+    async fn call_operation(
+        &self,
+        request: ErpCallRequest,
+        read_only_mode: bool,
+    ) -> ErpResult<Value> {
         // Fail-closed read-only gate via the curated catalogue.
-        match self.catalogue.operation_metadata(&request.function, "EN").await {
+        match self
+            .catalogue
+            .operation_metadata(&request.function, "EN")
+            .await
+        {
             Ok(meta) => {
                 if read_only_mode && !meta.read_only {
                     return Err(ErpError::PermissionDenied(format!(
@@ -215,7 +242,10 @@ impl ErpClient for HttpFusionClient {
 
         let (method, resource) = Self::dispatch(&request.function);
         let url = format!("{}{}/{}", self.config.base_url, REST_BASE, resource);
-        let mut rb = self.config.auth.apply(self.http.request(method.clone(), &url))
+        let mut rb = self
+            .config
+            .auth
+            .apply(self.http.request(method.clone(), &url))
             .header("REST-Framework-Version", "9");
         if matches!(method, reqwest::Method::POST | reqwest::Method::PATCH) {
             rb = rb.json(&request.parameters);
@@ -331,9 +361,15 @@ fn parse_parties(body: &Value) -> Vec<Party> {
 }
 
 fn party_from_obj(o: &Value) -> Option<Party> {
-    let id = o.get("SupplierId").map(value_to_string)
+    let id = o
+        .get("SupplierId")
+        .map(value_to_string)
         .or_else(|| o.get("PartyId").map(value_to_string))?;
-    let name = o.get("Supplier").or_else(|| o.get("PartyName")).map(value_to_string).unwrap_or_default();
+    let name = o
+        .get("Supplier")
+        .or_else(|| o.get("PartyName"))
+        .map(value_to_string)
+        .unwrap_or_default();
     Some(Party {
         id,
         name,
@@ -373,7 +409,10 @@ mod tests {
 
     #[test]
     fn auth_label_never_leaks_secret() {
-        let a = FusionAuth::Basic { user: "u".into(), password: "secret".into() };
+        let a = FusionAuth::Basic {
+            user: "u".into(),
+            password: "secret".into(),
+        };
         assert_eq!(a.label(), "basic");
         assert!(!format!("{a:?}").contains("secret"));
     }
@@ -381,7 +420,10 @@ mod tests {
     #[tokio::test]
     async fn read_only_gate_blocks_writes_via_catalogue() {
         let cat = MockErpClient::new(2, json!({}));
-        let cfg = FusionConfig::new("https://kalbe.fa.ocs.oraclecloud.com", FusionAuth::Bearer("t".into()));
+        let cfg = FusionConfig::new(
+            "https://kalbe.fa.ocs.oraclecloud.com",
+            FusionAuth::Bearer("t".into()),
+        );
         let client = HttpFusionClient::new(cfg, cat).unwrap();
         let req = ErpCallRequest {
             function: "fusion.gl.journalEntries.post".into(),

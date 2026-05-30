@@ -67,7 +67,11 @@ where
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CircuitState { Closed, Open, HalfOpen }
+pub enum CircuitState {
+    Closed,
+    Open,
+    HalfOpen,
+}
 
 #[derive(Debug)]
 struct CircuitInner {
@@ -111,7 +115,11 @@ impl CircuitBreaker {
                 }
             }
         }
-        CircuitInner { state: g.state, failures: g.failures, opened_at: g.opened_at }
+        CircuitInner {
+            state: g.state,
+            failures: g.failures,
+            opened_at: g.opened_at,
+        }
     }
 
     /// Execute a call through the breaker.
@@ -126,7 +134,9 @@ impl CircuitBreaker {
                 .opened_at
                 .map(|t| self.open_duration.saturating_sub(t.elapsed()))
                 .unwrap_or(self.open_duration);
-            return Err(ErpError::CircuitOpen { retry_after_ms: remaining.as_millis() as u64 });
+            return Err(ErpError::CircuitOpen {
+                retry_after_ms: remaining.as_millis() as u64,
+            });
         }
 
         let result = f().await;
@@ -173,8 +183,11 @@ mod tests {
             let a = Arc::clone(&a);
             async move {
                 let n = a.fetch_add(1, Ordering::SeqCst);
-                if n < 2 { Err(ErpError::Timeout { timeout_ms: 10 }) }
-                else { Ok("ok") }
+                if n < 2 {
+                    Err(ErpError::Timeout { timeout_ms: 10 })
+                } else {
+                    Ok("ok")
+                }
             }
         })
         .await;
@@ -202,12 +215,14 @@ mod tests {
     async fn breaker_opens_after_threshold() {
         let cb = CircuitBreaker::new(2, Duration::from_millis(50));
         for _ in 0..2 {
-            let _ = cb.call(|| async {
-                Err::<(), _>(ErpError::DestinationDown {
-                    destination: "T01".into(),
-                    reason: "down".into(),
+            let _ = cb
+                .call(|| async {
+                    Err::<(), _>(ErpError::DestinationDown {
+                        destination: "T01".into(),
+                        reason: "down".into(),
+                    })
                 })
-            }).await;
+                .await;
         }
         assert_eq!(cb.state(), CircuitState::Open);
         // Third call must short-circuit.

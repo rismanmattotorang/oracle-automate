@@ -31,7 +31,7 @@ pub use destination::{OicAuth, OicDestination};
 pub use error::{OicError, OicErrorCode, OicResult};
 pub use mock::MockOicClient;
 pub use types::{
-    ActivationOutcome, ActivationRequest, OicSearchHit, OicSearchRequest, CdsView,
+    ActivationOutcome, ActivationRequest, CdsView, OicSearchHit, OicSearchRequest,
     OracleArtifactKind, PackageContents, PackageMember, ProgramSource, TableRow, WhereUsedHit,
     WhereUsedRequest, MAX_TABLE_ROWS,
 };

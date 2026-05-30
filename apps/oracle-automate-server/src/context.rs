@@ -1,10 +1,10 @@
 //! Shared server context — held in an `Arc` and cloned into every tool.
 
 use oracle_automate_adt::OicClient;
+use oracle_automate_erp::{ErpClient, FusionPartyClient, MetadataCache, MockErpClient};
 use oracle_automate_ingest::EmbeddingClient;
 use oracle_automate_observability::AuditLog;
 use oracle_automate_rag::{GraphEngine, RagEngine};
-use oracle_automate_erp::{FusionPartyClient, MetadataCache, MockErpClient, ErpClient};
 use std::sync::Arc;
 
 pub struct ServerContext {
