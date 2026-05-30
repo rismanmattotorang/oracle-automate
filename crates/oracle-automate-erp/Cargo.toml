@@ -22,3 +22,12 @@ fusion = ["reqwest"]
 
 [dev-dependencies]
 tokio = { workspace = true }
+axum = { workspace = true }
+serde_json = { workspace = true }
+
+# Live Fusion REST contract tests (axum mock of the Fusion REST API).
+# Only built when the `fusion` feature is active — the workspace test run
+# activates it via the server's `oracle-automate-erp/fusion` dependency.
+[[test]]
+name = "fusion_contract"
+required-features = ["fusion"]

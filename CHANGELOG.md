@@ -69,6 +69,18 @@ remainder are lock-poison idioms (correct to panic), infallible-by-construction
 change — per the project's Karpathy rule, defensive handling of impossible
 scenarios is noise, not safety.
 
+### Added — Phase 3: Fusion REST contract tests
+
+- `crates/oracle-automate-erp/tests/fusion_contract.rs` — 6 tests driving the
+  live `HttpFusionClient` / `FusionPartyClient` against an in-process axum mock
+  of the Fusion REST API, over the same `reqwest` path that hits a real pod.
+  Pins the contract for realistic shapes: paginated TCA supplier collections,
+  `PartyId`/`PartyName` field fallback, `404`→`NotFound`, the
+  `{http_status, outputs}` call envelope, and the FND/REST error envelope
+  (`o:errorCode`). Gated `required-features = ["fusion"]`; CI now activates
+  `oracle-automate-erp/fusion` explicitly so the live client is linted + tested
+  as a first-class citizen. Suite: **173 → 179 tests**.
+
 ### Added
 
 - `docs/PRODUCTION_READINESS.md` — authoritative phased production strategy

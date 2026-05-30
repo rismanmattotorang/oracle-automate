@@ -20,7 +20,7 @@ Measured on Rust 1.94.1 stable (the toolchain CI now floats to):
 | Dimension | Measured state |
 |---|---|
 | Build — 16 crates + 8 apps, ~19k Rust LOC | 🟢 green (`cargo build --workspace`, ~1m) |
-| Tests | 🟢 **173 pass / 0 fail** (offline, deterministic fixtures) |
+| Tests | 🟢 **179 pass / 0 fail** (offline, deterministic; +6 Fusion REST contract tests, Phase 3) |
 | `cargo fmt --all --check` | ✅ green *(was 🔴 — see Phase 1)* |
 | `cargo clippy … -D warnings` | ✅ green *(was 🔴 — see Phase 1)* |
 | Oracle-correctness invariants (7) | 🟢 enforced as tests + dedicated CI job |
@@ -51,7 +51,7 @@ dependency — pod URL, OAuth2/IDCS client, technical user — not on more code.
 | 1 | CI quality gate green on current stable | 🟢 (Phase 1) | resolved |
 | 2 | Reproducible toolchain (pinned + weekly advisory) | 🟢 (Phase 2) | resolved |
 | 3 | Error/panic hygiene on live paths (`unwrap` audit) | 🟢 (Phase 2) — live clients `unwrap`-free | resolved |
-| 4 | Live Fusion REST read against a real pod | 🔴 unverified | **blocked (creds)** |
+| 4 | Live Fusion REST read against a real pod | 🟠 contract-pinned (Phase 3); pod run pending | **blocked (creds)** |
 | 5 | Live gated write (PO/journal) + audit on a real pod | 🔴 unverified | **blocked (creds)** |
 | 6 | Production retrieval quality (real embed + rerank) | 🟠 mock | quality |
 | 7 | Observability tuned to real latency | 🟠 untuned | after live traffic |
@@ -114,20 +114,38 @@ change made.**
 - **Skills:** `code-review` (high), `security-review` (secret-leak paths).
 - **Gate:** ✅ live request/response paths verified `unwrap`-free; pinned gate green.
 
-### Phase 3 — Live Fusion connectivity, proven against a recorded contract
+### Phase 3 — Live Fusion connectivity, proven against a recorded contract ✅ DONE
 **Goal:** the live transports are exercised end-to-end *without* needing the
 real pod yet — so when credentials arrive, Phase 4 is a smoke test, not a debug
 session.
-- Stand up a **contract test**: record real Fusion REST response *shapes* (from
-  Oracle's public REST API reference / a free APEX+ORDS demo) as fixtures, and
-  assert `HttpFusionClient` parses them into `ErpResult` correctly — covering
-  the FND/REST error envelope, pagination, and the `describe` metadata path.
-- Wire the existing env-gated `live_*` tests to a single documented switch so a
-  pod operator runs one command.
-- **Skills:** `deep-research` (confirm current Fusion 24D+ REST error/pagination
-  shapes) → `code-review` → `verify`.
-- **Gate:** contract tests green offline; gated live tests skip cleanly without
-  credentials (CI stays green).
+
+**Shipped — `crates/oracle-automate-erp/tests/fusion_contract.rs`** (6 tests):
+an in-process **axum mock** of the Fusion REST surface
+(`/fscmRestApi/resources/11.13.18.05/...`) drives the *real* `HttpFusionClient`
+/ `FusionPartyClient` over the same `reqwest` path that will hit the pod. Pins
+the contract for realistic shapes:
+- TCA supplier **collection + pagination** metadata (`count`/`hasMore`/`limit`/
+  `offset`/`links`) → `Vec<Party>` (pagination cruft must not leak into the count).
+- Customer-account **field fallback** (`PartyId`/`PartyName` when `SupplierId`/
+  `Supplier` absent) → `Party`.
+- `404` → `ErpError::NotFound`.
+- `call_operation` REST dispatch → `{ http_status, outputs }` envelope on success.
+- **FND/REST error envelope** (`400` + `o:errorCode` + `o:errorDetails`) is
+  surfaced in the envelope, never silently dropped.
+- `system_info` reachability against the REST catalog root.
+
+The test target is gated (`required-features = ["fusion"]` + `#![cfg(feature =
+"fusion")]`) and CI now activates `oracle-automate-erp/fusion` explicitly (clippy
++ test), so the live client and its contract are first-class CI citizens — no
+reliance on dependency-graph feature unification.
+
+The **live (real-pod) switch** is the env path: set `ORACLE_FUSION_BASE_URL`
+(+ `ORACLE_FUSION_AUTH`/token) and the server wires `HttpFusionClient` instead of
+the mock (`FusionConfig::from_env`). Contract tests run offline + unconditionally.
+- **Skills:** `deep-research` (Fusion 24D+ REST error/pagination shapes) →
+  `code-review` → `verify`.
+- **Gate:** ✅ 6 contract tests green offline; suite now **179 tests**; gated
+  live path skips cleanly without credentials (CI stays green).
 
 ### Phase 4 — Live pod validation 🔒 BLOCKED on Kalbe Basis credentials
 **Goal:** a configured destination drives a **real** Fusion REST read and one
