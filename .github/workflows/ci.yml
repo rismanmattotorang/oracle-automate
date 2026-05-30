@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Weekly floating-toolchain advisory (toolchain-drift job below).
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
 
 # Cancel in-flight runs on the same ref when a new commit lands.
 concurrency:
@@ -15,50 +18,53 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
   RUST_BACKTRACE: 1
+  # Pinned toolchain for reproducible fmt/clippy (docs/PRODUCTION_READINESS.md).
+  # Keep in sync with rust-toolchain.toml.  `@master` + this input always
+  # resolves, even for a freshly-released version whose action tag may lag.
+  RUST_PINNED: "1.94.1"
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────
-  # Fast static checks — fail PRs early.
+  # Fast static checks — fail PRs early.  Pinned toolchain.
   # ─────────────────────────────────────────────────────────────────────
   fmt:
     name: cargo fmt
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ env.RUST_PINNED }}
           components: rustfmt
       - run: cargo fmt --all --check
 
   clippy:
     name: cargo clippy
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ env.RUST_PINNED }}
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace --all-targets --features oracle-automate-adt/http -- -D warnings
 
   # ─────────────────────────────────────────────────────────────────────
-  # Build + test on a matrix of toolchains.
+  # Build + test on the pinned toolchain.
   # ─────────────────────────────────────────────────────────────────────
   test:
-    name: cargo test (${{ matrix.rust }})
+    name: cargo test
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        rust: [stable, beta]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: ${{ env.RUST_PINNED }}
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.rust }}
       - name: cargo test (workspace, all features)
         run: cargo test --workspace --features oracle-automate-adt/http --no-fail-fast
 
@@ -67,10 +73,13 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   oracle-correctness:
     name: Oracle correctness invariants
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_PINNED }}
       - uses: Swatinem/rust-cache@v2
       - name: Run oracle-automate-erp invariant tests
         run: cargo test -p oracle-automate-erp --lib -- tests::every_write_op_returns_standard_result tests::every_bulk_write_uses_interface_then_import tests::every_op_declares_required_privilege tests::every_business_object_declares_scoping_id_key tests::item_number_is_varchar2_300_per_fusion tests::gl_je_lines_is_present_as_accounting_backbone tests::subledger_objects_note_xla_to_gl_transfer
@@ -80,10 +89,13 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   bench-gate:
     name: P95 retrieval acceptance gate
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_PINNED }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release --bin oracle-automate-bench
       - name: Hybrid + Graph bench
@@ -94,11 +106,14 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   audit:
     name: cargo audit
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     continue-on-error: true  # Advisory; do not block PRs on transitive deps.
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_PINNED }}
       - run: cargo install --locked cargo-audit
       - run: cargo audit --deny warnings
 
@@ -107,6 +122,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   docker-build:
     name: Docker image build
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -127,6 +143,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   k8s-lint:
     name: Kubernetes manifest lint
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -145,6 +162,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   web:
     name: Next.js web UI
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -158,3 +176,33 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - run: npx next build
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Floating-toolchain advisory (Phase 2): weekly schedule only.
+  # Non-blocking — surfaces new rustfmt/clippy lints on stable & beta BEFORE
+  # a deliberate pin bump, so the pinned gate never goes red by surprise.
+  # ─────────────────────────────────────────────────────────────────────
+  toolchain-drift:
+    name: toolchain drift (advisory, ${{ matrix.rust }})
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: drift-${{ matrix.rust }}
+      - name: fmt (advisory)
+        run: cargo fmt --all --check
+      - name: clippy (advisory)
+        run: cargo clippy --workspace --all-targets --features oracle-automate-adt/http -- -D warnings
+      - name: test (advisory)
+        run: cargo test --workspace --features oracle-automate-adt/http --no-fail-fast

@@ -50,6 +50,25 @@ Verified: `cargo fmt --all --check` clean · `cargo clippy --workspace
 --all-targets --features oracle-automate-adt/http -- -D warnings` exit 0 ·
 **173 tests pass**.
 
+### Changed — Phase 2: toolchain reproducibility
+
+- **Pinned the toolchain** to `1.94.1` (`rust-toolchain.toml` + every blocking CI
+  job via `dtolnay/rust-toolchain@master` + a single `RUST_PINNED` env), so
+  fmt/clippy can't silently rot on a floating-`stable` bump.
+- Added a non-blocking weekly `toolchain-drift` CI job that runs fmt/clippy/test
+  on floating `stable` + `beta` — new lints surface as advisories *before* a
+  deliberate pin bump.
+
+### Audited — Phase 2: live-path panic hygiene
+
+Measured the non-test `unwrap()`/`expect()` surface (≈65 once `#[cfg(test)]`
+modules are excluded — not the 119 the crude grep suggested). The **live network
+clients (`erp::fusion`, `adt::http`) carry zero `unwrap`/`expect`**; the
+remainder are lock-poison idioms (correct to panic), infallible-by-construction
+(`json!` literals, env-after-presence-check), or startup/demo fail-fast. No code
+change — per the project's Karpathy rule, defensive handling of impossible
+scenarios is noise, not safety.
+
 ### Added
 
 - `docs/PRODUCTION_READINESS.md` — authoritative phased production strategy

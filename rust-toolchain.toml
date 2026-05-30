@@ -1,3 +1,7 @@
 [toolchain]
-channel = "stable"
+# Pinned for reproducible fmt/clippy (see docs/PRODUCTION_READINESS.md, Phase 2).
+# A floating `stable` channel previously turned CI red on a rustfmt/clippy bump.
+# The weekly `toolchain-drift` CI job runs fmt/clippy/test on floating stable +
+# beta as a non-blocking advisory so new lints surface before a deliberate bump.
+channel = "1.94.1"
 components = ["rustfmt", "clippy"]
