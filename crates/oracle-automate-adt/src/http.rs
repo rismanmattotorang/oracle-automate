@@ -33,6 +33,7 @@ pub struct HttpOicClient {
 impl HttpOicClient {
     pub fn new(destination: OicDestination) -> OicResult<Self> {
         let http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_millis(destination.timeout_ms))
             .build()
             .map_err(|e| OicError::Internal(format!("failed to build HTTP client: {e}")))?;
         Ok(Self { destination, http })

@@ -27,10 +27,18 @@ pub struct OicDestination {
     #[serde(default = "default_language")]
     pub language: String,
     pub auth: OicAuth,
+    /// Per-request timeout (ms).  A real pod can hang; without this the live
+    /// client would wait forever.  Set in the destination TOML; defaults to 30 s.
+    #[serde(default = "default_timeout_ms")]
+    pub timeout_ms: u64,
 }
 
 fn default_language() -> String {
     "EN".into()
+}
+
+fn default_timeout_ms() -> u64 {
+    30_000
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -58,6 +66,7 @@ impl OicDestination {
             client: "100".into(),
             language: "EN".into(),
             auth: OicAuth::Mock,
+            timeout_ms: default_timeout_ms(),
         }
     }
 

@@ -20,7 +20,7 @@ Measured on Rust 1.94.1 stable (the toolchain CI now floats to):
 | Dimension | Measured state |
 |---|---|
 | Build — 16 crates + 8 apps, ~19k Rust LOC | 🟢 green (`cargo build --workspace`, ~1m) |
-| Tests | 🟢 **192 pass / 0 fail** (offline, deterministic; +6 Fusion contract (P3), +4 retrieval (P6), +9 mock-pod (P4/5)) |
+| Tests | 🟢 **201 pass / 0 fail** (offline, deterministic; +6 Fusion contract (P3), +4 retrieval (P6), +9 Fusion mock-pod, +9 OIC mock-pod (P4/5)) |
 | `cargo fmt --all --check` | ✅ green *(was 🔴 — see Phase 1)* |
 | `cargo clippy … -D warnings` | ✅ green *(was 🔴 — see Phase 1)* |
 | Oracle-correctness invariants (7) | 🟢 enforced as tests + dedicated CI job |
@@ -177,6 +177,22 @@ ORACLE_FUSION_BASE_URL=http://127.0.0.1:8088 \
 ORACLE_FUSION_AUTH=basic ORACLE_FUSION_USER=demo ORACLE_FUSION_PASSWORD=demo \
   cargo run -p oracle-automate-server
 ```
+
+**Custom-code path (`oracle.oic.*`) — `crates/oracle-automate-oic-mock`:** the
+OIC counterpart, a runnable mock of the Oracle Integration Cloud + BI Publisher
++ Fusion-REST artifact surface (integration / Groovy / connection / lookup /
+project / ESS job / BIP report retrieval, search, where-used, and **gated
+activation**). `crates/oracle-automate-adt/tests/oic_pod.rs` (8 tests) drives the
+real `HttpOicClient` against it, including a read-only-gated `activate` and a
+latency→`DestinationDown` timeout. Point an OIC **destination** TOML at it:
+```bash
+cargo run -p oracle-automate-oic-mock -- --bind 127.0.0.1:8089
+# ~/.config/oracle-automate/destinations/mock-oic.toml:
+#   base_url = "http://127.0.0.1:8089"
+#   client   = "100"
+#   [auth]   type = "basic"  user = "demo"  password = "demo"
+ORACLE_AUTOMATE_DESTINATION=mock-oic cargo run -p oracle-automate-server
+```
 - **Still needs a real pod for:** OAuth2/IDCS token refresh against IDCS, real
   BI Publisher extracts, and the audit line on a *real* document — the audit
   wiring itself is already covered by `tests/audit_writes.rs`.
@@ -188,11 +204,12 @@ ORACLE_FUSION_AUTH=basic ORACLE_FUSION_USER=demo ORACLE_FUSION_PASSWORD=demo \
 ### Phase 5 — Observability & resilience ✅ DONE (tunable against the mock)
 **Goal:** the client survives a hung/slow pod, and thresholds are tunable
 against measured latency rather than guesses.
-- **Request timeout added** to `HttpFusionClient` / `FusionPartyClient`
-  (`FusionConfig.timeout_ms`, default 30 s, env `ORACLE_FUSION_TIMEOUT_MS`) — a
-  real production gap: the clients previously had *no* timeout and would hang
-  forever on a stuck pod. A timeout now maps to `ErpError::DestinationDown`, the
-  signal the existing retry / circuit-breaker layers act on.
+- **Request timeout added** to all live clients — `HttpFusionClient` /
+  `FusionPartyClient` (`FusionConfig.timeout_ms`, default 30 s, env
+  `ORACLE_FUSION_TIMEOUT_MS`) **and** `HttpOicClient` (`OicDestination.timeout_ms`,
+  TOML, default 30 s) — a real production gap: the clients previously had *no*
+  timeout and would hang forever on a stuck pod. A timeout now maps to
+  `DestinationDown`, the signal the existing retry / circuit-breaker layers act on.
 - **Latency tuning loop:** run the mock with `--latency-ms <n>` and the server's
   Prometheus `/metrics` (`mcp_tool_latency_seconds` histogram, P95/P99 vs the
   80 ms gate) reflects it; the Grafana dashboard renders it. `fusion_pod.rs`

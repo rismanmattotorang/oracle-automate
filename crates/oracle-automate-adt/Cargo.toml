@@ -25,7 +25,14 @@ http = ["reqwest", "url", "quick-xml", "toml"]
 tokio = { workspace = true }
 axum = { workspace = true }
 tower-http = { workspace = true }
+oracle-automate-oic-mock = { path = "../oracle-automate-oic-mock" }
 
 [[test]]
 name = "http_integration"
+required-features = ["http"]
+
+# Drive the live HttpOicClient against the standalone mock OIC pod
+# (artifact retrieval / search / where-used / gated activate / timeout).
+[[test]]
+name = "oic_pod"
 required-features = ["http"]

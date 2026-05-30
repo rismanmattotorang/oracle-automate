@@ -86,6 +86,14 @@ scenarios is noise, not safety.
   closes a real gap (the clients had no timeout and would hang on a stuck pod).
   A timeout maps to `ErpError::DestinationDown`; a test proves a 500 ms pod trips
   a 100 ms client timeout. Suite: **183 → 192 tests**.
+- New crate `oracle-automate-oic-mock` (runnable lib + bin): the OIC counterpart
+  — a standalone mock Oracle Integration Cloud + BI Publisher + Fusion-REST
+  artifact surface (integration / Groovy / connection / lookup / project / ESS
+  job / BIP report, search, where-used, gated activate), with latency injection
+  + auth gate. `crates/oracle-automate-adt/tests/oic_pod.rs` (8 tests) drives the
+  real `HttpOicClient` against it. Added a request timeout to `HttpOicClient`
+  (`OicDestination.timeout_ms`, TOML, default 30 s) → `OicError::DestinationDown`
+  on a slow pod. Suite: **192 → 201 tests**.
 
 ### Added — Phase 6: production retrieval quality
 

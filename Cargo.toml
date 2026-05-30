@@ -13,6 +13,7 @@ members = [
     "crates/oracle-automate-ingest",
     "crates/oracle-automate-erp",
     "crates/oracle-automate-fusion-mock",
+    "crates/oracle-automate-oic-mock",
     "crates/oracle-automate-adt",
     "crates/oracle-automate-graph",
     "crates/oracle-automate-scheduler",

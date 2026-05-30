@@ -1,0 +1,24 @@
+[package]
+name = "oracle-automate-oic-mock"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Standalone mock Oracle Integration Cloud (OIC) / custom-code REST API for offline testing — point an OIC destination at it; swap to a real pod to go live."
+
+[lib]
+name = "oracle_automate_oic_mock"
+path = "src/lib.rs"
+
+[[bin]]
+name = "oracle-automate-oic-mock"
+path = "src/main.rs"
+
+[dependencies]
+axum = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }

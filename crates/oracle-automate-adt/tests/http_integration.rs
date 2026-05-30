@@ -84,6 +84,7 @@ fn client(addr: SocketAddr) -> HttpOicClient {
             user: "u".into(),
             password: "p".into(),
         },
+        timeout_ms: 30_000,
     };
     HttpOicClient::new(dest).unwrap()
 }
