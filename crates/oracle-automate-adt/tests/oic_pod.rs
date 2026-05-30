@@ -48,23 +48,23 @@ fn client(addr: SocketAddr, timeout_ms: u64) -> HttpOicClient {
 async fn get_integration_artifact() {
     let addr = spawn_pod(MockConfig::default()).await;
     let p = client(addr, 30_000)
-        .get_integration("KLB_GL_JOURNAL_IMPORT")
+        .get_integration("GT_GL_JOURNAL_IMPORT")
         .await
         .unwrap();
-    assert_eq!(p.name, "KLB_GL_JOURNAL_IMPORT");
+    assert_eq!(p.name, "GT_GL_JOURNAL_IMPORT");
     assert_eq!(p.kind, OracleArtifactKind::Integration);
-    assert!(p.source.contains("KLB_GL_JOURNAL_IMPORT"));
+    assert!(p.source.contains("GT_GL_JOURNAL_IMPORT"));
     assert!(p.active);
-    assert_eq!(p.package.as_deref(), Some("KLB_FINANCE_INTEGRATIONS"));
+    assert_eq!(p.package.as_deref(), Some("GT_FINANCE_INTEGRATIONS"));
 }
 
 #[tokio::test]
 async fn get_groovy_and_bip_report() {
     let addr = spawn_pod(MockConfig::default()).await;
     let c = client(addr, 30_000);
-    let g = c.get_groovy_script("KLB_INVOICE_HOLD_RULE").await.unwrap();
+    let g = c.get_groovy_script("GT_INVOICE_HOLD_RULE").await.unwrap();
     assert!(g.source.contains("ValidationException"));
-    let r = c.get_bip_report("KLB_GL_TRIAL_BALANCE").await.unwrap();
+    let r = c.get_bip_report("GT_GL_TRIAL_BALANCE").await.unwrap();
     assert!(r.source.contains("GL_JE_LINES"));
 }
 
@@ -89,8 +89,8 @@ async fn search_filters_by_query() {
         })
         .await
         .unwrap();
-    assert!(hits.iter().any(|h| h.name == "KLB_GL_JOURNAL_IMPORT"));
-    assert!(!hits.iter().any(|h| h.name == "KLB_PO_RECEIPT_SYNC"));
+    assert!(hits.iter().any(|h| h.name == "GT_GL_JOURNAL_IMPORT"));
+    assert!(!hits.iter().any(|h| h.name == "GT_PO_RECEIPT_SYNC"));
 }
 
 #[tokio::test]
@@ -98,12 +98,12 @@ async fn where_used_lists_dependents() {
     let addr = spawn_pod(MockConfig::default()).await;
     let hits = client(addr, 30_000)
         .where_used(WhereUsedRequest {
-            name: "KLB_FUSION_ERP_REST".into(),
+            name: "GT_FUSION_ERP_REST".into(),
             kind: OracleArtifactKind::Connection,
         })
         .await
         .unwrap();
-    assert!(hits.iter().any(|h| h.object == "KLB_GL_JOURNAL_IMPORT"));
+    assert!(hits.iter().any(|h| h.object == "GT_GL_JOURNAL_IMPORT"));
 }
 
 #[tokio::test]
@@ -112,7 +112,7 @@ async fn activate_blocked_in_read_only_mode() {
     let err = client(addr, 30_000)
         .activate(
             ActivationRequest {
-                name: "KLB_GL_JOURNAL_IMPORT".into(),
+                name: "GT_GL_JOURNAL_IMPORT".into(),
                 kind: OracleArtifactKind::Integration,
             },
             OicCallContext { read_only: true },
@@ -128,7 +128,7 @@ async fn gated_activate_succeeds_when_writes_enabled() {
     let outcome = client(addr, 30_000)
         .activate(
             ActivationRequest {
-                name: "KLB_GL_JOURNAL_IMPORT".into(),
+                name: "GT_GL_JOURNAL_IMPORT".into(),
                 kind: OracleArtifactKind::Integration,
             },
             OicCallContext { read_only: false },
@@ -147,7 +147,7 @@ async fn slow_pod_trips_client_timeout() {
     })
     .await;
     let err = client(addr, 100)
-        .get_integration("KLB_GL_JOURNAL_IMPORT")
+        .get_integration("GT_GL_JOURNAL_IMPORT")
         .await
         .unwrap_err();
     assert!(

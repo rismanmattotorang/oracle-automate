@@ -8,7 +8,7 @@ arguments:
     description: Fusion REST resource name (e.g. "purchaseOrders", "journalEntries") or custom service path
     required: true
   - name: connection
-    description: OIC connection name OR direct base URL (e.g. "KLB_FUSION_ERP_REST" or "https://kalbe.fa.ocs.oraclecloud.com")
+    description: OIC connection name OR direct base URL (e.g. "GT_FUSION_ERP_REST" or "https://gaussian.fa.ocs.oraclecloud.com")
     required: false
 ---
 

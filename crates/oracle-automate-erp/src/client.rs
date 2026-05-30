@@ -28,9 +28,9 @@ use tracing::debug;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemInfo {
-    /// Fusion environment / pod identifier, e.g. "KALBE-FA-PROD".
+    /// Fusion environment / pod identifier, e.g. "GAUSSIAN-FA-PROD".
     pub sid: String,
-    /// Enterprise / data-scope hint (Ledger or Business Unit), e.g. "KALBE_PRIMARY_LEDGER".
+    /// Enterprise / data-scope hint (Ledger or Business Unit), e.g. "GAUSSIAN_PRIMARY_LEDGER".
     pub client: String,
     /// Fusion Applications release, e.g. "Oracle Fusion Cloud ERP 24D (11.13.24.10.0)".
     pub release: String,
@@ -341,11 +341,11 @@ impl ErpClient for MockErpClient {
     async fn system_info(&self) -> ErpResult<SystemInfo> {
         let _p = self.pool.acquire().await?;
         Ok(SystemInfo {
-            sid: "KALBE-FA-DEV".into(),
-            client: "KALBE_PRIMARY_LEDGER".into(),
+            sid: "GAUSSIAN-FA-DEV".into(),
+            client: "GAUSSIAN_PRIMARY_LEDGER".into(),
             release: "Oracle Fusion Cloud ERP 24D (11.13.24.10.0) (mock)".into(),
             system_role: "DEV".into(),
-            host: "kalbe-dev.fa.ocs.oraclecloud.com".into(),
+            host: "gaussian-dev.fa.ocs.oraclecloud.com".into(),
             instance: "fa-edpb".into(),
             identity: self.identity.clone(),
         })
@@ -936,7 +936,7 @@ fn seed_functions() -> Vec<ErpOperationMeta> {
             function_group: "BI Publisher".into(),
             package: Some("XDO".into()),
             parameters: vec![
-                p_imp("REPORT_PATH", "VARCHAR2(2000)", false, "Catalog path, e.g. /Custom/Kalbe/GL/JournalExtract.xdo"),
+                p_imp("REPORT_PATH", "VARCHAR2(2000)", false, "Catalog path, e.g. /Custom/Gaussian Technologies/GL/JournalExtract.xdo"),
                 p_imp_default("PARAMETERS", "STRUCT(bip-parameters)", "", "Report parameters"),
                 p_imp_default("SIZE_OF_DATA_CHUNK", "NUMBER", "-1", "Chunking for large extracts"),
                 p_exp("REPORT_BYTES", "CLOB(base64)", false, "Report output (XML/CSV)"),
@@ -1043,9 +1043,9 @@ fn seed_tables() -> Vec<MockTable> {
                 storage_note: None,
             },
             rows: vec![
-                row(&[("INVENTORY_ITEM_ID","300100001"),("ORGANIZATION_ID","204"),("ITEM_NUMBER","KLB-API-PARACETAMOL-500"),("ITEM_DESCRIPTION","Paracetamol API 500mg"),("ITEM_CLASS","ACTIVE_INGREDIENT"),("PRIMARY_UOM_CODE","KG"),("ITEM_STATUS_CODE","Active"),("CREATION_DATE","2024-09-01"),("CREATED_BY","KALBE_DEV")]),
-                row(&[("INVENTORY_ITEM_ID","300100002"),("ORGANIZATION_ID","204"),("ITEM_NUMBER","KLB-FG-PROMAG-TABLET"),("ITEM_DESCRIPTION","Promag Tablet (finished good)"),("ITEM_CLASS","FINISHED_GOOD"),("PRIMARY_UOM_CODE","EA"),("ITEM_STATUS_CODE","Active"),("CREATION_DATE","2024-09-15"),("CREATED_BY","KALBE_DEV")]),
-                row(&[("INVENTORY_ITEM_ID","300100003"),("ORGANIZATION_ID","207"),("ITEM_NUMBER","KLB-TRADE-HYDROCOCO-250"),("ITEM_DESCRIPTION","Hydro Coco 250ml (trade)"),("ITEM_CLASS","TRADE_GOOD"),("PRIMARY_UOM_CODE","EA"),("ITEM_STATUS_CODE","Active"),("CREATION_DATE","2025-10-01"),("CREATED_BY","KALBE_DEV")]),
+                row(&[("INVENTORY_ITEM_ID","300100001"),("ORGANIZATION_ID","204"),("ITEM_NUMBER","GT-COMP-GPU-A100"),("ITEM_DESCRIPTION","GPU Compute Module A100"),("ITEM_CLASS","COMPONENT"),("PRIMARY_UOM_CODE","EA"),("ITEM_STATUS_CODE","Active"),("CREATION_DATE","2024-09-01"),("CREATED_BY","GT_DEV")]),
+                row(&[("INVENTORY_ITEM_ID","300100002"),("ORGANIZATION_ID","204"),("ITEM_NUMBER","GT-FG-EDGE-NODE"),("ITEM_DESCRIPTION","Gaussian Edge Node (finished good)"),("ITEM_CLASS","FINISHED_GOOD"),("PRIMARY_UOM_CODE","EA"),("ITEM_STATUS_CODE","Active"),("CREATION_DATE","2024-09-15"),("CREATED_BY","GT_DEV")]),
+                row(&[("INVENTORY_ITEM_ID","300100003"),("ORGANIZATION_ID","207"),("ITEM_NUMBER","GT-TRADE-SENSOR-KIT"),("ITEM_DESCRIPTION","IoT Sensor Kit (trade)"),("ITEM_CLASS","TRADE_GOOD"),("PRIMARY_UOM_CODE","EA"),("ITEM_STATUS_CODE","Active"),("CREATION_DATE","2025-10-01"),("CREATED_BY","GT_DEV")]),
             ],
         },
         // ---- GL_LEDGERS — ledgers -------------
@@ -1067,8 +1067,8 @@ fn seed_tables() -> Vec<MockTable> {
                 storage_note: Some("Company-code analog. Company code maps onto Ledger + Legal Entity; data access is scoped by Data Access Set, not a tenant client.".into()),
             },
             rows: vec![
-                row(&[("LEDGER_ID","300100001"),("NAME","Kalbe Primary Ledger"),("CURRENCY_CODE","IDR"),("CHART_OF_ACCOUNTS_ID","101"),("PERIOD_SET_NAME","KALBE_FISCAL"),("LEDGER_CATEGORY_CODE","PRIMARY"),("LEGAL_ENTITY_ID","500001")]),
-                row(&[("LEDGER_ID","300100002"),("NAME","Kalbe USD Reporting"),("CURRENCY_CODE","USD"),("CHART_OF_ACCOUNTS_ID","101"),("PERIOD_SET_NAME","KALBE_FISCAL"),("LEDGER_CATEGORY_CODE","ALC"),("LEGAL_ENTITY_ID","500001")]),
+                row(&[("LEDGER_ID","300100001"),("NAME","Gaussian Technologies Primary Ledger"),("CURRENCY_CODE","IDR"),("CHART_OF_ACCOUNTS_ID","101"),("PERIOD_SET_NAME","GAUSSIAN_FISCAL"),("LEDGER_CATEGORY_CODE","PRIMARY"),("LEGAL_ENTITY_ID","500001")]),
+                row(&[("LEDGER_ID","300100002"),("NAME","Gaussian Technologies USD Reporting"),("CURRENCY_CODE","USD"),("CHART_OF_ACCOUNTS_ID","101"),("PERIOD_SET_NAME","GAUSSIAN_FISCAL"),("LEDGER_CATEGORY_CODE","ALC"),("LEGAL_ENTITY_ID","500001")]),
             ],
         },
         // ---- GL_PERIOD_STATUSES — accounting periods (T001B analog) -----
@@ -1168,9 +1168,9 @@ fn seed_tables() -> Vec<MockTable> {
                 storage_note: Some("Fusion Order Management. Data access is scoped by Business Unit (BUSINESS_UNIT_ID), the Business-Unit scoping model.".into()),
             },
             rows: vec![
-                row(&[("HEADER_ID","400100501"),("ORDER_NUMBER","KLB-SO-5001"),("BUYING_PARTY_ID","600100"),("TRANSACTIONAL_CURR_CODE","IDR"),("ORDERED_DATE","2026-01-12"),("STATUS_CODE","OPEN"),("BUSINESS_UNIT_ID","204"),("TOTAL_AMOUNT","187500000")]),
-                row(&[("HEADER_ID","400100502"),("ORDER_NUMBER","KLB-SO-5002"),("BUYING_PARTY_ID","600100"),("TRANSACTIONAL_CURR_CODE","IDR"),("ORDERED_DATE","2026-01-15"),("STATUS_CODE","CLOSED"),("BUSINESS_UNIT_ID","204"),("TOTAL_AMOUNT","134850000")]),
-                row(&[("HEADER_ID","400100503"),("ORDER_NUMBER","KLB-SO-5003"),("BUYING_PARTY_ID","600200"),("TRANSACTIONAL_CURR_CODE","USD"),("ORDERED_DATE","2026-01-20"),("STATUS_CODE","OPEN"),("BUSINESS_UNIT_ID","207"),("TOTAL_AMOUNT","45000")]),
+                row(&[("HEADER_ID","400100501"),("ORDER_NUMBER","GT-SO-5001"),("BUYING_PARTY_ID","600100"),("TRANSACTIONAL_CURR_CODE","IDR"),("ORDERED_DATE","2026-01-12"),("STATUS_CODE","OPEN"),("BUSINESS_UNIT_ID","204"),("TOTAL_AMOUNT","187500000")]),
+                row(&[("HEADER_ID","400100502"),("ORDER_NUMBER","GT-SO-5002"),("BUYING_PARTY_ID","600100"),("TRANSACTIONAL_CURR_CODE","IDR"),("ORDERED_DATE","2026-01-15"),("STATUS_CODE","CLOSED"),("BUSINESS_UNIT_ID","204"),("TOTAL_AMOUNT","134850000")]),
+                row(&[("HEADER_ID","400100503"),("ORDER_NUMBER","GT-SO-5003"),("BUYING_PARTY_ID","600200"),("TRANSACTIONAL_CURR_CODE","USD"),("ORDERED_DATE","2026-01-20"),("STATUS_CODE","OPEN"),("BUSINESS_UNIT_ID","207"),("TOTAL_AMOUNT","45000")]),
             ],
         },
         // ---- FND_SANDBOXES — config sandboxes (E070 transport analog) ---
@@ -1191,7 +1191,7 @@ fn seed_tables() -> Vec<MockTable> {
                 storage_note: Some("Oracle's change-promotion unit. Publishing merges to MAINLINE; cross-pod promotion uses FSM Configuration Packages. This is the change-promotion unit.".into()),
             },
             rows: vec![
-                row(&[("SANDBOX_ID","800100001"),("SANDBOX_NAME","KLB_AR_AUTOINVOICE_FIX"),("STATUS","ACTIVE"),("CREATED_BY","KALBE_DEV"),("CREATION_DATE","2026-03-18"),("PUBLISH_TARGET","MAINLINE")]),
+                row(&[("SANDBOX_ID","800100001"),("SANDBOX_NAME","GT_AR_AUTOINVOICE_FIX"),("STATUS","ACTIVE"),("CREATED_BY","GT_DEV"),("CREATION_DATE","2026-03-18"),("PUBLISH_TARGET","MAINLINE")]),
             ],
         },
     ]
@@ -1400,8 +1400,8 @@ mod tests {
     async fn system_info_returns_identity() {
         let c = MockErpClient::new(4, serde_json::json!({"user": "DEMO"}));
         let info = c.system_info().await.unwrap();
-        assert_eq!(info.sid, "KALBE-FA-DEV");
-        assert_eq!(info.client, "KALBE_PRIMARY_LEDGER");
+        assert_eq!(info.sid, "GAUSSIAN-FA-DEV");
+        assert_eq!(info.client, "GAUSSIAN_PRIMARY_LEDGER");
     }
 
     #[tokio::test]
@@ -1453,7 +1453,10 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].values.get("NAME").unwrap(), "Kalbe USD Reporting");
+        assert_eq!(
+            rows[0].values.get("NAME").unwrap(),
+            "Gaussian Technologies USD Reporting"
+        );
         assert!(rows[0].values.get("CURRENCY_CODE").is_some());
         assert!(
             rows[0].values.get("LEDGER_ID").is_none(),

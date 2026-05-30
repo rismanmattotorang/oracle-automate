@@ -2008,7 +2008,7 @@ fn workflow_release_transport(ctx: &Arc<ServerContext>) -> ToolDescriptor {
             let initial = args.sandbox.unwrap_or_default();
             let schema = mcp_server::object_schema(
                 serde_json::json!({
-                    "sandbox":             { "type": "string", "description": "Sandbox name to publish, e.g. KLB_AR_AUTOINVOICE_FIX", "default": initial },
+                    "sandbox":             { "type": "string", "description": "Sandbox name to publish, e.g. GT_AR_AUTOINVOICE_FIX", "default": initial },
                     "target":              { "type": "string", "description": "Publish target", "enum": ["MAINLINE", "QA_POD", "PRODUCTION"], "default": "MAINLINE" },
                     "publish_dependents":  { "type": "boolean", "description": "Publish dependent sandboxes?", "default": false },
                     "skip_validation":     { "type": "boolean", "description": "Skip pre-publish validation (dangerous)", "default": false },

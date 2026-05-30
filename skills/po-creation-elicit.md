@@ -5,10 +5,10 @@ tags: [procurement, purchase-order, elicitation, workflow]
 requires_tools: [oracle.workflow.create_purchase_order, oracle.rest.metadata, oracle.docs.search]
 arguments:
   - name: supplier_hint
-    description: Supplier hint, e.g. "PT Sumber Bahan Kimia"
+    description: Supplier hint, e.g. "PT Sumber Daya Komputasi"
     required: false
   - name: item_hint
-    description: Item number hint, e.g. "KLB-API-PARACETAMOL-500"
+    description: Item number hint, e.g. "GT-COMP-GPU-A100"
     required: false
 ---
 

@@ -19,7 +19,7 @@ pub struct OicDestination {
     /// on-disk label can't silently drift from the name it's loaded under.
     #[serde(default)]
     pub name: String,
-    /// e.g. `https://kalbe.fa.ocs.oraclecloud.com`
+    /// e.g. `https://gaussian.fa.ocs.oraclecloud.com`
     pub base_url: String,
     /// data-scope (ledger/BU), e.g. `100`.
     pub client: String,
@@ -108,7 +108,7 @@ mod loader_tests {
         let path = temp_toml(
             r#"
             name = "stale-on-disk-label"
-            base_url = "https://kalbe-dev.fa.ocs.oraclecloud.com"
+            base_url = "https://gaussian-dev.fa.ocs.oraclecloud.com"
             client = "100"
             language = "EN"
 
@@ -123,7 +123,7 @@ mod loader_tests {
 
         // The lookup key wins over the on-disk label.
         assert_eq!(dest.name, "dev-fusion");
-        assert_eq!(dest.base_url, "https://kalbe-dev.fa.ocs.oraclecloud.com");
+        assert_eq!(dest.base_url, "https://gaussian-dev.fa.ocs.oraclecloud.com");
         assert_eq!(dest.client, "100");
         match &dest.auth {
             OicAuth::Basic { user, password } => {
@@ -138,7 +138,7 @@ mod loader_tests {
     fn name_field_is_optional_in_file() {
         let path = temp_toml(
             r#"
-            base_url = "https://kalbe-dev.fa.ocs.oraclecloud.com"
+            base_url = "https://gaussian-dev.fa.ocs.oraclecloud.com"
             client = "100"
 
             [auth]
@@ -157,7 +157,7 @@ mod loader_tests {
     fn redacted_never_leaks_password() {
         let path = temp_toml(
             r#"
-            base_url = "https://kalbe-dev.fa.ocs.oraclecloud.com"
+            base_url = "https://gaussian-dev.fa.ocs.oraclecloud.com"
             client = "100"
 
             [auth]

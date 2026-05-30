@@ -5,7 +5,7 @@ tags: [gl, period-close, investigation]
 requires_tools: [oracle.docs.search, oracle.object.read, oracle.rest.metadata]
 arguments:
   - name: ledger
-    description: Ledger name or id, e.g. "Kalbe Primary Ledger"
+    description: Ledger name or id, e.g. "Gaussian Technologies Primary Ledger"
     required: true
   - name: accounting_period
     description: Accounting period being closed, e.g. "MAR-26"

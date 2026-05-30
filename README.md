@@ -2,37 +2,42 @@
 
 # Oracle-Automate
 
-### The agentic OS for Oracle ERP — built in Rust, on-premise by default.
+### The agentic operating system for Oracle Fusion Cloud ERP — Rust core, on-premise by default.
 
-**Sub-millisecond retrieval. Correctness-as-tests. Apache-2.0.**
-**Made by [Kalbe](#about-kalbe).**
+**Sub-millisecond retrieval · correctness-as-tests · read-only by default · Apache-2.0**
+
+Built by **[Gaussian Technologies](#about-gaussian-technologies)** — a deep-tech startup from Indonesia.
 
 [![Rust](https://img.shields.io/badge/Rust-1.80%2B-orange?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![MCP](https://img.shields.io/badge/MCP-2025--06--18-8b5cf6?style=flat-square)](https://modelcontextprotocol.io)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 
-[**Porting strategy →**](docs/PORTING_STRATEGY.md) · [Architecture](#architecture) · [What ships](#what-ships-in-this-repo)
+[Quick start](#quick-start) · [Architecture](#architecture) · [What ships](#what-ships-in-this-repo) · [Production readiness](docs/PRODUCTION_READINESS.md)
 
 </div>
 
 ---
 
-> ### 🚧 Port in progress
->
-> **Oracle-Automate is a port of [SAP-Automate](https://github.com/rismanmattotorang/sap-automate)** — the same
-> proven MCP-native agentic architecture — re-fitted from **SAP S/4HANA** to
-> **Oracle Fusion Cloud ERP** (latest release) and rebranded from ParagonCorp to
-> **Kalbe**.
->
-> The port runs in **phases** so the workspace builds and tests green at every
-> step. See [`docs/PORTING_STRATEGY.md`](docs/PORTING_STRATEGY.md) for the full
-> SAP→Oracle domain mapping and the phase plan. Current status: **Phase 1
-> (foundation / rebrand) complete** — the full architecture has been lifted and
-> rebranded, the workspace compiles, and the generic MCP / RAG / graph / KB
-> layers are Oracle-ready. The deep ERP domain model (the BAPI/RFC catalogue,
-> ABAP/ADT surface, fixtures, tool namespace, skills, and docs) is being
-> re-modeled to Oracle Fusion in subsequent phases — until those land you will
-> still see SAP-domain identifiers in the lower layers.
+Enterprises run their financial and supply-chain core on **Oracle Fusion Cloud
+ERP**. AI agents are good at reasoning over it — and dangerous at acting on it.
+**Oracle-Automate closes that gap**: an MCP-native agent runtime that gives any
+LLM client (Claude, Cursor, your own gateway) safe, cited, sub-millisecond
+access to Fusion — read-only by default, with transactional writes gated behind
+explicit approval, elicitation, and an audit trail.
+
+It is **open-source, on-premise, and vendor-neutral** — no agent SaaS sits
+between your data and your ERP.
+
+```bash
+# One command: the full agent runtime wired to mock Fusion + OIC pods.
+docker compose up --build        # then point an MCP client at http://localhost:3030/mcp
+```
+
+> **Status.** All ERP-domain, retrieval, MCP-surface, and live-transport layers
+> are complete and test-green (205 offline tests). The live Oracle clients are
+> exercised end-to-end against runnable mock pods; going live is a URL change.
+> See [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md) for the
+> phased path to a production pod.
 
 ---
 
@@ -66,71 +71,83 @@ docker compose up --build      # see deploy/demo/README.md
 
 ---
 
-## Why Kalbe is building this
+## Why we built it
 
-Kalbe (PT Kalbe Farma Tbk) runs a large **Oracle Fusion Cloud ERP** estate
-across pharmaceutical manufacturing, distribution, and consumer-health
-operations. The gap between *what AI agents can do generally* and *what they
-can do safely against a production ERP* is the same gap ParagonCorp identified
-for SAP — and the same architecture closes it for Oracle:
+Gaussian Technologies builds agentic infrastructure for the systems enterprises
+can't afford to get wrong. Oracle Fusion Cloud ERP is the canonical example: a
+general-purpose agent that can *post a journal* or *create a purchase order* is
+useful; one that does so without guardrails is a liability. Our design
+principles:
 
-- **MCP-native**, on-prem by default, no vendor SaaS lock-in.
-- **Read-only by default**, gated transactional writes (`--enable-writes`).
-- **Correctness written down as tests** — the SAP precision gates are being
-  replaced by Oracle-Fusion invariants (item-number length, GL/SLA accounting
-  backbone, scoping columns, REST return contracts). See the strategy doc.
-- **Rust core** for sub-millisecond retrieval — no Python/Node latency tails.
+- **MCP-native, on-prem by default** — the runtime lives next to your data; no
+  third-party agent cloud, no SaaS lock-in.
+- **Read-only by default, gated writes** — write tools are *hidden* from
+  `tools/list` until the operator opts in (`--enable-writes`); high-stakes
+  workflows require elicitation + a re-typed confirmation.
+- **Correctness written down as tests** — Oracle-Fusion invariants (item-number
+  length, GL + Subledger accounting backbone, scoping columns, REST/FND return
+  contracts) are enforced as a dedicated CI gate, not left to prose.
+- **Cite every claim** — answers carry `oracle-help://` / `oracle-rest://` /
+  `oracle-object://` provenance URIs.
+- **Rust core for sub-millisecond retrieval** — no Python/Node latency tails;
+  the P95 retrieval gate is < 80 ms in CI.
 
 ---
 
 ## Architecture
 
-The architecture is preserved from the source; only the bottom ERP-backend
-layer and the domain vocabulary change.
+Every layer is a trait-based seam (`KnowledgeStore`, `EmbeddingClient`,
+`ErpClient`, `OicClient`, `Reranker`, `ChannelAdapter`, `AuditSink`), so every
+backend is independently replaceable — mock in development, live in production.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  Channels: Teams · Slack · Telegram · WhatsApp · Email · CLI         │  oracle-automate-channels
+│  Channels: Teams · Slack · Telegram · WhatsApp · Email · CLI          │  oracle-automate-channels
 ├──────────────────────────────────────────────────────────────────────┤
-│  Gateway: intent routing · 4-tier memory · proactive scheduler       │  oracle-automate-gw
+│  Gateway: intent routing · 4-tier memory · proactive scheduler        │  oracle-automate-gw
 ├──────────────────────────────────────────────────────────────────────┤
-│  MCP transports: stdio · HTTP+SSE · Streaming HTTP                   │  mcp-transport
+│  MCP transports: stdio · HTTP+SSE · streaming HTTP                     │  mcp-transport
 ├──────────────────────────────────────────────────────────────────────┤
-│  MCP server: tools · resources · prompts · elicitation              │  mcp-server  + apps/oracle-automate-server
+│  MCP server: tools · resources · prompts · elicitation                │  mcp-server + apps/oracle-automate-server
 ├──────────────────────────────────────────────────────────────────────┤
-│  RAG engine: dense + BM25 + RRF + cross-encoder reranker             │  oracle-automate-rag
-│  Graph engine: GraphRAG (Louvain) · HippoRAG (PPR) · RAPTOR          │  oracle-automate-graph
+│  RAG engine: dense + BM25 + RRF + cross-encoder reranker              │  oracle-automate-rag
+│  Graph engine: GraphRAG (Louvain) · HippoRAG (PPR) · RAPTOR           │  oracle-automate-graph
 ├──────────────────────────────────────────────────────────────────────┤
-│  Knowledge base: in-memory · Qdrant · ArangoDB · DocumentTree        │  oracle-automate-kb
-│  Ingestion: HTML crawler · contextual chunker · embedding pipeline   │  oracle-automate-ingest
+│  Knowledge base: in-memory · Qdrant · ArangoDB · DocumentTree         │  oracle-automate-kb
+│  Ingestion: HTML crawler · contextual chunker · embedding pipeline    │  oracle-automate-ingest
 ├──────────────────────────────────────────────────────────────────────┤
-│  Oracle ERP backends (porting): Fusion REST · SOAP · BI Publisher    │  oracle-automate-rfc (→ erp)
-│  Custom-code surface (porting): OIC · App Composer · BIP             │  oracle-automate-adt (→ oic)
+│  Oracle Fusion REST · BI Publisher · TCA parties (live + mock pod)    │  oracle-automate-erp
+│  Custom-code surface: OIC · Application Composer · BIP (live + mock)  │  oracle-automate-adt
 ├──────────────────────────────────────────────────────────────────────┤
-│  Observability: Prometheus · audit log · OpenTelemetry ready         │  oracle-automate-observability
+│  Observability: Prometheus · audit log · OpenTelemetry ready          │  oracle-automate-observability
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-Every layer is a trait-based seam: `KnowledgeStore`, `EmbeddingClient`,
-`SapClient` (→ `ErpClient`), `AdtClient`, `Reranker`, `ChannelAdapter`,
-`AuditSink`. **Every backend is independently replaceable** — which is exactly
-what makes the SAP→Oracle port tractable: swap the bottom layer, keep the rest.
+The live Fusion / OIC clients (`HttpFusionClient`, `FusionPartyClient`,
+`HttpOicClient`) speak real Fusion REST / OIC shapes. In development they target
+**runnable mock pods** (`oracle-automate-fusion-mock`, `oracle-automate-oic-mock`);
+in production they target a real pod — the only change is the base URL.
 
 ---
 
 ## What ships in this repo
 
-- **16 Rust crates** (`crates/`) + **7 binaries** (`apps/`) + a **Next.js 14 web UI** (`apps/web`).
+- **18 Rust crates** (`crates/`) + **9 binaries** (`apps/` + the mock pods) + a **Next.js 14 web UI** (`apps/web`).
 - **MCP 2025-06-18** coverage: `initialize`, `tools/*`, `resources/*`, `prompts/*`,
   `elicitation/create`, `logging/setLevel`, `completion/complete`, HTTP `Origin`
   validation, bearer auth.
 - **Layered retrieval**: hybrid (dense + BM25 + RRF + rerank), GraphRAG (Louvain),
-  HippoRAG (PPR), RAPTOR.
+  HippoRAG (PPR), RAPTOR — with a real cross-encoder reranker behind a feature flag.
+- **Live Oracle transports**: Fusion REST (read + gated write), TCA party search,
+  OIC / Application Composer / BI Publisher artifact retrieval, where-used, gated
+  activation — each with request timeouts and contract tests.
+- **Runnable mock pods** for Fusion and OIC, with auth + latency injection and a
+  no-auth `/healthz` — one-command demo via `docker compose`.
 - **Agentic gateway**: multi-channel adapters, four-tier memory, TOML scheduler.
-- **Production posture**: Prometheus metrics, audit log, K8s manifests, Dockerfile, CI.
-
-See [`docs/PORTING_STRATEGY.md`](docs/PORTING_STRATEGY.md) for which layers are
-Oracle-ready and which are mid-port.
+- **13 agentic skills** (period close, SoD audit, REST service design, sandbox
+  impact analysis, …) auto-loaded as MCP prompts.
+- **Production posture**: Prometheus metrics, redacted audit log, distroless
+  image, K8s manifests, pinned-toolchain CI with an Oracle-correctness gate.
 
 ---
 
@@ -138,37 +155,44 @@ Oracle-ready and which are mid-port.
 
 ```
 oracle-automate/
-├── crates/                          ← 16 Rust crates
-│   ├── mcp-core / mcp-transport / mcp-server / mcp-client   (generic MCP — Oracle-ready)
-│   ├── oracle-automate-kb / -rag / -graph / -ingest         (retrieval — light domain)
+├── crates/                          ← 18 Rust crates
+│   ├── mcp-core / mcp-transport / mcp-server / mcp-client   (generic MCP)
+│   ├── oracle-automate-kb / -rag / -graph / -ingest         (layered retrieval)
 │   ├── oracle-automate-memory / -observability / -channels / -scheduler / -skills
-│   ├── oracle-automate-rfc          (ERP backend — being re-modeled to Fusion REST/SOAP/BIP)
-│   ├── oracle-automate-adt          (custom-code surface — being re-modeled to OIC/App Composer)
+│   ├── oracle-automate-erp          (Oracle Fusion REST / BIP / TCA — live + mock)
+│   ├── oracle-automate-adt          (OIC / Application Composer / BIP custom code)
+│   ├── oracle-automate-fusion-mock  (runnable mock Fusion pod)
+│   ├── oracle-automate-oic-mock     (runnable mock OIC pod)
 │   └── oracle-automate-connectors
-├── apps/                            ← 7 binaries + Next.js web UI
+├── apps/                            ← binaries + Next.js web UI
 │   ├── oracle-automate-server / -gw / -tui / -ingest / -bench
 │   ├── sample-server / sample-client
 │   └── web/                         Next.js 14 web UI
-├── skills/                          ← auto-loaded agentic skills (porting to Oracle)
-├── deploy/                          ← Dockerfile + K8s manifests
+├── skills/                          ← auto-loaded agentic skills
+├── deploy/                          ← Dockerfile · K8s manifests · docker-compose demo
 └── docs/
-    ├── PORTING_STRATEGY.md          ← the SAP→Oracle phased port plan
-    └── …                            (ROADMAP / CORRECTNESS / COMPARISON / INTEGRATION — porting)
+    ├── PRODUCTION_READINESS.md      ← phased path to a production pod (authoritative)
+    ├── PORTING_STRATEGY.md          ← domain mapping + architecture
+    └── ORACLE_CORRECTNESS.md        ← the correctness invariants, as tests
 ```
 
 ---
 
-## About Kalbe
+## About Gaussian Technologies
 
-**Kalbe** (PT Kalbe Farma Tbk) is Indonesia's largest publicly-listed
-pharmaceutical company, running Oracle Fusion Cloud ERP across manufacturing,
-distribution, and consumer-health operations.
+**Gaussian Technologies** is a deep-tech startup based in Indonesia, building
+agentic infrastructure for enterprise systems where correctness, latency, and
+data sovereignty are non-negotiable. Oracle-Automate is our open-source flagship:
+a Rust-native, on-premise agent runtime for Oracle Fusion Cloud ERP. We believe
+the safe path to enterprise AI is local-first software with guardrails written
+down as code — not another cloud sitting between a company and its core systems.
 
 ## Credit
 
-Oracle-Automate is a port of **SAP-Automate** by **ParagonCorp** (TPO R&D),
-released under Apache-2.0. The architecture, layering, and MCP/RAG engineering
-are theirs; this repository re-fits the ERP-domain layer for Oracle.
+Oracle-Automate's architecture, layering, and MCP/RAG engineering originate from
+**SAP-Automate** by **ParagonCorp** (TPO R&D), released under Apache-2.0.
+Gaussian Technologies re-fitted the ERP-domain layer from SAP S/4HANA to Oracle
+Fusion Cloud ERP. The upstream attribution is retained as the license requires.
 
 ---
 

@@ -20,7 +20,7 @@
 # The server never logs the password/token — only the `auth_type` label.
 
 # `name` is optional — the lookup key (the filename you select) always wins.
-base_url = "https://kalbe-dev.fa.ocs.oraclecloud.com"
+base_url = "https://gaussian-dev.fa.ocs.oraclecloud.com"
 client   = "100"
 language  = "EN"
 

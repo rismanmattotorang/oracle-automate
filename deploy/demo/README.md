@@ -43,12 +43,12 @@ curl -s -H "Authorization: Bearer demo" \
 
 # Fusion mock — gated write (PO create) returns a document number
 curl -s -X POST -H "Authorization: Bearer demo" -H "Content-Type: application/json" \
-  -d '{"Supplier":"PT Kimia Farma","CurrencyCode":"IDR"}' \
+  -d '{"Supplier":"PT Nusantara Semikonduktor","CurrencyCode":"IDR"}' \
   "http://localhost:8088/fscmRestApi/resources/11.13.18.05/purchaseOrders"
 
 # OIC mock — fetch an integration artifact
 curl -s -H "Authorization: Basic ZGVtbzpkZW1v" \
-  "http://localhost:8089/ic/api/integration/v1/integrations/KLB_GL_JOURNAL_IMPORT"
+  "http://localhost:8089/ic/api/integration/v1/integrations/GT_GL_JOURNAL_IMPORT"
 
 # MCP server — Prometheus metrics (latency histograms, etc.)
 curl -s "http://localhost:3030/metrics" | head

@@ -5,7 +5,7 @@ tags: [rest, oic, app-composer, scaffolding]
 requires_tools: [oracle.oic.get_bip_report, oracle.oic.get_project_contents, oracle.docs.search]
 arguments:
   - name: data_source
-    description: Backing data source — a BI Publisher data model / view, or a Fusion REST resource, e.g. "KLB_GL_JOURNAL_EXTRACT"
+    description: Backing data source — a BI Publisher data model / view, or a Fusion REST resource, e.g. "GT_GL_JOURNAL_EXTRACT"
     required: true
   - name: service_kind
     description: Scaffolding target (oic_integration | app_composer_object | custom_rest)
@@ -24,7 +24,7 @@ Read-only investigation phase (always run, even when writes are enabled):
 Production phase (only when `--enable-writes` is active and the user confirms):
 
 5. Produce a **plan** with:
-   - Target integration / object name (`KLB_<source>_SVC` convention)
+   - Target integration / object name (`GT_<source>_SVC` convention)
    - Trigger contract (REST adapter request/response, or object fields)
    - Pagination + `limit`/`offset` handling for collection reads
    - Security: connection (OAuth2/Basic) + role/privilege required to invoke

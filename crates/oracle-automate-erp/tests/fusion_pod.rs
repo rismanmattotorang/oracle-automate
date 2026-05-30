@@ -90,7 +90,7 @@ async fn gated_write_purchase_order_returns_document_number() {
     let addr = spawn_pod(MockConfig::default()).await;
     let req = write_request(
         "fusion.po.purchaseOrders.post",
-        json!({ "Supplier": "PT Sumber Bahan Kimia", "CurrencyCode": "IDR", "lines": [] }),
+        json!({ "Supplier": "PT Sumber Daya Komputasi", "CurrencyCode": "IDR", "lines": [] }),
     );
     // read_only_mode = false — the path the server takes only with --enable-writes.
     let out: Value = fusion_client(addr)
@@ -99,7 +99,7 @@ async fn gated_write_purchase_order_returns_document_number() {
         .unwrap();
     assert_eq!(out["http_status"], 201);
     let order = out["outputs"]["OrderNumber"].as_str().unwrap();
-    assert!(order.starts_with("KLB-PO-"), "got order number {order}");
+    assert!(order.starts_with("GT-PO-"), "got order number {order}");
 }
 
 #[tokio::test]

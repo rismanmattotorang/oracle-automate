@@ -96,7 +96,7 @@ The server exposes four retrieval surfaces; pick deliberately:
 |---|---|---|
 | **L2 Hybrid** | `oracle.docs.search` | Default. Lexical + semantic + RRF + rerank over the document corpus. |
 | **L3 GraphRAG** | `kb.global_query` | Global / analytical questions ("which apps touch period close?"). Returns community summaries spanning multiple domains. |
-| **L4 HippoRAG** | `kb.multi_hop` | Multi-hop / impact / where-used queries ("what depends on KLB_FUSION_ERP_REST?"). PPR-ranked, hop-distance-bounded. |
+| **L4 HippoRAG** | `kb.multi_hop` | Multi-hop / impact / where-used queries ("what depends on GT_FUSION_ERP_REST?"). PPR-ranked, hop-distance-bounded. |
 | **L5 RAPTOR** | `kb.summarise` | Granularity-aware orientation. Level 0 = leaves, 1 = communities, 2 = Oracle product roll-ups. |
 
 When in doubt, start with `oracle.docs.search`. Promote to `kb.multi_hop` only

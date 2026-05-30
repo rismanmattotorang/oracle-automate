@@ -330,7 +330,7 @@ fn match_skill(lc: &str) -> Option<(&'static str, Option<serde_json::Value>)> {
         return Some((
             "oracle.skill.period_close_investigation",
             Some(serde_json::json!({
-                "ledger": "Kalbe Primary Ledger"
+                "ledger": "Gaussian Technologies Primary Ledger"
             })),
         ));
     }
@@ -341,7 +341,7 @@ fn match_skill(lc: &str) -> Option<(&'static str, Option<serde_json::Value>)> {
         return Some((
             "oracle.skill.custom_code_review",
             Some(serde_json::json!({
-                "object_name": "KLB_INVOICE_HOLD_RULE",
+                "object_name": "GT_INVOICE_HOLD_RULE",
                 "kind": "groovy_script"
             })),
         ));
@@ -365,7 +365,7 @@ fn match_skill(lc: &str) -> Option<(&'static str, Option<serde_json::Value>)> {
         return Some((
             "oracle.skill.sandbox_impact_analysis",
             Some(serde_json::json!({
-                "sandbox": "KLB_AR_AUTOINVOICE_FIX"
+                "sandbox": "GT_AR_AUTOINVOICE_FIX"
             })),
         ));
     }
@@ -373,7 +373,7 @@ fn match_skill(lc: &str) -> Option<(&'static str, Option<serde_json::Value>)> {
         return Some((
             "oracle.skill.extensibility_audit",
             Some(serde_json::json!({
-                "project": "KLB_FINANCE_INTEGRATIONS"
+                "project": "GT_FINANCE_INTEGRATIONS"
             })),
         ));
     }

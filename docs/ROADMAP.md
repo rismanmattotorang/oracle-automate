@@ -8,7 +8,7 @@
 
 > **Status: v1.3.0 released — 2026-05-25.**  v1.0 paper phases ✅ complete; v1.1 shipped three convergence passes (skills + apps + KB/RAG/crawler); v1.2 filled in optional MCP 2025-06-18 spec utilities; v1.3 ships the Live SAP backend tier — `BusinessHubClient` against the SAP Business Accelerator Hub sandbox (OData v4, `API_BUSINESS_PARTNER`), with `sap.bp.search` / `sap.bp.get` MCP tools.  See [`CHANGELOG.md`](../CHANGELOG.md) for release notes and [`docs/INTEGRATION.md`](INTEGRATION.md) for the 3-tier integration strategy.
 
-This document translates the Oracle-Automate paper (Kalbe TPO R&D, 2026)
+This document translates the Oracle-Automate paper (Gaussian Technologies TPO R&D, 2026)
 into an executable Rust roadmap.
 
 ## Strategic goals
@@ -239,7 +239,7 @@ The four product themes for v1.1 through v2.0:
 1. **Real-world wiring** — replace every mock backend with a live integration test against a real SAP / Qdrant / ArangoDB / Postgres.
 2. **Enterprise security** — OAuth 2.1, XSUAA service-key, mTLS, SBOM, cosigned containers, third-party pen-test.
 3. **Agent intelligence** — LLM router, reflection loop, sub-agent runtime, real ONNX cross-encoder, contextual enrichment via prompt-cached LLM call.
-4. **Ecosystem reach** — Microsoft Teams / Slack / Telegram / WhatsApp real adapters, public docs site, sample agent libraries, Kalbe Skill Commons.
+4. **Ecosystem reach** — Microsoft Teams / Slack / Telegram / WhatsApp real adapters, public docs site, sample agent libraries, Gaussian Technologies Skill Commons.
 
 ## Versioned milestones
 
@@ -351,7 +351,7 @@ Three tracks run continuously alongside the versioned milestones:
   - Benchmark against named market alternatives (Joule, CData, the 6 reference projects) using paper §XII methodology — publish results quarterly.
   - Track which retrieval layer (L2/L3/L4/L5) the agent actually picks in production — feeds the next iteration of the router.
   - Episodic-memory hit-rate measurement (paper §X-L gate of 8%) — informs skill-commons promotion.
-  - Continued whitepaper updates as the system evolves; Kalbe Technical Review Vol. 1 No. 2 planned for end of 2026.
+  - Continued whitepaper updates as the system evolves; Gaussian Technologies Technical Review Vol. 1 No. 2 planned for end of 2026.
 
 ## What's explicitly NOT on the roadmap
 
@@ -366,7 +366,7 @@ To keep the project focused:
 
 - Open a GitHub issue tagged `roadmap` with a use case.
 - Vote on existing `roadmap` issues.
-- For enterprise customers: Kalbe accepts paid prioritisation under standard commercial terms — contact `tpo-research@kalbe.co.id`.
+- For enterprise customers: Gaussian Technologies accepts paid prioritisation under standard commercial terms — contact `tpo-research@gaussian.co.id`.
 
 ---
 

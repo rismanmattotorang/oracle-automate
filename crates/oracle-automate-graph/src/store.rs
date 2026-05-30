@@ -167,55 +167,55 @@ impl InMemoryGraph {
         // OIC integrations / custom-code artifacts
         add(
             self,
-            "integration:KLB_GL_JOURNAL_IMPORT",
+            "integration:GT_GL_JOURNAL_IMPORT",
             EntityKind::Integration,
-            "KLB_GL_JOURNAL_IMPORT",
+            "GT_GL_JOURNAL_IMPORT",
             "OIC integration that posts GL journals via FBDI (journalEntries / importBulkData).",
-            Some("oic-int://KLB/KLB_GL_JOURNAL_IMPORT"),
+            Some("oic-int://KLB/GT_GL_JOURNAL_IMPORT"),
             &[
                 "module:FIN",
-                "project:KLB_FINANCE_INTEGRATIONS",
+                "project:GT_FINANCE_INTEGRATIONS",
                 "kind:integration",
             ],
         );
         add(
             self,
-            "integration:KLB_PO_RECEIPT_SYNC",
+            "integration:GT_PO_RECEIPT_SYNC",
             EntityKind::Integration,
-            "KLB_PO_RECEIPT_SYNC",
+            "GT_PO_RECEIPT_SYNC",
             "OIC integration that syncs warehouse receipts to Fusion Receiving.",
-            Some("oic-int://KLB/KLB_PO_RECEIPT_SYNC"),
+            Some("oic-int://KLB/GT_PO_RECEIPT_SYNC"),
             &[
                 "module:SCM",
-                "project:KLB_FINANCE_INTEGRATIONS",
+                "project:GT_FINANCE_INTEGRATIONS",
                 "kind:integration",
             ],
         );
         add(
             self,
-            "integration:KLB_INVOICE_HOLD_RULE",
+            "integration:GT_INVOICE_HOLD_RULE",
             EntityKind::Integration,
-            "KLB_INVOICE_HOLD_RULE",
+            "GT_INVOICE_HOLD_RULE",
             "Application Composer Groovy rule that holds high-value AP invoices.",
-            Some("oic-int://KLB/KLB_INVOICE_HOLD_RULE"),
+            Some("oic-int://KLB/GT_INVOICE_HOLD_RULE"),
             &["module:FIN", "kind:groovy_script"],
         );
         add(
             self,
-            "integration:KLB_FUSION_ERP_REST",
+            "integration:GT_FUSION_ERP_REST",
             EntityKind::Integration,
-            "KLB_FUSION_ERP_REST",
+            "GT_FUSION_ERP_REST",
             "OIC connection to Oracle Fusion Cloud ERP REST.",
-            Some("oic-int://KLB/KLB_FUSION_ERP_REST"),
+            Some("oic-int://KLB/GT_FUSION_ERP_REST"),
             &["kind:connection"],
         );
         add(
             self,
-            "integration:KLB_COMPANY_XREF",
+            "integration:GT_COMPANY_XREF",
             EntityKind::Integration,
-            "KLB_COMPANY_XREF",
+            "GT_COMPANY_XREF",
             "DVM lookup: legacy company code -> Fusion ledger.",
-            Some("oic-int://KLB/KLB_COMPANY_XREF"),
+            Some("oic-int://KLB/GT_COMPANY_XREF"),
             &["kind:lookup"],
         );
 
@@ -406,32 +406,32 @@ impl InMemoryGraph {
         let edges: Vec<(&str, &str, EdgeKind, f32)> = vec![
             // Integrations invoke REST operations + use connection/lookup
             (
-                "integration:KLB_GL_JOURNAL_IMPORT",
+                "integration:GT_GL_JOURNAL_IMPORT",
                 "rest:journalEntries.post",
                 EdgeKind::Calls,
                 2.0,
             ),
             (
-                "integration:KLB_GL_JOURNAL_IMPORT",
-                "integration:KLB_FUSION_ERP_REST",
+                "integration:GT_GL_JOURNAL_IMPORT",
+                "integration:GT_FUSION_ERP_REST",
                 EdgeKind::Calls,
                 1.0,
             ),
             (
-                "integration:KLB_GL_JOURNAL_IMPORT",
-                "integration:KLB_COMPANY_XREF",
+                "integration:GT_GL_JOURNAL_IMPORT",
+                "integration:GT_COMPANY_XREF",
                 EdgeKind::References,
                 1.0,
             ),
             (
-                "integration:KLB_PO_RECEIPT_SYNC",
+                "integration:GT_PO_RECEIPT_SYNC",
                 "rest:receivingReceiptRequests.post",
                 EdgeKind::Calls,
                 1.0,
             ),
             (
-                "integration:KLB_PO_RECEIPT_SYNC",
-                "integration:KLB_FUSION_ERP_REST",
+                "integration:GT_PO_RECEIPT_SYNC",
+                "integration:GT_FUSION_ERP_REST",
                 EdgeKind::Calls,
                 1.0,
             ),
@@ -567,7 +567,7 @@ impl InMemoryGraph {
             ),
             (
                 "concept:journal_entry",
-                "integration:KLB_GL_JOURNAL_IMPORT",
+                "integration:GT_GL_JOURNAL_IMPORT",
                 EdgeKind::Describes,
                 1.5,
             ),
@@ -585,7 +585,7 @@ impl InMemoryGraph {
             ),
             (
                 "concept:receiving",
-                "integration:KLB_PO_RECEIPT_SYNC",
+                "integration:GT_PO_RECEIPT_SYNC",
                 EdgeKind::Describes,
                 1.0,
             ),

@@ -13,8 +13,8 @@ interface CommunityView {
 }
 
 const HOP_SUGGESTIONS = [
-  'impact of changing KLB_FUSION_ERP_REST',
-  'callers of KLB_GL_JOURNAL_IMPORT',
+  'impact of changing GT_FUSION_ERP_REST',
+  'callers of GT_GL_JOURNAL_IMPORT',
   'what depends on table FAGLFLEXA',
   'downstream from ZIF_FIN_POSTABLE',
   'trace from period close to application catalog',

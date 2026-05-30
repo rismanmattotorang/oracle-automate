@@ -252,7 +252,7 @@ mod tests {
             tenant: Some("T1".into()),
             actor: Some("user@acme.example".into()),
             tool: "oracle.workflow.create_purchase_order".into(),
-            erp_system: Some("KALBE-FA-DEV/LIVE".into()),
+            erp_system: Some("GAUSSIAN-FA-DEV/LIVE".into()),
             arguments_redacted: serde_json::json!({ "vendor": "V-100", "password": "x" }),
             outcome: AuditOutcome::ok("po created"),
             duration_ms: 42,

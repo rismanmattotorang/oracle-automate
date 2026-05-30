@@ -5,7 +5,7 @@ tags: [config, sandbox, elicitation, workflow]
 requires_tools: [oracle.workflow.publish_sandbox, oracle.oic.where_used, oracle.docs.search]
 arguments:
   - name: sandbox
-    description: Sandbox name, e.g. "KLB_AR_AUTOINVOICE_FIX"
+    description: Sandbox name, e.g. "GT_AR_AUTOINVOICE_FIX"
     required: true
   - name: target
     description: Publish target (MAINLINE | QA_POD | PRODUCTION)

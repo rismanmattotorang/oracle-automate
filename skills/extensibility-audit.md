@@ -5,7 +5,7 @@ tags: [extensibility, fusion, audit, compliance]
 requires_tools: [oracle.oic.get_project_contents, oracle.oic.get_groovy_script, oracle.oic.where_used, oracle.docs.search]
 arguments:
   - name: project
-    description: OIC project / Application Composer offering to audit, e.g. "KLB_FINANCE_INTEGRATIONS"
+    description: OIC project / Application Composer offering to audit, e.g. "GT_FINANCE_INTEGRATIONS"
     required: true
 ---
 

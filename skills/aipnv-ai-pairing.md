@@ -5,7 +5,7 @@ tags: [behaviour, guardrails, aipnv, safety]
 requires_tools: [oracle.system.info, oracle.oic.where_used, oracle.review-rest-call]
 arguments:
   - name: intended_action
-    description: One-line description of the write you are about to perform (e.g. "activate KLB_GL_JOURNAL_IMPORT", "publish sandbox KLB_AR_AUTOINVOICE_FIX", "post a GL journal")
+    description: One-line description of the write you are about to perform (e.g. "activate GT_GL_JOURNAL_IMPORT", "publish sandbox GT_AR_AUTOINVOICE_FIX", "post a GL journal")
     required: true
 ---
 

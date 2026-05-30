@@ -21,7 +21,7 @@ was closed. The remaining mentions of "SAP" are explanatory comments only.
 | **SAP-jargon types** (`Rfc*`, `BapiRet2*`, `S_RfcAuth`, `Adt*`) | **Renamed** to `Erp*` / `ErpMessage` / `RequiredPrivilege` / `Oic*`. |
 | **SAP-jargon trait methods** (`call_rfc`, `rfc_metadata`, `get_program`, `get_class`, …) | **Renamed** to `call_operation`, `operation_metadata`, `get_integration`, `get_groovy_script`, … |
 | **SAP credential fields/env** (`ashost`/`sysnr`/`saprouter`, `SAP_ASHOST`…) | **Renamed** to `base_url`/`instance`/`proxy_url`, `ORACLE_FUSION_*`. |
-| **GraphRAG demo corpus** (SAP nodes: `ZFIN_POST_JE`, `BAPI_*`, `T001`, `BSEG`, `LeanIX`) | **Rewritten** to Oracle nodes (`KLB_*` integrations, `fusion.*` REST ops, `GL_*`/`XLA_*` objects, app-catalog, Oracle Help); `EntityKind` Oracle-renamed. |
+| **GraphRAG demo corpus** (SAP nodes: `ZFIN_POST_JE`, `BAPI_*`, `T001`, `BSEG`, `LeanIX`) | **Rewritten** to Oracle nodes (`GT_*` integrations, `fusion.*` REST ops, `GL_*`/`XLA_*` objects, app-catalog, Oracle Help); `EntityKind` Oracle-renamed. |
 | **Server var names** (`sap_client`, `business_hub`, `sap_system`, `sap_audit`) | **Renamed** to `erp_client`, `party_client`, `erp_system`, `oracle_audit`. |
 
 Earlier phases (P0–P8) had already ported the operation/object catalogue,

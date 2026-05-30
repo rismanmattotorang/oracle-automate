@@ -207,7 +207,7 @@ mod tests {
         // The FI cluster (program + class + interface + concept + journal
         // REST operation + Help page) should not all be in 6 different communities.
         let fi_nodes = [
-            "integration:KLB_GL_JOURNAL_IMPORT",
+            "integration:GT_GL_JOURNAL_IMPORT",
             "rest:journalEntries.post",
             "concept:journal_entry",
             "concept:period_close",

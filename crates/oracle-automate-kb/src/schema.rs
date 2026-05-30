@@ -37,7 +37,7 @@ impl Domain {
 }
 
 /// Stable document identifier.  Format: `<domain>:<external-id>` — e.g.
-/// `oracle_help:GL/period-close` or `integration:KLB/KLB_GL_JOURNAL_IMPORT`.
+/// `oracle_help:GL/period-close` or `integration:KLB/GT_GL_JOURNAL_IMPORT`.
 pub type DocumentId = String;
 pub type ChunkId = String;
 

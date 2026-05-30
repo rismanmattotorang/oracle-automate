@@ -39,35 +39,35 @@ fn seed_documents() -> Vec<Document> {
 
     out.push({
         let mut d = Document::new(
-            "integration:KLB/KLB_GL_JOURNAL_IMPORT",
+            "integration:KLB/GT_GL_JOURNAL_IMPORT",
             Domain::Integration,
-            "oic-int://KLB/KLB_GL_JOURNAL_IMPORT",
-            "KLB_GL_JOURNAL_IMPORT",
-            "OIC integration KLB_GL_JOURNAL_IMPORT posts GL journals via FBDI. It builds the \
+            "oic-int://KLB/GT_GL_JOURNAL_IMPORT",
+            "GT_GL_JOURNAL_IMPORT",
+            "OIC integration GT_GL_JOURNAL_IMPORT posts GL journals via FBDI. It builds the \
              JournalImportTemplate, calls erpintegrations.importBulkData to stage rows into \
              GL_INTERFACE, then runs the Journal Import (JournalImportLauncher) ESS job. \
-             It enriches the ledger from the KLB_COMPANY_XREF lookup and skips closed periods \
+             It enriches the ledger from the GT_COMPANY_XREF lookup and skips closed periods \
              checked against GL_PERIOD_STATUSES before submission.",
         );
         d.metadata
-            .insert("package".into(), "KLB_FINANCE_INTEGRATIONS".into());
+            .insert("package".into(), "GT_FINANCE_INTEGRATIONS".into());
         d.metadata.insert("type".into(), "INTEGRATION".into());
         d
     });
 
     out.push({
         let mut d = Document::new(
-            "integration:KLB/KLB_PO_RECEIPT_SYNC",
+            "integration:KLB/GT_PO_RECEIPT_SYNC",
             Domain::Integration,
-            "oic-int://KLB/KLB_PO_RECEIPT_SYNC",
-            "KLB_PO_RECEIPT_SYNC",
-            "OIC integration KLB_PO_RECEIPT_SYNC syncs warehouse goods receipts to Fusion \
+            "oic-int://KLB/GT_PO_RECEIPT_SYNC",
+            "GT_PO_RECEIPT_SYNC",
+            "OIC integration GT_PO_RECEIPT_SYNC syncs warehouse goods receipts to Fusion \
              Receiving. It posts to the receivingReceiptRequests REST resource against a \
              purchase order, triggering receipt accounting events in Subledger Accounting (XLA) \
              that later transfer to GL_JE_LINES via Create Accounting.",
         );
         d.metadata
-            .insert("package".into(), "KLB_FINANCE_INTEGRATIONS".into());
+            .insert("package".into(), "GT_FINANCE_INTEGRATIONS".into());
         d.metadata.insert("type".into(), "INTEGRATION".into());
         d
     });
@@ -106,7 +106,7 @@ fn seed_documents() -> Vec<Document> {
         "Oracle Financials Cloud",
         "Application fact sheet for Oracle Financials Cloud (FS-12001). Lifecycle: active. \
          Business capabilities: general ledger, payables, receivables, asset accounting, cash \
-         management. Integrations: KLB_GL_JOURNAL_IMPORT, Oracle Integration Cloud, ADW reporting. \
+         management. Integrations: GT_GL_JOURNAL_IMPORT, Oracle Integration Cloud, ADW reporting. \
          Release: 24D.",
     ));
 
@@ -116,7 +116,7 @@ fn seed_documents() -> Vec<Document> {
         "appcat://FS-08823",
         "Legacy Billing Engine",
         "Application fact sheet for Legacy Billing Engine (FS-08823). Lifecycle: phase-out. \
-         Integrations: KLB_LEGACY_BILL_FEED, mainframe. EOL: 2026-09. Replacement: Oracle \
+         Integrations: GT_LEGACY_BILL_FEED, mainframe. EOL: 2026-09. Replacement: Oracle \
          Receivables Cloud (AutoInvoice).",
     ));
 

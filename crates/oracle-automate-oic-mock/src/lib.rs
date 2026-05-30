@@ -136,9 +136,9 @@ async fn integration(Path(name): Path<String>) -> Response {
     }
     Json(json!({
         "code": format!("<integration name=\"{name}\" version=\"01.00.0000\"/>"),
-        "description": "Kalbe OIC integration (mock)",
+        "description": "Gaussian Technologies OIC integration (mock)",
         "status": "ACTIVATED",
-        "project": "KLB_FINANCE_INTEGRATIONS",
+        "project": "GT_FINANCE_INTEGRATIONS",
     }))
     .into_response()
 }
@@ -158,7 +158,7 @@ async fn groovy(Path(name): Path<String>) -> impl IntoResponse {
         ),
         "description": "Invoice hold rule (mock)",
         "status": "ACTIVE",
-        "package": "KLB_FINANCE_INTEGRATIONS",
+        "package": "GT_FINANCE_INTEGRATIONS",
     }))
 }
 
@@ -167,13 +167,13 @@ async fn connection(Path(name): Path<String>) -> impl IntoResponse {
         "content": format!("{{\"connection\":\"{name}\",\"role\":\"invoke\",\"adapter\":\"Oracle ERP Cloud\"}}"),
         "description": "Fusion ERP REST connection (mock)",
         "status": "CONFIGURED",
-        "package": "KLB_FINANCE_INTEGRATIONS",
+        "package": "GT_FINANCE_INTEGRATIONS",
     }))
 }
 
 async fn lookup(Path(name): Path<String>) -> impl IntoResponse {
     Json(json!({
-        "content": format!("{{\"lookup\":\"{name}\",\"rows\":[[\"1000\",\"KLB-ID\"],[\"2000\",\"KLB-SG\"]]}}"),
+        "content": format!("{{\"lookup\":\"{name}\",\"rows\":[[\"1000\",\"GT-ID\"],[\"2000\",\"GT-SG\"]]}}"),
         "description": "Company cross-reference (mock)",
         "status": "ACTIVE",
     }))
@@ -181,10 +181,10 @@ async fn lookup(Path(name): Path<String>) -> impl IntoResponse {
 
 async fn project(Path(name): Path<String>) -> impl IntoResponse {
     Json(json!({
-        "description": format!("Kalbe project {name} (mock)"),
+        "description": format!("Gaussian Technologies project {name} (mock)"),
         "integrations": [
-            { "code": "KLB_GL_JOURNAL_IMPORT", "description": "GL journal FBDI import" },
-            { "code": "KLB_PO_RECEIPT_SYNC", "description": "PO receiving sync" }
+            { "code": "GT_GL_JOURNAL_IMPORT", "description": "GL journal FBDI import" },
+            { "code": "GT_PO_RECEIPT_SYNC", "description": "PO receiving sync" }
         ]
     }))
 }
@@ -207,8 +207,8 @@ async fn bip_report(Path(name): Path<String>) -> impl IntoResponse {
 
 async fn usages(Path(_name): Path<String>) -> impl IntoResponse {
     Json(json!({ "items": [
-        { "code": "KLB_GL_JOURNAL_IMPORT", "usage": "invoke activity importJournals" },
-        { "code": "KLB_PO_RECEIPT_SYNC", "usage": "invoke activity postReceipt" }
+        { "code": "GT_GL_JOURNAL_IMPORT", "usage": "invoke activity importJournals" },
+        { "code": "GT_PO_RECEIPT_SYNC", "usage": "invoke activity postReceipt" }
     ]}))
 }
 
@@ -219,9 +219,9 @@ async fn search(Query(params): Query<HashMap<String, String>>) -> impl IntoRespo
         .unwrap_or_default()
         .to_lowercase();
     let all = [
-        json!({ "code": "KLB_GL_JOURNAL_IMPORT", "description": "GL journal FBDI import", "project": "KLB_FINANCE_INTEGRATIONS" }),
-        json!({ "code": "KLB_PO_RECEIPT_SYNC", "description": "PO receiving sync", "project": "KLB_FINANCE_INTEGRATIONS" }),
-        json!({ "code": "KLB_INVOICE_HOLD_RULE", "description": "AP invoice hold rule", "project": "KLB_FINANCE_INTEGRATIONS" }),
+        json!({ "code": "GT_GL_JOURNAL_IMPORT", "description": "GL journal FBDI import", "project": "GT_FINANCE_INTEGRATIONS" }),
+        json!({ "code": "GT_PO_RECEIPT_SYNC", "description": "PO receiving sync", "project": "GT_FINANCE_INTEGRATIONS" }),
+        json!({ "code": "GT_INVOICE_HOLD_RULE", "description": "AP invoice hold rule", "project": "GT_FINANCE_INTEGRATIONS" }),
     ];
     let items: Vec<Value> = all
         .into_iter()
@@ -285,7 +285,7 @@ mod tests {
         let resp = router(MockConfig::default())
             .oneshot(
                 Request::builder()
-                    .uri("/ic/api/integration/v1/integrations/KLB_GL_JOURNAL_IMPORT")
+                    .uri("/ic/api/integration/v1/integrations/GT_GL_JOURNAL_IMPORT")
                     .body(Body::empty())
                     .unwrap(),
             )

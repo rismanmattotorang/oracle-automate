@@ -228,7 +228,7 @@ fn sandbox_impact_analysis() -> PromptDescriptor {
             name: "oracle.sandbox-impact-analysis".into(),
             description: Some("Multi-tool cross-domain impact analysis before publishing a configuration sandbox.".into()),
             arguments: vec![
-                PromptArgument { name: "sandbox".into(), description: Some("Sandbox name (e.g. KLB_AR_AUTOINVOICE_FIX)".into()), required: true },
+                PromptArgument { name: "sandbox".into(), description: Some("Sandbox name (e.g. GT_AR_AUTOINVOICE_FIX)".into()), required: true },
                 PromptArgument { name: "scope".into(), description: Some("Target pod (PRODUCTION / QA / DEV)".into()), required: false },
             ],
         },

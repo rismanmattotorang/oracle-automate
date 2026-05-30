@@ -3,7 +3,7 @@
 //! Spins an in-process axum mock of the Oracle Fusion Cloud ERP REST API
 //! (`/fscmRestApi/resources/11.13.18.05/...`) and exercises the **live**
 //! clients against it — the same `reqwest` path that will run against a real
-//! Kalbe pod, minus the network. The point (Phase 3 of
+//! Gaussian Technologies pod, minus the network. The point (Phase 3 of
 //! `docs/PRODUCTION_READINESS.md`) is to pin the parse/dispatch contract for
 //! realistic Fusion response shapes so the eventual dev-pod run (Phase 4) is a
 //! smoke test, not a debug session.
@@ -43,10 +43,10 @@ async fn spawn_mock() -> SocketAddr {
             get(|| async {
                 Json(json!({
                     "items": [
-                        { "SupplierId": 300100, "Supplier": "PT Sumber Bahan Kimia",
+                        { "SupplierId": 300100, "Supplier": "PT Sumber Daya Komputasi",
                           "SupplierNumber": "S-300100", "Status": "ACTIVE",
                           "links": [{ "rel": "self", "href": "https://pod/.../suppliers/300100" }] },
-                        { "SupplierId": 300101, "Supplier": "PT Kimia Farma",
+                        { "SupplierId": 300101, "Supplier": "PT Nusantara Semikonduktor",
                           "SupplierNumber": "S-300101", "Status": "ACTIVE" }
                     ],
                     "count": 2, "hasMore": true, "limit": 25, "offset": 0,
@@ -68,7 +68,7 @@ async fn spawn_mock() -> SocketAddr {
                 }
                 Json(json!({
                     "PartyId": 555000,
-                    "PartyName": "PT Enseval Putera Megatrading",
+                    "PartyName": "PT Andalan Cloud Indonesia",
                     "Status": "ACTIVE"
                 }))
                 .into_response()
@@ -79,8 +79,8 @@ async fn spawn_mock() -> SocketAddr {
             &format!("{REST_BASE}/itemsV2"),
             get(|| async {
                 Json(json!({
-                    "items": [{ "ItemId": 100, "ItemNumber": "KLB-AMOX-500",
-                                "ItemDescription": "Amoxicillin 500mg" }],
+                    "items": [{ "ItemId": 100, "ItemNumber": "GT-EDGE-1000",
+                                "ItemDescription": "Edge AI Inference Module" }],
                     "count": 1, "hasMore": false
                 }))
             }),
@@ -139,7 +139,7 @@ async fn supplier_search_parses_paginated_collection() {
     // the item count — only `items` are parties.
     assert_eq!(parties.len(), 2);
     assert_eq!(parties[0].id, "300100");
-    assert_eq!(parties[0].name, "PT Sumber Bahan Kimia");
+    assert_eq!(parties[0].name, "PT Sumber Daya Komputasi");
     assert_eq!(parties[0].party_number.as_deref(), Some("S-300100"));
     assert_eq!(parties[0].status.as_deref(), Some("ACTIVE"));
     assert_eq!(parties[1].id, "300101");
@@ -150,7 +150,7 @@ async fn get_party_uses_party_id_name_fallback() {
     let addr = spawn_mock().await;
     let p = party_client(addr).get_party("555000").await.unwrap();
     assert_eq!(p.id, "555000");
-    assert_eq!(p.name, "PT Enseval Putera Megatrading");
+    assert_eq!(p.name, "PT Andalan Cloud Indonesia");
 }
 
 #[tokio::test]
@@ -173,7 +173,7 @@ async fn call_operation_returns_envelope_on_success() {
     assert_eq!(out["http_status"], 200);
     assert_eq!(out["function"], "fusion.scm.itemsV2.get");
     assert!(out["outputs"]["items"].is_array());
-    assert_eq!(out["outputs"]["items"][0]["ItemNumber"], "KLB-AMOX-500");
+    assert_eq!(out["outputs"]["items"][0]["ItemNumber"], "GT-EDGE-1000");
 }
 
 #[tokio::test]

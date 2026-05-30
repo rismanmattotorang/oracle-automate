@@ -5,7 +5,7 @@ tags: [behaviour, guidelines, meta, karpathy]
 requires_tools: []
 arguments:
   - name: task
-    description: One-line description of the task at hand (e.g. "rewrite KLB_GL_JOURNAL_IMPORT to post via REST instead of FBDI")
+    description: One-line description of the task at hand (e.g. "rewrite GT_GL_JOURNAL_IMPORT to post via REST instead of FBDI")
     required: true
 ---
 
@@ -62,7 +62,7 @@ Transform fuzzy tasks into verifiable goals:
 
 - "Investigate period close" → "List subledger lines in `XLA_AE_LINES` not yet transferred to `GL_JE_LINES` for the period, then map each to the canonical Create-Accounting/Transfer-to-GL procedure via `oracle.docs.search`."
 - "Fix the failing integration" → "Reproduce the fault, find the failing activity via `oracle.oic.where_used`, then make a minimal fix and re-run."
-- "Add validation to KLB_INVOICE_HOLD_RULE" → "Define the invalid cases (negative amount, closed period, blocked supplier), then make the Groovy guard cover them."
+- "Add validation to GT_INVOICE_HOLD_RULE" → "Define the invalid cases (negative amount, closed period, blocked supplier), then make the Groovy guard cover them."
 
 For multi-step tasks, state a brief plan before kicking it off:
 

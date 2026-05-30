@@ -68,7 +68,7 @@ pub const DEFAULT_FUSION_TIMEOUT_MS: u64 = 30_000;
 
 #[derive(Clone, Debug)]
 pub struct FusionConfig {
-    /// Pod base URL, e.g. `https://kalbe.fa.ocs.oraclecloud.com`.
+    /// Pod base URL, e.g. `https://gaussian.fa.ocs.oraclecloud.com`.
     pub base_url: String,
     pub auth: FusionAuth,
     /// Per-request timeout (ms).  Override via `ORACLE_FUSION_TIMEOUT_MS`.
@@ -443,7 +443,7 @@ mod tests {
     async fn read_only_gate_blocks_writes_via_catalogue() {
         let cat = MockErpClient::new(2, json!({}));
         let cfg = FusionConfig::new(
-            "https://kalbe.fa.ocs.oraclecloud.com",
+            "https://gaussian.fa.ocs.oraclecloud.com",
             FusionAuth::Bearer("t".into()),
         );
         let client = HttpFusionClient::new(cfg, cat).unwrap();
@@ -460,11 +460,11 @@ mod tests {
     #[test]
     fn parse_parties_reads_items_collection() {
         let body = json!({ "items": [
-            { "SupplierId": 300, "Supplier": "PT Sumber Bahan Kimia", "SupplierNumber": "S-300", "Status": "ACTIVE" }
+            { "SupplierId": 300, "Supplier": "PT Sumber Daya Komputasi", "SupplierNumber": "S-300", "Status": "ACTIVE" }
         ]});
         let parties = parse_parties(&body);
         assert_eq!(parties.len(), 1);
         assert_eq!(parties[0].id, "300");
-        assert_eq!(parties[0].name, "PT Sumber Bahan Kimia");
+        assert_eq!(parties[0].name, "PT Sumber Daya Komputasi");
     }
 }

@@ -63,7 +63,7 @@ struct AppState {
     store: Arc<Mutex<Store>>,
 }
 
-/// In-memory pod state, seeded with Kalbe-flavoured master data.
+/// In-memory pod state, seeded with Gaussian Technologies-flavoured master data.
 struct Store {
     suppliers: Vec<Value>,
     items: Vec<Value>,
@@ -75,13 +75,13 @@ impl Store {
     fn seeded() -> Self {
         Self {
             suppliers: vec![
-                json!({ "SupplierId": 300100, "Supplier": "PT Sumber Bahan Kimia", "SupplierNumber": "S-300100", "Status": "ACTIVE" }),
-                json!({ "SupplierId": 300101, "Supplier": "PT Kimia Farma", "SupplierNumber": "S-300101", "Status": "ACTIVE" }),
-                json!({ "SupplierId": 300102, "Supplier": "PT Enseval Putera Megatrading", "SupplierNumber": "S-300102", "Status": "ACTIVE" }),
+                json!({ "SupplierId": 300100, "Supplier": "PT Sumber Daya Komputasi", "SupplierNumber": "S-300100", "Status": "ACTIVE" }),
+                json!({ "SupplierId": 300101, "Supplier": "PT Nusantara Semikonduktor", "SupplierNumber": "S-300101", "Status": "ACTIVE" }),
+                json!({ "SupplierId": 300102, "Supplier": "PT Andalan Cloud Indonesia", "SupplierNumber": "S-300102", "Status": "ACTIVE" }),
             ],
             items: vec![
-                json!({ "ItemId": 100, "ItemNumber": "KLB-AMOX-500", "ItemDescription": "Amoxicillin 500mg Capsule", "OrganizationId": 204 }),
-                json!({ "ItemId": 101, "ItemNumber": "KLB-PARA-500", "ItemDescription": "Paracetamol 500mg Tablet", "OrganizationId": 204 }),
+                json!({ "ItemId": 100, "ItemNumber": "GT-EDGE-1000", "ItemDescription": "Edge AI Inference Module", "OrganizationId": 204 }),
+                json!({ "ItemId": 101, "ItemNumber": "GT-SENS-2000", "ItemDescription": "Industrial IoT Sensor Array", "OrganizationId": 204 }),
             ],
             journal_seq: 90_000,
             po_seq: 700_000,
@@ -248,13 +248,13 @@ async fn po_post(State(st): State<AppState>, Json(body): Json<Value>) -> Respons
     let supplier = body
         .get("Supplier")
         .and_then(|v| v.as_str())
-        .unwrap_or("PT Sumber Bahan Kimia")
+        .unwrap_or("PT Sumber Daya Komputasi")
         .to_string();
     (
         StatusCode::CREATED,
         Json(json!({
             "POHeaderId": id,
-            "OrderNumber": format!("KLB-PO-{id}"),
+            "OrderNumber": format!("GT-PO-{id}"),
             "Supplier": supplier,
             "Status": "OPEN",
             "CurrencyCode": body.get("CurrencyCode").and_then(|v| v.as_str()).unwrap_or("IDR"),

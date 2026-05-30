@@ -7,7 +7,7 @@
 # Runbook — connecting Oracle-Automate to a development S/4HANA tenant
 
 This is the end-to-end operator guide for pointing Oracle-Automate at a **real
-Kalbe development S/4HANA system** and verifying each live data path.
+Gaussian Technologies development S/4HANA system** and verifying each live data path.
 It consolidates the three transports built in Sprints 1–3 and the write
 enablement from Sprint 4.
 

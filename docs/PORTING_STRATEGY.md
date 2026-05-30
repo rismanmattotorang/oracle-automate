@@ -3,7 +3,7 @@
 > **Goal.** Port the ParagonCorp **SAP-Automate** platform (an MCP-native, Rust,
 > on-prem agentic OS for SAP S/4HANA) into **Oracle-Automate** — the same
 > architecture, re-fitted for **Oracle Fusion Cloud ERP (latest release,
-> 24D / 25-series)** and rebranded for **Kalbe** (PT Kalbe Farma Tbk).
+> 24D / 25-series)** and rebranded for **Gaussian Technologies** (PT Gaussian Technologies Indonesia).
 >
 > This is a *faithful structural port*: we keep the proven architecture
 > (trait-based seams, layered RAG, MCP 2025-06-18 coverage, read-only-by-default
@@ -17,7 +17,7 @@
 | Axis | Source (SAP-Automate) | Target (Oracle-Automate) |
 |---|---|---|
 | Product name | SAP-Automate | Oracle-Automate |
-| Owner / brand | ParagonCorp (TPO R&D) | Kalbe (PT Kalbe Farma Tbk) |
+| Owner / brand | ParagonCorp (TPO R&D) | Gaussian Technologies (PT Gaussian Technologies Indonesia) |
 | ERP system | SAP S/4HANA 2024 / ECC / ABAP Cloud | **Oracle Fusion Cloud ERP** (24D+), with Oracle EBS 12.2 as the on-prem fallback |
 | Integration protocol | RFC / BAPI (SOAP `/sap/bc/soap/rfc`), OData v4, ADT REST | **Oracle Fusion REST APIs** (`fscmRestApi`, `crmRestApi`, `hcmRestApi`), **SOAP** (ERP Integration Service), **BI Publisher / OTBI** for queries |
 | Bulk / write pattern | BAPI + `BAPI_TRANSACTION_COMMIT`; transports | **FBDI** (File-Based Data Import) + ERP Integration `importBulkData`; REST POST; **Sandboxes** for config |
@@ -162,7 +162,7 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
 | Phase | Title | Scope | Exit gate |
 |---|---|---|---|
 | **P0** | **Strategy & survey** | This document; full source survey; domain mapping locked | strategy reviewed |
-| **P1** | **Foundation / rebrand** | Lift the full tree; product-token rename (`sap-automate`→`oracle-automate`, `ParagonCorp`→`Kalbe`); rename crate/app dirs; fix manifests; rewrite README + AGENTS.md for Oracle/Kalbe; drop SAP-only binaries (whitepaper PDF, SAP screenshots) | `cargo build --workspace` green; generic `mcp-*` crates test-green |
+| **P1** | **Foundation / rebrand** | Lift the full tree; product-token rename (`sap-automate`→`oracle-automate`, `ParagonCorp`→`Gaussian Technologies`); rename crate/app dirs; fix manifests; rewrite README + AGENTS.md for Oracle/Gaussian Technologies; drop SAP-only binaries (whitepaper PDF, SAP screenshots) | `cargo build --workspace` green; generic `mcp-*` crates test-green |
 | **P2** | **Core ERP domain** | Re-model `oracle-automate-rfc` (→ logical `erp`): `ErpClient` trait, Fusion REST/BIP catalogue, FND/REST return parser (`BAPIRET2`→`ErpResult`), Oracle fixtures (`GL_JE_LINES`, `GL_LEDGERS`, `EGP_SYSTEM_ITEMS_B`, `GL_PERIOD_STATUSES`, …), Oracle-correctness tests; map `Domain` enum | Oracle invariants enforced; crate test-green |
 | **P3** | **Custom-code surface** | Re-model `oracle-automate-adt` (→ logical `oic`): artifact retrieval for OIC integrations / Application Composer / BIP; `where_used`/`activate`→sandbox publish; mock + HTTP backends | crate test-green |
 | **P4** | **Retrieval & seed corpus** | Port `kb`/`rag`/`graph`/`ingest` (Domain enum, tokeniser identifier rules for Oracle item/PO numbers); rewrite seed corpus to Oracle docs (Financials/Procurement/Order Mgmt/HCM); Oracle Help crawler targets | P95 gates hold; corpus is Oracle |
@@ -217,7 +217,7 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
   `fusion.fnd.sandbox.publish`, `fusion.bip.runReport`, `fusion.rest.describe`,
   plus EBS transaction-control ops. The object fixtures are Oracle:
   `EGP_SYSTEM_ITEMS_B`, `GL_LEDGERS`, `GL_PERIOD_STATUSES`, `GL_JE_LINES`,
-  `XLA_AE_LINES`, `DOO_HEADERS_ALL`, `FND_SANDBOXES` (Kalbe/IDR data).
+  `XLA_AE_LINES`, `DOO_HEADERS_ALL`, `FND_SANDBOXES` (Gaussian Technologies/IDR data).
   Seven **Oracle-correctness invariants** replace the SAP precision gates
   (FND return contract, FBDI interface→import, RBAC privilege, `*_ID` scoping
   key, `VARCHAR2(300)` item number, GL/SLA backbone with "no universal journal"
@@ -231,9 +231,9 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
   re-modeled to the Oracle custom-code/integration surface. `AbapObjectKind` →
   `OracleArtifactKind` (Integration, GroovyScript, Connection, Lookup,
   IntegrationPackage, EssJob, BipDataModel, BipReport, ValueSet, Project,
-  SandboxCustomization, …). Mock fixtures are now Oracle/Kalbe: OIC
-  integrations (`KLB_GL_JOURNAL_IMPORT`, `KLB_PO_RECEIPT_SYNC`), Application
-  Composer Groovy (`KLB_INVOICE_HOLD_RULE`), a Fusion ERP REST connection,
+  SandboxCustomization, …). Mock fixtures are now Oracle/Gaussian Technologies: OIC
+  integrations (`GT_GL_JOURNAL_IMPORT`, `GT_PO_RECEIPT_SYNC`), Application
+  Composer Groovy (`GT_INVOICE_HOLD_RULE`), a Fusion ERP REST connection,
   a company cross-reference lookup, a GL Journal Import ESS job, a BI Publisher
   extract, and a finance integration project — with where-used impact links and
   Oracle data-preview→BIP fallback. Connection helper (`destination.rs`) hosts
@@ -245,8 +245,8 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
 - **P4 — done (retrieval & seed corpus).** `Domain` enum re-modeled:
   `SapHelp`→`OracleHelp`, `Abap`→`Integration`, `Leanix`→`AppCatalog`, `Bpmn`
   kept (Qdrant collections `oracle_help`/`integration`/`app_catalog`/`bpmn`).
-  The server seed corpus is now Oracle/Kalbe across all four domains: OIC
-  integrations (`KLB_GL_JOURNAL_IMPORT`, `KLB_PO_RECEIPT_SYNC`), Oracle P2P/O2C
+  The server seed corpus is now Oracle/Gaussian Technologies across all four domains: OIC
+  integrations (`GT_GL_JOURNAL_IMPORT`, `GT_PO_RECEIPT_SYNC`), Oracle P2P/O2C
   process docs, `Oracle Financials Cloud` + legacy-billing app-catalog fact
   sheets, and Oracle Help Center pages (`oracle_help:GL/period-close`,
   `oracle_help:INV/receiving`). The ingest crate's crawler/pipeline/fit-markdown
@@ -326,7 +326,7 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
 All eight phases (P0–P8) are landed, each build- and test-green. The agent, its
 operation/object catalogue, custom-code surface, retrieval corpus, MCP tool /
 resource / prompt surface, skills, scheduler, gateway, TUI, web UI, deploy
-manifests, CI gate, and docs all speak **Oracle Fusion Cloud ERP** for **Kalbe**.
+manifests, CI gate, and docs all speak **Oracle Fusion Cloud ERP** for **Gaussian Technologies**.
 
 **P9 — done (live transport + full independence).** The previously-deferred
 items are closed (see [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md)):

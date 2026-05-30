@@ -42,7 +42,7 @@ pub struct Entity {
     /// Native URI for citation (oracle-help://, oic-int://, oracle-rest://, etc.).
     #[serde(default)]
     pub uri: Option<String>,
-    /// Arbitrary string-valued tags ("module:FIN", "project:KLB_FINANCE_INTEGRATIONS", ...).
+    /// Arbitrary string-valued tags ("module:FIN", "project:GT_FINANCE_INTEGRATIONS", ...).
     #[serde(default)]
     pub tags: Vec<String>,
 }

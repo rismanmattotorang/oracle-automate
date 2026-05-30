@@ -36,10 +36,10 @@ async fn spawn_mock() -> SocketAddr {
                     return (StatusCode::NOT_FOUND, Json(json!({"error": "not found"}))).into_response();
                 }
                 Json(json!({
-                    "code": "<integration name=\"KLB_GL_JOURNAL_IMPORT\"/>",
+                    "code": "<integration name=\"GT_GL_JOURNAL_IMPORT\"/>",
                     "description": "GL journal FBDI import",
                     "status": "ACTIVATED",
-                    "project": "KLB_FINANCE_INTEGRATIONS"
+                    "project": "GT_FINANCE_INTEGRATIONS"
                 }))
                 .into_response()
             })
@@ -52,8 +52,8 @@ async fn spawn_mock() -> SocketAddr {
                 // Confirm the Authorization header was emitted.
                 assert!(headers.contains_key("authorization"), "missing Authorization header");
                 Json(json!({ "items": [
-                    { "code": "KLB_GL_JOURNAL_IMPORT", "description": "GL journal FBDI import", "project": "KLB_FINANCE_INTEGRATIONS" },
-                    { "code": "KLB_PO_RECEIPT_SYNC", "description": "Receiving sync", "project": "KLB_FINANCE_INTEGRATIONS" }
+                    { "code": "GT_GL_JOURNAL_IMPORT", "description": "GL journal FBDI import", "project": "GT_FINANCE_INTEGRATIONS" },
+                    { "code": "GT_PO_RECEIPT_SYNC", "description": "Receiving sync", "project": "GT_FINANCE_INTEGRATIONS" }
                 ]}))
             }),
         )
@@ -61,7 +61,7 @@ async fn spawn_mock() -> SocketAddr {
             "/ic/api/integration/v1/connections/:name/usages",
             get(|Path(_name): Path<String>| async {
                 Json(json!({ "items": [
-                    { "code": "KLB_GL_JOURNAL_IMPORT", "usage": "invoke activity importJournals" }
+                    { "code": "GT_GL_JOURNAL_IMPORT", "usage": "invoke activity importJournals" }
                 ]}))
             }),
         );
@@ -93,12 +93,12 @@ fn client(addr: SocketAddr) -> HttpOicClient {
 async fn get_program_fetches_and_projects_integration() {
     let addr = spawn_mock().await;
     let c = client(addr);
-    let p = c.get_integration("KLB_GL_JOURNAL_IMPORT").await.unwrap();
-    assert_eq!(p.name, "KLB_GL_JOURNAL_IMPORT");
+    let p = c.get_integration("GT_GL_JOURNAL_IMPORT").await.unwrap();
+    assert_eq!(p.name, "GT_GL_JOURNAL_IMPORT");
     assert_eq!(p.kind, OracleArtifactKind::Integration);
-    assert!(p.source.contains("KLB_GL_JOURNAL_IMPORT"));
+    assert!(p.source.contains("GT_GL_JOURNAL_IMPORT"));
     assert!(p.active);
-    assert_eq!(p.package.as_deref(), Some("KLB_FINANCE_INTEGRATIONS"));
+    assert_eq!(p.package.as_deref(), Some("GT_FINANCE_INTEGRATIONS"));
 }
 
 #[tokio::test]
@@ -122,7 +122,7 @@ async fn search_parses_items_and_emits_auth() {
         .await
         .unwrap();
     assert_eq!(hits.len(), 2);
-    assert!(hits.iter().any(|h| h.name == "KLB_GL_JOURNAL_IMPORT"));
+    assert!(hits.iter().any(|h| h.name == "GT_GL_JOURNAL_IMPORT"));
 }
 
 #[tokio::test]
@@ -131,13 +131,13 @@ async fn where_used_parses_connection_usages() {
     let c = client(addr);
     let hits = c
         .where_used(WhereUsedRequest {
-            name: "KLB_FUSION_ERP_REST".into(),
+            name: "GT_FUSION_ERP_REST".into(),
             kind: OracleArtifactKind::Connection,
         })
         .await
         .unwrap();
     assert_eq!(hits.len(), 1);
-    assert_eq!(hits[0].object, "KLB_GL_JOURNAL_IMPORT");
+    assert_eq!(hits[0].object, "GT_GL_JOURNAL_IMPORT");
     assert_eq!(hits[0].usage, "invoke");
 }
 
@@ -159,7 +159,7 @@ async fn activate_blocked_in_read_only_mode() {
     let err = c
         .activate(
             ActivationRequest {
-                name: "KLB_GL_JOURNAL_IMPORT".into(),
+                name: "GT_GL_JOURNAL_IMPORT".into(),
                 kind: OracleArtifactKind::Integration,
             },
             OicCallContext { read_only: true },
@@ -176,7 +176,7 @@ async fn activate_succeeds_when_writes_enabled() {
     let outcome = c
         .activate(
             ActivationRequest {
-                name: "KLB_GL_JOURNAL_IMPORT".into(),
+                name: "GT_GL_JOURNAL_IMPORT".into(),
                 kind: OracleArtifactKind::Integration,
             },
             OicCallContext { read_only: false },

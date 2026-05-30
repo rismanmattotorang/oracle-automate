@@ -5,7 +5,7 @@
 > [`PORTING_STRATEGY.md`](PORTING_STRATEGY.md) (what was ported) and
 > [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) (SAP independence). This document is
 > about taking the *ported, building, test-green* codebase to **production
-> against a real Oracle Fusion Cloud ERP pod for Kalbe**.
+> against a real Oracle Fusion Cloud ERP pod for Gaussian Technologies**.
 >
 > Method follows the project's own [Karpathy guidelines](../skills/karpathy-guidelines.md):
 > *think before coding, simplicity first, surgical changes, goal-driven —
@@ -41,7 +41,7 @@ startup (`FusionConfig::from_env` / `--destination`). Phases 4–5 added a runna
 **mock Fusion pod** (`oracle-automate-fusion-mock`) that the *real* clients drive
 end-to-end over HTTP — read **and** gated write — so the full path is exercised
 offline. The only remaining step is pointing `ORACLE_FUSION_BASE_URL` at a **real
-Kalbe pod**, which is gated on an *organisational* dependency (pod URL,
+Gaussian Technologies pod**, which is gated on an *organisational* dependency (pod URL,
 OAuth2/IDCS client, technical user) — not on more code.
 
 ---
@@ -65,7 +65,7 @@ OAuth2/IDCS client, technical user) — not on more code.
 
 Each phase ends with a **green `cargo fmt` / `clippy -D warnings` / `test`**
 and a commit. Phases 1–3 and 6 have **no external dependency** and are
-executable immediately. Phases 4–5, 7 require a real Fusion pod from Kalbe
+executable immediately. Phases 4–5, 7 require a real Fusion pod from Gaussian Technologies
 Basis/Cloud Ops and are sequenced behind it.
 
 ### Phase 1 — Green the quality gate ✅ DONE
@@ -165,7 +165,7 @@ real API so the swap is transparent.
 `HttpFusionClient` / `FusionPartyClient` against it over the actual `reqwest`
 path:
 - live supplier search + item read;
-- **gated PO-create** → `201` + `KLB-PO-…`, and **journal-post** → `201` +
+- **gated PO-create** → `201` + `GT-PO-…`, and **journal-post** → `201` +
   `JournalEntryId` / `Status: POSTED`;
 - the fail-closed read-only gate still refuses writes when `read_only_mode`;
 - unknown id → `NotFound`.
@@ -272,7 +272,7 @@ deterministically in the meantime.
 
 ## 5. Definition of done
 
-Production-ready means, against the Kalbe Fusion dev pod:
+Production-ready means, against the Gaussian Technologies Fusion dev pod:
 1. CI is **green on a reproducible toolchain** (fmt + clippy + 173 offline tests).
 2. No `unwrap`/panic on any live request/response path.
 3. A configured destination drives a real Fusion REST read **and** one gated

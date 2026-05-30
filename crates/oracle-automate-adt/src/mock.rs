@@ -1,13 +1,13 @@
 //! Offline mock Oracle artifact client.
 //!
-//! Seeded with realistic Kalbe Fusion / OIC fixtures:
-//!   - Integrations: KLB_GL_JOURNAL_IMPORT, KLB_PO_RECEIPT_SYNC
-//!   - Groovy scripts: KLB_INVOICE_HOLD_RULE, KLB_ITEM_DEFAULTING
-//!   - Connections: KLB_FUSION_ERP_REST
-//!   - Lookups: KLB_COMPANY_XREF
+//! Seeded with realistic Gaussian Technologies Fusion / OIC fixtures:
+//!   - Integrations: GT_GL_JOURNAL_IMPORT, GT_PO_RECEIPT_SYNC
+//!   - Groovy scripts: GT_INVOICE_HOLD_RULE, GT_ITEM_DEFAULTING
+//!   - Connections: GT_FUSION_ERP_REST
+//!   - Lookups: GT_COMPANY_XREF
 //!   - ESS jobs: JournalImportLauncher in package GL
-//!   - BI Publisher reports: KLB_GL_JOURNAL_EXTRACT
-//!   - Projects/packages: KLB_FINANCE_INTEGRATIONS
+//!   - BI Publisher reports: GT_GL_JOURNAL_EXTRACT
+//!   - Projects/packages: GT_FINANCE_INTEGRATIONS
 //!   - Where-used links wired between the above so impact analysis is
 //!     meaningful in demos.
 
@@ -56,45 +56,45 @@ impl MockOicClient {
 
     fn seed(&mut self) {
         // Integrations (OIC integration flows)
-        self.programs.insert("KLB_GL_JOURNAL_IMPORT".into(), prog(
-            "KLB_GL_JOURNAL_IMPORT", OracleArtifactKind::Integration, "KLB_FINANCE_INTEGRATIONS",
+        self.programs.insert("GT_GL_JOURNAL_IMPORT".into(), prog(
+            "GT_GL_JOURNAL_IMPORT", OracleArtifactKind::Integration, "GT_FINANCE_INTEGRATIONS",
             "Stage and import GL journals via FBDI",
-            "<integration name=\"KLB_GL_JOURNAL_IMPORT\" version=\"01.00.0000\">\n  <trigger adapter=\"rest\"/>\n  <invoke connection=\"KLB_FUSION_ERP_REST\" operation=\"importBulkData\"/>\n  <!-- builds JournalImportTemplate FBDI zip, calls erpintegrations.importBulkData,\n       then polls the Journal Import ESS request to completion -->\n</integration>\n",
+            "<integration name=\"GT_GL_JOURNAL_IMPORT\" version=\"01.00.0000\">\n  <trigger adapter=\"rest\"/>\n  <invoke connection=\"GT_FUSION_ERP_REST\" operation=\"importBulkData\"/>\n  <!-- builds JournalImportTemplate FBDI zip, calls erpintegrations.importBulkData,\n       then polls the Journal Import ESS request to completion -->\n</integration>\n",
         ));
-        self.programs.insert("KLB_PO_RECEIPT_SYNC".into(), prog(
-            "KLB_PO_RECEIPT_SYNC", OracleArtifactKind::Integration, "KLB_FINANCE_INTEGRATIONS",
+        self.programs.insert("GT_PO_RECEIPT_SYNC".into(), prog(
+            "GT_PO_RECEIPT_SYNC", OracleArtifactKind::Integration, "GT_FINANCE_INTEGRATIONS",
             "Sync warehouse receipts to Fusion Receiving",
-            "<integration name=\"KLB_PO_RECEIPT_SYNC\" version=\"01.00.0000\">\n  <trigger adapter=\"rest\"/>\n  <invoke connection=\"KLB_FUSION_ERP_REST\" resource=\"receivingReceiptRequests\" method=\"POST\"/>\n</integration>\n",
+            "<integration name=\"GT_PO_RECEIPT_SYNC\" version=\"01.00.0000\">\n  <trigger adapter=\"rest\"/>\n  <invoke connection=\"GT_FUSION_ERP_REST\" resource=\"receivingReceiptRequests\" method=\"POST\"/>\n</integration>\n",
         ));
 
         // Groovy scripts (Application Composer)
-        self.classes.insert("KLB_INVOICE_HOLD_RULE".into(), prog(
-            "KLB_INVOICE_HOLD_RULE", OracleArtifactKind::GroovyScript, "KLB_FINANCE_INTEGRATIONS",
+        self.classes.insert("GT_INVOICE_HOLD_RULE".into(), prog(
+            "GT_INVOICE_HOLD_RULE", OracleArtifactKind::GroovyScript, "GT_FINANCE_INTEGRATIONS",
             "AP invoice hold trigger (Application Composer)",
             "// Application Composer object trigger (Groovy)\nif (InvoiceAmount > 100000000 && ApprovalStatus == 'PENDING') {\n  adf.util.applyHold('AMOUNT_THRESHOLD', 'Exceeds IDR 100,000,000 — needs controller approval')\n}\n",
         ));
-        self.classes.insert("KLB_ITEM_DEFAULTING".into(), prog(
-            "KLB_ITEM_DEFAULTING", OracleArtifactKind::GroovyScript, "KLB_SCM_EXTENSIONS",
+        self.classes.insert("GT_ITEM_DEFAULTING".into(), prog(
+            "GT_ITEM_DEFAULTING", OracleArtifactKind::GroovyScript, "GT_SCM_EXTENSIONS",
             "Default item attributes on creation",
-            "// Groovy: default primary UOM for pharma raw materials\nif (ItemClass == 'ACTIVE_INGREDIENT' && PrimaryUOMValue == null) {\n  setAttribute('PrimaryUOMValue', 'KG')\n}\n",
+            "// Groovy: default primary UOM for hardware components\nif (ItemClass == 'COMPONENT' && PrimaryUOMValue == null) {\n  setAttribute('PrimaryUOMValue', 'EA')\n}\n",
         ));
 
         // Connections (OIC adapter instances)
-        self.interfaces.insert("KLB_FUSION_ERP_REST".into(), prog(
-            "KLB_FUSION_ERP_REST", OracleArtifactKind::Connection, "KLB_FINANCE_INTEGRATIONS",
+        self.interfaces.insert("GT_FUSION_ERP_REST".into(), prog(
+            "GT_FUSION_ERP_REST", OracleArtifactKind::Connection, "GT_FINANCE_INTEGRATIONS",
             "Connection to Fusion Cloud ERP REST",
-            "{\n  \"name\": \"KLB_FUSION_ERP_REST\",\n  \"adapter\": \"oracle-erp-cloud\",\n  \"baseUri\": \"https://kalbe.fa.ocs.oraclecloud.com\",\n  \"securityPolicy\": \"OAuth Client Credentials\"\n}\n",
+            "{\n  \"name\": \"GT_FUSION_ERP_REST\",\n  \"adapter\": \"oracle-erp-cloud\",\n  \"baseUri\": \"https://gaussian.fa.ocs.oraclecloud.com\",\n  \"securityPolicy\": \"OAuth Client Credentials\"\n}\n",
         ));
 
         // Lookups (DVM / cross-reference)
         self.includes.insert(
-            "KLB_COMPANY_XREF".into(),
+            "GT_COMPANY_XREF".into(),
             prog(
-                "KLB_COMPANY_XREF",
+                "GT_COMPANY_XREF",
                 OracleArtifactKind::Lookup,
-                "KLB_FINANCE_INTEGRATIONS",
+                "GT_FINANCE_INTEGRATIONS",
                 "Legacy company code -> Fusion ledger cross-reference",
-                "LEGACY_CODE,FUSION_LEDGER\nKF01,Kalbe Primary Ledger\nKF02,Kalbe USD Reporting\n",
+                "LEGACY_CODE,FUSION_LEDGER\nKF01,Gaussian Technologies Primary Ledger\nKF02,Gaussian Technologies USD Reporting\n",
             ),
         );
 
@@ -102,16 +102,16 @@ impl MockOicClient {
         self.function_modules.insert(("GL".into(), "JournalImportLauncher".into()), prog(
             "JournalImportLauncher", OracleArtifactKind::EssJob, "GL",
             "GL Journal Import ESS job",
-            "Job: /oracle/apps/ess/financials/generalLedger/programs/common/JournalImportLauncher\nParameters: InterfaceRunId, LedgerId, Source=KALBE_OIC, GroupId\n",
+            "Job: /oracle/apps/ess/financials/generalLedger/programs/common/JournalImportLauncher\nParameters: InterfaceRunId, LedgerId, Source=GAUSSIAN_OIC, GroupId\n",
         ));
 
         // BI Publisher report (data extract)
-        self.cds_views.insert("KLB_GL_JOURNAL_EXTRACT".into(), CdsView {
-            name: "KLB_GL_JOURNAL_EXTRACT".into(),
+        self.cds_views.insert("GT_GL_JOURNAL_EXTRACT".into(), CdsView {
+            name: "GT_GL_JOURNAL_EXTRACT".into(),
             root_entity: "GL_JE_LINES".into(),
             annotations: serde_json::json!({
-                "catalogPath": "/Custom/Kalbe/Finance/KLB_GL_JOURNAL_EXTRACT.xdo",
-                "dataModel": "KLB_GL_JOURNAL_DM",
+                "catalogPath": "/Custom/Gaussian Technologies/Finance/GT_GL_JOURNAL_EXTRACT.xdo",
+                "dataModel": "GT_GL_JOURNAL_DM",
                 "outputFormat": "csv",
                 "label": "GL journal line extract"
             }),
@@ -121,38 +121,40 @@ impl MockOicClient {
 
         // Projects / packages
         self.packages.insert(
-            "KLB_FINANCE_INTEGRATIONS".into(),
+            "GT_FINANCE_INTEGRATIONS".into(),
             PackageContents {
-                package: "KLB_FINANCE_INTEGRATIONS".into(),
-                description: Some("Kalbe Finance OIC integrations + extensions".into()),
+                package: "GT_FINANCE_INTEGRATIONS".into(),
+                description: Some(
+                    "Gaussian Technologies Finance OIC integrations + extensions".into(),
+                ),
                 members: vec![
                     PackageMember {
-                        name: "KLB_GL_JOURNAL_IMPORT".into(),
+                        name: "GT_GL_JOURNAL_IMPORT".into(),
                         kind: OracleArtifactKind::Integration,
                         description: Some("GL journal FBDI import".into()),
                     },
                     PackageMember {
-                        name: "KLB_PO_RECEIPT_SYNC".into(),
+                        name: "GT_PO_RECEIPT_SYNC".into(),
                         kind: OracleArtifactKind::Integration,
                         description: Some("Receiving sync".into()),
                     },
                     PackageMember {
-                        name: "KLB_FUSION_ERP_REST".into(),
+                        name: "GT_FUSION_ERP_REST".into(),
                         kind: OracleArtifactKind::Connection,
                         description: Some("Fusion ERP REST connection".into()),
                     },
                     PackageMember {
-                        name: "KLB_COMPANY_XREF".into(),
+                        name: "GT_COMPANY_XREF".into(),
                         kind: OracleArtifactKind::Lookup,
                         description: Some("Company cross-reference".into()),
                     },
                     PackageMember {
-                        name: "KLB_INVOICE_HOLD_RULE".into(),
+                        name: "GT_INVOICE_HOLD_RULE".into(),
                         kind: OracleArtifactKind::GroovyScript,
                         description: Some("AP invoice hold".into()),
                     },
                     PackageMember {
-                        name: "KLB_GL_JOURNAL_EXTRACT".into(),
+                        name: "GT_GL_JOURNAL_EXTRACT".into(),
                         kind: OracleArtifactKind::BipReport,
                         description: Some("GL journal extract".into()),
                     },
@@ -160,12 +162,14 @@ impl MockOicClient {
             },
         );
         self.packages.insert(
-            "KLB_SCM_EXTENSIONS".into(),
+            "GT_SCM_EXTENSIONS".into(),
             PackageContents {
-                package: "KLB_SCM_EXTENSIONS".into(),
-                description: Some("Kalbe SCM Application Composer extensions".into()),
+                package: "GT_SCM_EXTENSIONS".into(),
+                description: Some(
+                    "Gaussian Technologies SCM Application Composer extensions".into(),
+                ),
                 members: vec![PackageMember {
-                    name: "KLB_ITEM_DEFAULTING".into(),
+                    name: "GT_ITEM_DEFAULTING".into(),
                     kind: OracleArtifactKind::GroovyScript,
                     description: Some("Item attribute defaulting".into()),
                 }],
@@ -174,16 +178,16 @@ impl MockOicClient {
 
         // Where-used links — the value of impact analysis at demo time.
         self.where_used.insert(
-            ("KLB_FUSION_ERP_REST".into(), OracleArtifactKind::Connection),
+            ("GT_FUSION_ERP_REST".into(), OracleArtifactKind::Connection),
             vec![
                 WhereUsedHit {
-                    object: "KLB_GL_JOURNAL_IMPORT".into(),
+                    object: "GT_GL_JOURNAL_IMPORT".into(),
                     kind: OracleArtifactKind::Integration,
                     location: "invoke activity 'importJournals'".into(),
                     usage: "invoke".into(),
                 },
                 WhereUsedHit {
-                    object: "KLB_PO_RECEIPT_SYNC".into(),
+                    object: "GT_PO_RECEIPT_SYNC".into(),
                     kind: OracleArtifactKind::Integration,
                     location: "invoke activity 'postReceipt'".into(),
                     usage: "invoke".into(),
@@ -191,9 +195,9 @@ impl MockOicClient {
             ],
         );
         self.where_used.insert(
-            ("KLB_COMPANY_XREF".into(), OracleArtifactKind::Lookup),
+            ("GT_COMPANY_XREF".into(), OracleArtifactKind::Lookup),
             vec![WhereUsedHit {
-                object: "KLB_GL_JOURNAL_IMPORT".into(),
+                object: "GT_GL_JOURNAL_IMPORT".into(),
                 kind: OracleArtifactKind::Integration,
                 location: "map 'enrichLedger'".into(),
                 usage: "read".into(),
@@ -206,12 +210,12 @@ impl MockOicClient {
             vec![
                 row(&[
                     ("LEDGER_ID", "300100001"),
-                    ("NAME", "Kalbe Primary Ledger"),
+                    ("NAME", "Gaussian Technologies Primary Ledger"),
                     ("CURRENCY_CODE", "IDR"),
                 ]),
                 row(&[
                     ("LEDGER_ID", "300100002"),
-                    ("NAME", "Kalbe USD Reporting"),
+                    ("NAME", "Gaussian Technologies USD Reporting"),
                     ("CURRENCY_CODE", "USD"),
                 ]),
             ],
@@ -468,8 +472,8 @@ mod tests {
     #[tokio::test]
     async fn get_program_returns_source() {
         let c = client();
-        let p = c.get_integration("klb_gl_journal_import").await.unwrap();
-        assert_eq!(p.name, "KLB_GL_JOURNAL_IMPORT");
+        let p = c.get_integration("gt_gl_journal_import").await.unwrap();
+        assert_eq!(p.name, "GT_GL_JOURNAL_IMPORT");
         assert!(p.source.contains("importBulkData"));
         assert!(p.line_count > 0);
     }
@@ -489,7 +493,7 @@ mod tests {
         assert!(hits
             .iter()
             .all(|h| h.kind == OracleArtifactKind::GroovyScript));
-        assert!(hits.iter().any(|h| h.name == "KLB_INVOICE_HOLD_RULE"));
+        assert!(hits.iter().any(|h| h.name == "GT_INVOICE_HOLD_RULE"));
     }
 
     #[tokio::test]
@@ -498,13 +502,13 @@ mod tests {
         // The connection should report the integrations that invoke it.
         let hits = c
             .where_used(WhereUsedRequest {
-                name: "KLB_FUSION_ERP_REST".into(),
+                name: "GT_FUSION_ERP_REST".into(),
                 kind: OracleArtifactKind::Connection,
             })
             .await
             .unwrap();
         assert_eq!(hits.len(), 2);
-        assert!(hits.iter().any(|h| h.object == "KLB_GL_JOURNAL_IMPORT"));
+        assert!(hits.iter().any(|h| h.object == "GT_GL_JOURNAL_IMPORT"));
         assert!(hits.iter().all(|h| h.usage == "invoke"));
     }
 
@@ -521,7 +525,7 @@ mod tests {
         let err = c
             .activate(
                 ActivationRequest {
-                    name: "KLB_GL_JOURNAL_IMPORT".into(),
+                    name: "GT_GL_JOURNAL_IMPORT".into(),
                     kind: OracleArtifactKind::Integration,
                 },
                 OicCallContext { read_only: true },
@@ -537,7 +541,7 @@ mod tests {
         let outcome = c
             .activate(
                 ActivationRequest {
-                    name: "KLB_GL_JOURNAL_IMPORT".into(),
+                    name: "GT_GL_JOURNAL_IMPORT".into(),
                     kind: OracleArtifactKind::Integration,
                 },
                 OicCallContext { read_only: false },
@@ -551,14 +555,14 @@ mod tests {
     async fn package_contents_includes_seeded_objects() {
         let c = client();
         let pkg = c
-            .get_project_contents("KLB_FINANCE_INTEGRATIONS")
+            .get_project_contents("GT_FINANCE_INTEGRATIONS")
             .await
             .unwrap();
-        assert!(pkg.members.iter().any(|m| m.name == "KLB_FUSION_ERP_REST"));
+        assert!(pkg.members.iter().any(|m| m.name == "GT_FUSION_ERP_REST"));
         assert!(pkg
             .members
             .iter()
-            .any(|m| m.name == "KLB_GL_JOURNAL_EXTRACT"));
+            .any(|m| m.name == "GT_GL_JOURNAL_EXTRACT"));
     }
 
     #[tokio::test]

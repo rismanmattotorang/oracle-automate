@@ -3,9 +3,9 @@
 ## oracle-automate — port from SAP-Automate (2026-05)
 
 Ported the ParagonCorp SAP-Automate platform to **Oracle Fusion Cloud ERP** for
-**Kalbe**, in 8 phases (see [`docs/PORTING_STRATEGY.md`](docs/PORTING_STRATEGY.md)):
+**Gaussian Technologies**, in 8 phases (see [`docs/PORTING_STRATEGY.md`](docs/PORTING_STRATEGY.md)):
 
-- **P1** foundation/rebrand (sap-automate → oracle-automate, ParagonCorp → Kalbe).
+- **P1** foundation/rebrand (sap-automate → oracle-automate, ParagonCorp → Gaussian Technologies).
 - **P2** core ERP crate → `oracle-automate-erp`: `ErpClient`, Fusion REST/FBDI/BIP
   operation catalogue, Oracle object fixtures (`GL_JE_LINES`, `XLA_AE_LINES`,
   `EGP_SYSTEM_ITEMS_B`, …), 7 Oracle-correctness invariants.
@@ -29,6 +29,26 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ---
 
 ## [Unreleased] — Production readiness
+
+### Changed — company rebrand: Kalbe → Gaussian Technologies
+
+Re-contextualised the owning company from Kalbe (PT Kalbe Farma Tbk) to
+**Gaussian Technologies**, an Indonesian deep-tech startup, across all code,
+comments, docs, fixtures, and the LICENSE copyright:
+
+- Brand strings `Kalbe` → `Gaussian Technologies`; identifier prefix `KLB_`/`KLB-`
+  → `GT_`/`GT-` (e.g. `GT_GL_JOURNAL_IMPORT`, `GT_FUSION_ERP_REST`); hostnames
+  `kalbe.*` → `gaussian.*`; `KALBE_DEV` → `GT_DEV`.
+- Genericised the pharma demo data (a drug catalog no longer fits a deep-tech
+  startup) to deep-tech examples: items → GPU/edge/IoT modules
+  (`GT-COMP-GPU-A100`, `GT-EDGE-1000`, `GT-SENS-2000`); suppliers → tech vendors
+  (`PT Sumber Daya Komputasi`, `PT Nusantara Semikonduktor`, `PT Andalan Cloud
+  Indonesia`); item class `ACTIVE_INGREDIENT` → `COMPONENT`.
+- Rewrote `README.md` as a deep-tech-startup product page for Gaussian
+  Technologies. The Apache-2.0 attribution to ParagonCorp / SAP-Automate is
+  retained (license requirement).
+- No behaviour change; source and test assertions updated in lockstep — 205
+  tests still green, fmt/clippy clean.
 
 Begins the production-readiness track (see
 [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md) for the full
@@ -561,7 +581,7 @@ tests, and exposing it to operators (TUI + web).
 
 The first general-availability release of **Oracle-Automate** — a
 Rust-native, MCP-native agentic interface for SAP S/4HANA built by
-the **Kalbe TPO R&D team**.
+the **Gaussian Technologies TPO R&D team**.
 
 ### Highlights
 
@@ -712,5 +732,5 @@ the **Kalbe TPO R&D team**.
 
 ## Reference
 
-- Architecture whitepaper: *Oracle-Automate: An MCP-Native RAG Architecture for SAP S/4HANA*, Kalbe Technical Review Vol. 1 No. 1 (2026).  Reference design code `PC-TR-2026-SAP-AUTOMATE-01`.
+- Architecture whitepaper: *Oracle-Automate: An MCP-Native RAG Architecture for SAP S/4HANA*, Gaussian Technologies Technical Review Vol. 1 No. 1 (2026).  Reference design code `PC-TR-2026-SAP-AUTOMATE-01`.
 - MCP specification: <https://modelcontextprotocol.io/specification/2025-06-18>.

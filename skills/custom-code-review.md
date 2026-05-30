@@ -5,7 +5,7 @@ tags: [oic, groovy, review, quality]
 requires_tools: [oracle.oic.get_groovy_script, oracle.oic.get_integration, oracle.oic.where_used, oracle.docs.search]
 arguments:
   - name: object_name
-    description: Artifact name to review, e.g. "KLB_INVOICE_HOLD_RULE"
+    description: Artifact name to review, e.g. "GT_INVOICE_HOLD_RULE"
     required: true
   - name: kind
     description: Artifact kind (integration | groovy_script | connection | bip_report)
