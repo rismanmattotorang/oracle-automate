@@ -1,6 +1,6 @@
 //! Tab 3 — Knowledge Base.  Per-collection statistics and staleness, plus
-//! the RFC metadata cache row (thupalo pattern, polled from
-//! `sap-cache://stats` on the live admin feed).
+//! the REST metadata cache row (thupalo pattern, polled from
+//! `oracle-cache://stats` on the live admin feed).
 
 use crate::app::App;
 use ratatui::{
@@ -67,7 +67,7 @@ fn draw_cache(f: &mut Frame, app: &App, area: Rect) {
 
     let text = vec![
         ratatui::text::Line::from(vec![
-            ratatui::text::Span::styled("RFC metadata cache ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            ratatui::text::Span::styled("REST metadata cache ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
             ratatui::text::Span::raw(format!(
                 "hits={} misses={} entries={} ratio=",
                 c.hits, c.misses, c.entries,
@@ -75,7 +75,7 @@ fn draw_cache(f: &mut Frame, app: &App, area: Rect) {
             ratatui::text::Span::styled(format!("{:.2}", c.hit_ratio), ratio_style),
         ]),
         ratatui::text::Line::from(ratatui::text::Span::styled(
-            "  thupalo/sap-rfc-mcp-server pattern · resource: sap-cache://stats · tool: sap.system.cache_stats",
+            "  thupalo/sap-rfc-mcp-server pattern · resource: oracle-cache://stats · tool: oracle.system.cache_stats",
             Style::default().fg(Color::DarkGray),
         )),
     ];

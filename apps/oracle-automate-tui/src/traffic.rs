@@ -9,10 +9,10 @@ use oracle_automate_rag::LatencyBreakdown;
 use std::time::Instant;
 
 const TOOLS: &[&str] = &[
-    "sap.docs.search", "sap.help.search", "abap.search",
-    "sap.rfc.search", "sap.rfc.metadata", "sap.system.info",
-    "sap.table.read", "sap.table.structure",
-    "abap.adt.get_class", "abap.adt.get_program", "abap.adt.where_used",
+    "oracle.docs.search", "oracle.help.search", "integration.search",
+    "oracle.rest.search", "oracle.rest.metadata", "oracle.system.info",
+    "oracle.object.read", "oracle.object.structure",
+    "oracle.oic.get_groovy_script", "oracle.oic.get_integration", "oracle.oic.where_used",
 ];
 
 pub struct Synthetic {
@@ -68,7 +68,7 @@ impl Synthetic {
                 points: 2_980 + (self.tick % 10),
                 staleness_pct: 0.9,
             }),
-            // Synthetic RFC metadata cache snapshot.  Hit ratio climbs from
+            // Synthetic REST metadata cache snapshot.  Hit ratio climbs from
             // 0 to ~0.85 over the first ~80 ticks, then jitters in
             // steady-state — mirrors the warming-curve operators see on a
             // freshly-started server.
@@ -103,13 +103,13 @@ impl Synthetic {
                 // The common case: a tool call.
                 let idx = (self.tick as usize) % TOOLS.len();
                 let name = TOOLS[idx];
-                // Realistic latency: 80–250μs for RAG, 200μs–1ms for ADT/RFC.
-                let base = if name.starts_with("abap.") || name.starts_with("sap.rfc") || name.starts_with("sap.table") {
+                // Realistic latency: 80–250μs for RAG, 200μs–1ms for OIC/REST.
+                let base = if name.starts_with("oracle.oic.") || name.starts_with("oracle.rest") || name.starts_with("oracle.object") {
                     200 + (self.tick % 800)
                 } else {
                     100 + (self.tick % 150)
                 };
-                let breakdown = if name.contains("search") || name == "sap.docs.search" {
+                let breakdown = if name.contains("search") || name == "oracle.docs.search" {
                     Some(LatencyBreakdown {
                         dense_us: 30 + (self.tick % 20),
                         sparse_us: 30 + (self.tick % 20),

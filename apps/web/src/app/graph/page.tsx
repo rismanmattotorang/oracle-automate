@@ -13,11 +13,11 @@ interface CommunityView {
 }
 
 const HOP_SUGGESTIONS = [
-  'impact of changing BAPI_ACC_DOCUMENT_POST',
-  'callers of ZFIN_POST_JE',
+  'impact of changing KLB_FUSION_ERP_REST',
+  'callers of KLB_GL_JOURNAL_IMPORT',
   'what depends on table FAGLFLEXA',
   'downstream from ZIF_FIN_POSTABLE',
-  'trace from period close to LeanIX',
+  'trace from period close to application catalog',
 ];
 const GLOBAL_SUGGESTIONS = [
   'period close FAGLFLEXA',
@@ -72,7 +72,7 @@ export default function GraphView() {
         {/* Tab switcher */}
         <div className="flex gap-2 border-b border-ink-800 pb-2">
           {[
-            { id: 'multi_hop' as const, label: 'L4 HippoRAG (multi-hop)', desc: 'PPR over the SAP graph' },
+            { id: 'multi_hop' as const, label: 'L4 HippoRAG (multi-hop)', desc: 'PPR over the Oracle graph' },
             { id: 'global' as const,    label: 'L3 GraphRAG (global)', desc: 'community-level summary' },
           ].map(t => (
             <button
@@ -205,7 +205,7 @@ export default function GraphView() {
 
         <Card title="How this works">
           <div className="text-xs text-zinc-400 leading-relaxed space-y-2">
-            <p>The server holds a typed cross-domain graph: ABAP objects, RFCs, tables, BPMN processes, LeanIX apps, Help pages, and business concepts.</p>
+            <p>The server holds a typed cross-domain graph: OIC integrations, REST resources, Oracle objects, process models, application-catalog apps, Oracle Help pages, and business concepts.</p>
             <p><b>HippoRAG</b> (this tab) seeds the personalised PageRank vector from query-matched entities, then propagates probability mass for ~50 iterations with restart α=0.15. Nodes with high steady-state mass surface as multi-hop relevant.</p>
             <p><b>GraphRAG</b> runs a one-pass Louvain modularity step at graph build time, producing communities of densely-connected entities. Queries find communities whose summaries overlap the query terms.</p>
             <p className="text-ink-600">Acceptance gate (paper §X-H): P95 &lt; 400 ms for ≤4-hop queries. Live measurement: <b>0.08 ms</b> (~5000× margin).</p>

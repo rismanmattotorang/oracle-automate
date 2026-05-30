@@ -17,7 +17,7 @@ export default function SkillLab() {
     initialize().then(() => listPrompts()).then(p => {
       setPrompts(p.prompts);
       if (p.prompts.length > 0) {
-        const first = p.prompts.find(x => x.name.startsWith('sap.skill.')) ?? p.prompts[0];
+        const first = p.prompts.find(x => x.name.startsWith('oracle.skill.')) ?? p.prompts[0];
         setSelected(first.name);
       }
     });
@@ -75,8 +75,8 @@ export default function SkillLab() {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    {p.name.startsWith('sap.skill.') && <Badge tone="accent">skill</Badge>}
-                    {!p.name.startsWith('sap.skill.') && <Badge tone="neutral">built-in</Badge>}
+                    {p.name.startsWith('oracle.skill.') && <Badge tone="accent">skill</Badge>}
+                    {!p.name.startsWith('oracle.skill.') && <Badge tone="neutral">built-in</Badge>}
                   </div>
                   <div className="font-semibold mt-1">{p.name}</div>
                   <div className="text-[10.5px] text-ink-600 line-clamp-2 mt-0.5 leading-tight">
@@ -141,18 +141,18 @@ export default function SkillLab() {
                     RAP Skills, ARC-1 SAP Skills): <b>agents invoke skills, not raw tools</b>.
                   </p>
                   <p>
-                    A skill bundles tool composition + prompt engineering for one SAP workflow.
+                    A skill bundles tool composition + prompt engineering for one Oracle workflow.
                     Authors ship them as <code>./skills/*.md</code> with YAML frontmatter; the server
                     auto-loads them and exposes them via MCP <code>prompts/get</code>.
                     No protocol extension required.
                   </p>
                   <p>
                     <b>Behavioural skills</b> ride the same surface.
-                    {' '}<code>sap.skill.karpathy_guidelines</code> (ported from {' '}
+                    {' '}<code>oracle.skill.karpathy_guidelines</code> (ported from {' '}
                     <code>multica-ai/andrej-karpathy-skills</code>, MIT)
                     captures the four pre-flight principles — think-before, simplicity, surgical
                     changes, goal-driven execution — and {' '}
-                    <code>sap.skill.aipnv_ai_pairing</code> the five-question anti-autopilot
+                    <code>oracle.skill.aipnv_ai_pairing</code> the five-question anti-autopilot
                     checklist from <code>fr0ster/mcp-abap-adt</code>. The gateway routes user
                     intents directly to these skills via <code>prompts/get</code>.
                   </p>

@@ -12,9 +12,9 @@ interface Layer { name: 'docs'; hits: Hit[]; }
 
 const SUGGESTED: string[] = [
   'period close FAGLFLEXA reconciliation',
-  'BAPI_ACC_DOCUMENT_POST journal',
+  'journalEntries GL posting',
   'movement type 101 goods receipt',
-  'where is the BAPI documented for sales order creation',
+  'where is the REST API for sales order creation',
   'how does the FI period close interact with foreign currency',
 ];
 
@@ -36,7 +36,7 @@ export default function QueryLab() {
     setLoading(true); setError(null); setDocsHits(null); setLatencyMs(null);
     const t0 = performance.now();
     try {
-      const result = await callTool('sap.docs.search', { query, top_k: topK, domain });
+      const result = await callTool('oracle.docs.search', { query, top_k: topK, domain });
       const parsed = parseToolJson<{ hits: Hit[] }>(result);
       setDocsHits(parsed?.hits ?? []);
       setLatencyMs(Math.round(performance.now() - t0));
@@ -154,13 +154,13 @@ export default function QueryLab() {
         <Card title="What you're actually seeing">
           <div className="text-xs text-zinc-400 leading-relaxed space-y-2">
             <p>
-              The server's <code className="text-accent-500">sap.docs.search</code> tool runs the full Phase 3 pipeline:
+              The server's <code className="text-accent-500">oracle.docs.search</code> tool runs the full Phase 3 pipeline:
             </p>
             <ol className="list-decimal pl-5 space-y-1">
               <li><b>Dense retrieval</b> — token-bag mock embedder (replaceable with text-embedding-3-large or bge-m3) → cosine over chunks.</li>
-              <li><b>Sparse retrieval</b> — proper BM25 (k1=1.5, b=0.75) with SAP-identifier-preserving tokeniser.</li>
+              <li><b>Sparse retrieval</b> — proper BM25 (k1=1.5, b=0.75) with Oracle-identifier-preserving tokeniser.</li>
               <li><b>RRF fusion</b> — Reciprocal Rank Fusion with k=60. Hits in both rankings get rewarded.</li>
-              <li><b>Cross-encoder rerank</b> — MockReranker boosts exact-identifier matches (BAPI_*, T001*, etc.). ONNX cross-encoder slot for Phase 7.</li>
+              <li><b>Cross-encoder rerank</b> — MockReranker boosts exact-identifier matches (GL_*, journalEntries, etc.). ONNX cross-encoder slot for Phase 7.</li>
             </ol>
             <p className="text-ink-600 pt-1">
               The Operations tab shows the per-layer latency breakdown live.
@@ -172,16 +172,16 @@ export default function QueryLab() {
   );
 }
 
-/** Maps SAP-domain URIs to their colour + label. */
+/** Maps Oracle-domain URIs to their colour + label. */
 function CitationChip({ uri }: { uri: string }) {
   const scheme = uri.split('://')[0];
   const tone: any = {
-    'sap-help': 'good',
-    'abap-obj': 'accent',
-    'bpmn-proc': 'warn',
-    'leanix-fs': 'neutral',
-    'sap-rfc': 'accent',
-    'sap-table': 'accent',
+    'oracle-help': 'good',
+    'oic-int': 'accent',
+    'process': 'warn',
+    'appcat': 'neutral',
+    'oracle-rest': 'accent',
+    'oracle-object': 'accent',
   }[scheme] || 'neutral';
   return (
     <div className="mt-0.5 flex items-center gap-2">

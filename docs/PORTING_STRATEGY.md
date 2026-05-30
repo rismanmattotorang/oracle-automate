@@ -291,4 +291,16 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
   (AAC SoD weekly, app-portfolio EOL quarterly, GL period-close daily, sandbox
   publish hourly). Gateway intent router + demo query Oracle-ized; skills-crate
   doc/test fixtures Oracle-ized. **Workspace builds; 208 tests pass.**
-- _Subsequent phases (P7+) update this section as they land._
+- **P7 — done (TUI + Next.js web UI).** Ratatui TUI: synthetic-traffic tool
+  list re-mapped to the Oracle namespace (`oracle.docs.search`, `oracle.rest.*`,
+  `oracle.object.*`, `oracle.oic.*`, `integration.search`), latency-class
+  routing keyed on `oracle.oic.`/`oracle.rest`/`oracle.object`, "REST metadata
+  cache" label, `oracle-cache://` resource. Next.js web UI (Operations, Query
+  Lab, Tool Explorer, Skill Lab, Resources, Graph Lab): all tool calls,
+  `oracle.skill.` prefixes, write-tool detection (`oracle.oic.activate` /
+  `oracle.rest.call`), tool-group labels (Oracle system / REST / objects ·
+  Oracle OIC / custom code), citation-chip URI scheme map
+  (`oracle-help`/`oic-int`/`process`/`appcat`/`oracle-rest`/`oracle-object`),
+  sample queries, and prose Oracle-ized. **Verified: `cargo build`/`cargo test`
+  green (208 tests); `tsc --noEmit` clean; `next build` succeeds (9 routes).**
+- _Subsequent phases (P8) update this section as they land._

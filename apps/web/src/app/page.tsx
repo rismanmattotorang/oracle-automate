@@ -54,14 +54,14 @@ export default function Operations() {
     })();
   }, []);
 
-  // Poll the RFC metadata cache stats every 2 s (thupalo/sap-rfc-mcp-server
-  // pattern, surfaced through `sap.system.cache_stats`).
+  // Poll the REST metadata cache stats every 2 s (thupalo/sap-rfc-mcp-server
+  // pattern, surfaced through `oracle.system.cache_stats`).
   useEffect(() => {
     if (!server) return;
     let cancelled = false;
     const tick = async () => {
       try {
-        const r = await callTool('sap.system.cache_stats', {});
+        const r = await callTool('oracle.system.cache_stats', {});
         const parsed = parseToolJson<CacheStats>(r);
         if (!cancelled && parsed) setCache(parsed);
       } catch {
@@ -79,12 +79,12 @@ export default function Operations() {
     let cancelled = false;
 
     const samples = [
-      { tool: 'sap.docs.search', args: { query: 'period close', top_k: 3 } },
-      { tool: 'sap.docs.search', args: { query: 'goods movement', top_k: 3 } },
-      { tool: 'abap.search', args: { query: 'BAPI ZFIN', top_k: 3 } },
-      { tool: 'sap.help.search', args: { query: 'billing', top_k: 3 } },
-      { tool: 'sap.system.info', args: {} },
-      { tool: 'sap.rfc.search', args: { query: 'material' } },
+      { tool: 'oracle.docs.search', args: { query: 'period close', top_k: 3 } },
+      { tool: 'oracle.docs.search', args: { query: 'goods movement', top_k: 3 } },
+      { tool: 'integration.search', args: { query: 'KLB journal import', top_k: 3 } },
+      { tool: 'oracle.help.search', args: { query: 'billing', top_k: 3 } },
+      { tool: 'oracle.system.info', args: {} },
+      { tool: 'oracle.rest.search', args: { query: 'material' } },
     ];
 
     let i = 0;
@@ -185,9 +185,9 @@ export default function Operations() {
           </div>
         </Card>
 
-        {/* RFC metadata cache (thupalo pattern) */}
+        {/* REST metadata cache (thupalo pattern) */}
         <Card
-          title="RFC metadata cache"
+          title="REST metadata cache"
           right={
             cache?.enabled === false
               ? <Badge tone="warn">disabled</Badge>
@@ -218,7 +218,7 @@ export default function Operations() {
               </div>
               <div className="mt-2 text-[11px] text-ink-600">
                 Convergent pattern from <code>thupalo/sap-rfc-mcp-server</code> — cached metadata reads are ~1–5 ms vs ~200–500 ms direct.
-                Resource: <code className="text-accent-500">sap-cache://stats</code> · tools: <code className="text-accent-500">sap.system.cache_stats</code>, <code className="text-accent-500">sap.system.cache_invalidate</code>.
+                Resource: <code className="text-accent-500">oracle-cache://stats</code> · tools: <code className="text-accent-500">oracle.system.cache_stats</code>, <code className="text-accent-500">oracle.system.cache_invalidate</code>.
               </div>
             </div>
           ) : (
@@ -262,13 +262,13 @@ export default function Operations() {
           {/* Skills */}
           <Card title="Skills loaded from disk">
             <ul className="space-y-1.5">
-              {prompts.filter(p => p.name.startsWith('sap.skill.')).map(p => (
+              {prompts.filter(p => p.name.startsWith('oracle.skill.')).map(p => (
                 <li key={p.name} className="text-xs">
                   <span className="text-accent-500 font-semibold">{p.name}</span>
                   <span className="text-zinc-500"> — {p.description}</span>
                 </li>
               ))}
-              {prompts.filter(p => p.name.startsWith('sap.skill.')).length === 0 && (
+              {prompts.filter(p => p.name.startsWith('oracle.skill.')).length === 0 && (
                 <li className="text-xs text-ink-600">No skills loaded.</li>
               )}
             </ul>
@@ -329,14 +329,14 @@ function Stat({ label, value, tone }: { label: string; value: string; tone: 'goo
 function groupTools(tools: Tool[]): Record<string, Tool[]> {
   const groups: Record<string, Tool[]> = {
     'RAG search': [],
-    'SAP system / RFC / tables': [],
-    'ABAP ADT': [],
+    'Oracle system / REST / objects': [],
+    'Oracle OIC / custom code': [],
     'Other': [],
   };
   for (const t of tools) {
-    if (t.name.startsWith('abap.adt.')) groups['ABAP ADT'].push(t);
-    else if (t.name.startsWith('sap.')) groups['SAP system / RFC / tables'].push(t);
-    else if (['abap.search', 'bpmn.find_process', 'eam.search_apps', 'sap.help.search'].includes(t.name)) groups['RAG search'].push(t);
+    if (t.name.startsWith('oracle.oic.')) groups['Oracle OIC / custom code'].push(t);
+    else if (t.name.startsWith('oracle.')) groups['Oracle system / REST / objects'].push(t);
+    else if (['integration.search', 'bpmn.find_process', 'eam.search_apps', 'oracle.help.search'].includes(t.name)) groups['RAG search'].push(t);
     else groups['Other'].push(t);
   }
   for (const k of Object.keys(groups)) {

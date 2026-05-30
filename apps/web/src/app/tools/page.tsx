@@ -12,7 +12,7 @@ export default function ToolExplorer() {
   useEffect(() => {
     initialize().then(() => listTools()).then(t => {
       setTools(t.tools);
-      if (t.tools.length > 0) setSelected(t.tools.find(x => x.name === 'sap.docs.search')?.name ?? t.tools[0].name);
+      if (t.tools.length > 0) setSelected(t.tools.find(x => x.name === 'oracle.docs.search')?.name ?? t.tools[0].name);
     });
   }, []);
 
@@ -87,8 +87,8 @@ function ToolForm({ tool }: { tool: Tool }) {
   const properties = (schema.properties ?? {}) as Record<string, any>;
   const required = new Set(schema.required ?? []);
   // Marker: write-side tools follow the naming convention we use server-side
-  // (abap.adt.activate; sap.rfc.call with require_read_only_safe=false).
-  const isWriteTool = tool.name === 'abap.adt.activate' || tool.name === 'sap.rfc.call';
+  // (oracle.oic.activate; oracle.rest.call with require_read_only_safe=false).
+  const isWriteTool = tool.name === 'oracle.oic.activate' || tool.name === 'oracle.rest.call';
 
   async function run() {
     setRunning(true); setError(null); setResult(null);
@@ -256,7 +256,7 @@ function ResultView({ content }: { content: Array<{ type: string; text?: string 
         if (c.type !== 'text' || !c.text) {
           return <pre key={i} className="text-[11px]">{JSON.stringify(c)}</pre>;
         }
-        // Try to JSON-pretty-print the text payload.  All RAG/RFC/ADT tools
+        // Try to JSON-pretty-print the text payload.  All RAG/REST/OIC tools
         // emit JSON; raw text falls through.
         let pretty: string;
         try { pretty = JSON.stringify(JSON.parse(c.text), null, 2); }
