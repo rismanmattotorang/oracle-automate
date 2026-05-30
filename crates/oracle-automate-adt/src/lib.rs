@@ -12,7 +12,7 @@
 //!   - `mock`     — offline `MockAdtClient` with realistic ABAP fixtures
 //!   - `error`    — structured `AdtError` taxonomy mapped to MCP codes
 //!   - `destination` — destination model (name, base URL, auth method)
-//!   - `http` (feature `http`) — `HttpAdtClient` against a live SAP system
+//!   - `http` (feature `http`) — `HttpOicClient` against live Oracle OIC / Fusion REST
 //!
 //! Read-only-by-default safety is enforced by the `AdtCallContext::read_only`
 //! flag, mirroring the `oracle-automate-rfc` pattern.
@@ -37,4 +37,4 @@ pub use types::{
 };
 
 #[cfg(feature = "http")]
-pub use http::HttpAdtClient;
+pub use http::HttpOicClient;

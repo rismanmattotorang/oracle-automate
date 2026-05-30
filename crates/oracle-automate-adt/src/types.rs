@@ -77,34 +77,33 @@ impl OracleArtifactKind {
         }
     }
 
-    /// Legacy SAP-ADT URL fragment used by the not-yet-ported live HTTP
-    /// transport (`http.rs`). The offline mock does not use this; it remains
-    /// the SAP-ADT path builder until the live client is rewritten against
-    /// the Oracle OIC / BI Publisher / Fusion REST endpoints in the
-    /// live-transport sub-phase. Variant *names* are Oracle; the URLs are
-    /// still SAP and exist only to keep the legacy client + its tests green.
-    pub fn adt_path(self, name: &str) -> String {
-        let n = name.to_lowercase();
+    /// Oracle REST path fragment for the artifact, used by the live
+    /// [`HttpOicClient`](crate::http::HttpOicClient): OIC integration API,
+    /// BI Publisher, and Fusion REST.
+    pub fn oic_path(self, name: &str) -> String {
+        let n = name;
         match self {
-            Self::Integration => format!("/sap/bc/adt/programs/programs/{n}/source/main"),
-            Self::GroovyScript => format!("/sap/bc/adt/oo/classes/{n}/source/main"),
-            Self::Connection => format!("/sap/bc/adt/oo/interfaces/{n}/source/main"),
-            Self::Lookup => format!("/sap/bc/adt/programs/includes/{n}/source/main"),
-            Self::IntegrationPackage => format!("/sap/bc/adt/functions/groups/{n}/source/main"),
-            Self::EssJob => format!("/sap/bc/adt/functions/groups/{{group}}/fmodules/{n}/source/main"),
-            Self::BipDataModel => format!("/sap/bc/adt/ddic/tables/{n}/source/main"),
-            Self::RestResource => format!("/sap/bc/adt/ddic/structures/{n}/source/main"),
-            Self::Attribute => format!("/sap/bc/adt/ddic/dataelements/{n}"),
-            Self::ValueSet => format!("/sap/bc/adt/ddic/domains/{n}/source/main"),
-            Self::BipReport => format!("/sap/bc/adt/ddic/ddl/sources/{n}/source/main"),
-            Self::Project => "/sap/bc/adt/repository/nodestructure".to_string(),
-            Self::ScheduledProcess => format!(
-                "/sap/bc/adt/repository/informationsystem/objectproperties/values?uri=%2Fsap%2Fbc%2Fadt%2Fvit%2Fwb%2Fobject_type%2Ftrant%2Fobject_name%2F{n}",
-            ),
-            Self::AppComposerExtension
-            | Self::BusinessRule
-            | Self::RestService
-            | Self::SandboxCustomization => format!("/sap/bc/adt/objects/{n}"),
+            Self::Integration => format!("/ic/api/integration/v1/integrations/{n}"),
+            Self::GroovyScript => format!("/ic/api/integration/v1/integrations/{n}/groovy"),
+            Self::Connection => format!("/ic/api/integration/v1/connections/{n}"),
+            Self::Lookup => format!("/ic/api/integration/v1/lookups/{n}"),
+            Self::IntegrationPackage | Self::Project => {
+                format!("/ic/api/integration/v1/projects/{n}")
+            }
+            Self::EssJob | Self::ScheduledProcess => {
+                format!("/fscmRestApi/resources/11.13.18.05/erpintegrations/{n}")
+            }
+            Self::BipDataModel => format!("/xmlpserver/services/rest/v1/catalog/dataModels/{n}"),
+            Self::BipReport => format!("/xmlpserver/services/rest/v1/reports/{n}"),
+            Self::RestResource | Self::RestService => {
+                format!("/fscmRestApi/resources/11.13.18.05/{n}")
+            }
+            Self::ValueSet => format!("/fscmRestApi/resources/11.13.18.05/setupValueSets/{n}"),
+            Self::Attribute => format!("/fscmRestApi/resources/11.13.18.05/{n}/describe"),
+            Self::SandboxCustomization | Self::AppComposerExtension => {
+                format!("/fndSetup/sandboxes/{n}")
+            }
+            Self::BusinessRule => format!("/bpm/api/4.0/rules/{n}"),
         }
     }
 }

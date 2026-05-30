@@ -75,7 +75,7 @@ pub enum AdtError {
     #[error("object is inactive: {0}")]
     InactiveObject(String),
 
-    #[error("data preview blocked by SAP backend policy: {0}")]
+    #[error("data preview blocked: {0}")]
     DataPreviewBlocked(String),
 
     #[error("permission denied: {0}")]

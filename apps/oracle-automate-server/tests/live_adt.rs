@@ -19,7 +19,7 @@
 //! Override the probed class with `ORACLE_AUTOMATE_TEST_CLASS` if the default
 //! is unavailable on your stack.
 
-use oracle_automate_adt::{AdtAuth, AdtClient, AdtDestination, HttpAdtClient};
+use oracle_automate_adt::{AdtAuth, AdtClient, AdtDestination, HttpOicClient};
 
 #[tokio::test]
 async fn live_adt_get_class_smoke() {
@@ -42,7 +42,7 @@ async fn live_adt_get_class_smoke() {
         "live test needs a non-mock destination; '{name}' declares auth=mock"
     );
 
-    let client = HttpAdtClient::new(dest).expect("HttpAdtClient init");
+    let client = HttpOicClient::new(dest).expect("HttpOicClient init");
 
     // A class that exists on essentially every ABAP stack.
     let class = std::env::var("ORACLE_AUTOMATE_TEST_CLASS")

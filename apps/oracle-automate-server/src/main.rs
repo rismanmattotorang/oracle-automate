@@ -24,7 +24,7 @@ use mcp_server::Server;
 use mcp_transport::{HttpServerConfig, HttpServerTransport, StdioTransport};
 use oracle_automate_observability::metrics::{MetricKind, MetricsRegistry};
 use oracle_automate_observability::{AuditEntry, AuditLog, AuditSink};
-use oracle_automate_adt::{AdtAuth, AdtClient, AdtDestination, HttpAdtClient, MockAdtClient};
+use oracle_automate_adt::{AdtAuth, AdtClient, AdtDestination, HttpOicClient, MockAdtClient};
 use oracle_automate_graph::InMemoryGraph;
 use oracle_automate_rag::GraphEngine;
 use oracle_automate_skills::SkillRegistry;
@@ -78,7 +78,7 @@ struct Cli {
     /// `docs/INTEGRATION.md`).  Search order: `$ORACLE_AUTOMATE_DESTINATION_DIR`,
     /// `./.oracle-automate/destinations/`, `~/.config/oracle-automate/destinations/`.
     /// When set and the destination's auth is not `mock`, the server talks
-    /// to a real SAP system via `HttpAdtClient` instead of the offline mock.
+    /// to a live Oracle OIC / Fusion endpoint via `HttpOicClient` instead of the offline mock.
     /// Also settable via the `ORACLE_AUTOMATE_DESTINATION` env var.
     #[arg(long)]
     destination: Option<String>,
@@ -213,7 +213,7 @@ async fn main() -> anyhow::Result<()> {
     };
     let metadata_cache_handle = Some(metadata_cache);
 
-    // ADT client — offline MockAdtClient by default; a live HttpAdtClient
+    // ADT client — offline MockAdtClient by default; a live HttpOicClient
     // when --destination / ORACLE_AUTOMATE_DESTINATION selects a real SAP
     // system whose auth is not `mock` (Sprint 1: live dev-tenant wiring).
     let adt_client: Arc<dyn AdtClient> = build_adt_client(&cli)?;
@@ -428,7 +428,7 @@ fn build_instructions(agents_md: &Option<String>, read_only: bool) -> String {
 /// - No `--destination` / `ORACLE_AUTOMATE_DESTINATION` → offline `MockAdtClient`.
 /// - A destination whose `auth = "mock"` → `MockAdtClient` (lets operators
 ///   stage a destination file before credentials exist).
-/// - Any other auth → live `HttpAdtClient` against the real SAP system.
+/// - Any other auth → live `HttpOicClient` against the Oracle endpoint.
 fn build_adt_client(cli: &Cli) -> anyhow::Result<Arc<dyn AdtClient>> {
     let dest_name = cli
         .destination
@@ -458,10 +458,10 @@ fn build_adt_client(cli: &Cli) -> anyhow::Result<Arc<dyn AdtClient>> {
         base_url = %dest.base_url,
         client = %dest.client,
         auth = %dest.auth.label(),
-        "ADT client: live HttpAdtClient against real SAP system"
+        "artifact client: live HttpOicClient against Oracle OIC / Fusion"
     );
-    let client = HttpAdtClient::new(dest)
-        .map_err(|e| anyhow::anyhow!("HttpAdtClient init failed: {e}"))?;
+    let client = HttpOicClient::new(dest)
+        .map_err(|e| anyhow::anyhow!("HttpOicClient init failed: {e}"))?;
     Ok(Arc::new(client))
 }
 
