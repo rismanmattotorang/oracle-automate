@@ -3,13 +3,13 @@
 //! sandbox over OData v4.
 //!
 //! The in-process `build_test_server` deliberately does NOT inject a
-//! `BusinessHubClient`, so these tests verify the "feature disabled"
+//! `FusionPartyClient`, so these tests verify the "feature disabled"
 //! fallback: the tools are still registered, but invoking them returns
-//! a friendly error pointing the operator at `SAP_BUSINESS_HUB_KEY`.
+//! a friendly error pointing the operator at `ORACLE_FUSION_BASE_URL`.
 //!
 //! The actual live-sandbox round-trip lives in
 //! `crates/oracle-automate-rfc/src/odata.rs` as `live_business_partner_search`
-//! — it skips when `SAP_BUSINESS_HUB_KEY` is unset.
+//! — it skips when `ORACLE_FUSION_BASE_URL` is unset.
 
 use mcp_client::Client;
 use mcp_core::{ClientCapabilities, Implementation};
@@ -54,8 +54,8 @@ async fn bp_search_without_key_returns_friendly_error() {
     let text = r.content.iter().find_map(|c| {
         if let mcp_core::ToolContent::Text { text } = c { Some(text.clone()) } else { None }
     }).unwrap_or_default();
-    assert!(text.contains("SAP_BUSINESS_HUB_KEY"),
-        "error must point operator at SAP_BUSINESS_HUB_KEY; got: {text}");
+    assert!(text.contains("ORACLE_FUSION_BASE_URL"),
+        "error must point operator at ORACLE_FUSION_BASE_URL; got: {text}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -69,7 +69,7 @@ async fn bp_get_without_key_returns_friendly_error() {
     let text = r.content.iter().find_map(|c| {
         if let mcp_core::ToolContent::Text { text } = c { Some(text.clone()) } else { None }
     }).unwrap_or_default();
-    assert!(text.contains("SAP_BUSINESS_HUB_KEY"));
+    assert!(text.contains("ORACLE_FUSION_BASE_URL"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

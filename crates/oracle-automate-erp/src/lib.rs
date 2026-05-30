@@ -23,22 +23,16 @@ pub mod client;
 pub mod credentials;
 pub mod error;
 pub mod metadata_cache;
-#[cfg(feature = "odata")]
-pub mod odata;
+#[cfg(feature = "fusion")]
+pub mod fusion;
 pub mod pool;
 pub mod retry;
-#[cfg(feature = "soap")]
-pub mod soap;
 pub mod transaction;
 
 pub use bapiret2::{BapiRet2Message, BapiRet2Severity, parse_bapiret2};
 pub use metadata_cache::{CacheStats, MetadataCache};
-#[cfg(feature = "odata")]
-pub use odata::{
-    BusinessHubClient, BusinessHubConfig, BusinessPartner, OdataAuth, OdataError, OdataResult,
-};
-#[cfg(feature = "soap")]
-pub use soap::{SoapRfcClient, SoapRfcConfig};
+#[cfg(feature = "fusion")]
+pub use fusion::{FusionAuth, FusionConfig, FusionPartyClient, HttpFusionClient, Party};
 
 pub use client::{
     BulkMetadata, MockErpClient, ReadTableRequest, RfcCallRequest, RfcFunctionMeta,

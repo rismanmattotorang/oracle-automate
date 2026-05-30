@@ -34,7 +34,7 @@ use oracle_automate_rag::RagEngine;
 use oracle_automate_erp::{
     Credentials, CredentialProvider, CredentialSource, EnvCredentialProvider,
     LayeredCredentialProvider, MetadataCache, MockErpClient, ErpClient,
-    SoapRfcClient, SoapRfcConfig, StaticCredentialProvider,
+    FusionConfig, HttpFusionClient, StaticCredentialProvider,
 };
 use std::time::Duration;
 use std::sync::Arc;
@@ -188,26 +188,26 @@ async fn main() -> anyhow::Result<()> {
         "RFC metadata cache active (thupalo pattern)"
     );
 
-    // RFC backend: a live SOAP transport when SAP_RFC_HTTP_URL is set
-    // (Sprint 3, reusing resolved credentials), else the offline mock.
-    // Either way the curated catalogue — reached through the metadata cache
-    // — supplies metadata and drives the read-only safety gate, so the live
-    // path keeps Oracle-Automate's curated safety annotations.
-    let sap_client: Arc<dyn ErpClient> = match SoapRfcConfig::from_env() {
-        Some(soap_cfg) => {
+    // ERP backend: a live Oracle Fusion REST transport when
+    // ORACLE_FUSION_BASE_URL is set, else the offline mock.  Either way the
+    // curated catalogue — reached through the metadata cache — supplies
+    // metadata and drives the read-only safety gate, so the live path keeps
+    // Oracle-Automate's curated safety annotations.
+    let sap_client: Arc<dyn ErpClient> = match FusionConfig::from_env() {
+        Some(fusion_cfg) => {
             tracing::info!(
-                base_url = %soap_cfg.base_url,
-                client = %soap_cfg.client,
+                base_url = %fusion_cfg.base_url,
+                auth = %fusion_cfg.auth.label(),
                 read_only = read_only,
-                "live SOAP RFC backend active (data ops); metadata via curated catalogue"
+                "live Oracle Fusion REST backend active (data ops); metadata via curated catalogue"
             );
             Arc::new(
-                SoapRfcClient::new(soap_cfg, metadata_cache.clone())
-                    .map_err(|e| anyhow::anyhow!("SOAP RFC client init failed: {e}"))?,
+                HttpFusionClient::new(fusion_cfg, metadata_cache.clone())
+                    .map_err(|e| anyhow::anyhow!("Fusion REST client init failed: {e}"))?,
             )
         }
         None => {
-            tracing::info!("SAP_RFC_HTTP_URL not set — RFC backend is the offline mock");
+            tracing::info!("ORACLE_FUSION_BASE_URL not set — ERP backend is the offline mock");
             metadata_cache.clone()
         }
     };
@@ -218,32 +218,28 @@ async fn main() -> anyhow::Result<()> {
     // system whose auth is not `mock` (Sprint 1: live dev-tenant wiring).
     let adt_client: Arc<dyn AdtClient> = build_adt_client(&cli)?;
 
-    // OData v4 client for the oracle.party.* tools — a customer tenant when
-    // SAP_ODATA_BASE_URL is set (Basic / Bearer / OAuth2 per SAP_ODATA_AUTH),
-    // else the public Business Hub sandbox (SAP_BUSINESS_HUB_KEY).  Absent →
-    // tools stay registered but return a friendly "feature disabled" error.
-    let business_hub: Option<Arc<oracle_automate_erp::BusinessHubClient>> =
-        match oracle_automate_erp::BusinessHubClient::from_env() {
+    // TCA party client for the oracle.party.* tools — a live Oracle Fusion
+    // pod when ORACLE_FUSION_BASE_URL is set.  Absent → tools stay registered
+    // but return a friendly "feature disabled" error.
+    let business_hub: Option<Arc<oracle_automate_erp::FusionPartyClient>> =
+        match oracle_automate_erp::FusionPartyClient::from_env() {
             None => {
                 tracing::info!(
-                    "no OData endpoint configured (set SAP_ODATA_BASE_URL for a tenant \
-                     or SAP_BUSINESS_HUB_KEY for the sandbox) — oracle.party.* tools disabled"
+                    "no Oracle Fusion endpoint configured (set ORACLE_FUSION_BASE_URL) — \
+                     oracle.party.* tools disabled"
                 );
                 None
             }
             Some(Ok(client)) => {
-                let base = &client.config().base_url;
-                let is_sandbox = base.contains("sandbox.api.sap.com");
                 tracing::info!(
-                    base_url = %base,
+                    base_url = %client.config().base_url,
                     auth = %client.config().auth.label(),
-                    target = if is_sandbox { "business-hub-sandbox" } else { "tenant" },
-                    "OData v4 backend active (oracle.party.* live)"
+                    "Oracle Fusion party backend active (oracle.party.* live)"
                 );
                 Some(Arc::new(client))
             }
             Some(Err(e)) => {
-                tracing::warn!(error = %e, "OData client init failed — oracle.party.* tools disabled");
+                tracing::warn!(error = %e, "Fusion party client init failed — oracle.party.* tools disabled");
                 None
             }
         };
@@ -269,9 +265,8 @@ async fn main() -> anyhow::Result<()> {
     // tamper-evident store (Loki / S3 object-lock / Splunk HEC).
     let audit = Arc::new(AuditLog::new(Arc::new(TracingAuditSink)));
     let sap_system = {
-        let host = std::env::var("SAP_RFC_HTTP_URL")
+        let host = std::env::var("ORACLE_FUSION_BASE_URL")
             .ok()
-            .or_else(|| std::env::var("SAP_ODATA_BASE_URL").ok())
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| creds.ashost.clone());
         Some(format!("{host}/{}", creds.client))

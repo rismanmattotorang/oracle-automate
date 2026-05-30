@@ -3,7 +3,7 @@ name = "oracle-automate-erp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Oracle-Automate RFC + Table client abstraction with pooling, retry, circuit-breaker, and credential layering (Phase 2)."
+description = "Oracle-Automate ERP client abstraction (Oracle Fusion Cloud ERP) with pooling, retry, circuit-breaker, and credential layering."
 
 [dependencies]
 serde = { workspace = true }
@@ -13,16 +13,12 @@ tracing = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true, optional = true }
-quick-xml = { workspace = true, optional = true }
 
 [features]
 default = []
-# Enables the SAP S/4HANA OData v4 client (Business Accelerator Hub sandbox
-# + on-prem OData destinations).  Pulls in reqwest.
-odata = ["reqwest"]
-# Enables the SOAP RFC client (RFC_READ_TABLE / RFC_SYSTEM_INFO / generic
-# RFC over /sap/bc/soap/rfc) — the real RFC path without the NW RFC SDK.
-soap = ["reqwest", "quick-xml"]
+# Enables the live Oracle Fusion Cloud ERP transport over REST/JSON
+# (HttpFusionClient + FusionPartyClient).  Pulls in reqwest.
+fusion = ["reqwest"]
 
 [dev-dependencies]
 tokio = { workspace = true }

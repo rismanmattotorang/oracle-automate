@@ -4,7 +4,7 @@ use oracle_automate_adt::AdtClient;
 use oracle_automate_ingest::EmbeddingClient;
 use oracle_automate_observability::AuditLog;
 use oracle_automate_rag::{GraphEngine, RagEngine};
-use oracle_automate_erp::{BusinessHubClient, MetadataCache, MockErpClient, ErpClient};
+use oracle_automate_erp::{FusionPartyClient, MetadataCache, MockErpClient, ErpClient};
 use std::sync::Arc;
 
 pub struct ServerContext {
@@ -20,10 +20,10 @@ pub struct ServerContext {
     /// when caching is disabled via `--metadata-cache-ttl-secs=0`.
     pub metadata_cache: Option<Arc<MetadataCache<MockErpClient>>>,
     pub adt_client: Arc<dyn AdtClient>,
-    /// SAP Business Accelerator Hub sandbox client.  `None` when no
-    /// `SAP_BUSINESS_HUB_KEY` is configured — the `oracle.party.*` tools then
+    /// Oracle Fusion TCA party client (suppliers / customer accounts). `None`
+    /// when no `ORACLE_FUSION_BASE_URL` is configured — the `oracle.party.*` tools then
     /// return a friendly "feature disabled" error instead of crashing.
-    pub business_hub: Option<Arc<BusinessHubClient>>,
+    pub business_hub: Option<Arc<FusionPartyClient>>,
     pub read_only: bool,
     pub agents_md: Option<String>,
     /// Append-only audit log for state-mutating tool calls (SOX / GDPR

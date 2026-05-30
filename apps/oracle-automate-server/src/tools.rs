@@ -223,7 +223,7 @@ pub fn sap_tools(ctx: &Arc<ServerContext>) -> Vec<ToolDescriptor> {
 }
 
 // --- oracle.party.search / oracle.party.get -------------------------------------------
-// Live SAP backend tier: SAP Business Accelerator Hub sandbox.
+// Live Oracle backend tier: Fusion TCA parties (suppliers / accounts).
 // Convergent with the OData generic-proxy design discipline shipped as
 // `oracle.skill.odata_service_design`.
 
@@ -247,11 +247,11 @@ fn tool_bp_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
             let hub = match &ctx.business_hub {
                 Some(h) => h,
                 None => return Ok(CallToolResult::error(
-                    "oracle.party.search: SAP Business Accelerator Hub disabled. \
-                     Set SAP_BUSINESS_HUB_KEY (free key from a SAP Community account) and restart the server.".to_string()
+                    "oracle.party.search: Oracle Fusion party backend disabled. \
+                     Set ORACLE_FUSION_BASE_URL and restart the server.".to_string()
                 )),
             };
-            match hub.search_business_partners(&args.query, args.limit.clamp(1, 100)).await {
+            match hub.search_parties(&args.query, args.limit.clamp(1, 100)).await {
                 Ok(rows) => render_json("oracle.party.search", &serde_json::json!({
                     "query": args.query,
                     "count": rows.len(),
@@ -263,13 +263,13 @@ fn tool_bp_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     });
     ToolDescriptor::new(
         "oracle.party.search",
-        Some("Search SAP A_BusinessPartner (OData v4) on the SAP Business Accelerator Hub sandbox. \
-              Returns matching Business Partner rows with id, full name, category, organization name, \
-              and BP creation date. Requires SAP_BUSINESS_HUB_KEY env var (free SAP Community login).".into()),
+        Some("Search Oracle Fusion suppliers (TCA parties) by name. \
+              Returns matching supplier rows with id, name, supplier number, \
+              and status. Requires ORACLE_FUSION_BASE_URL.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Substring match against BusinessPartnerFullName."},
+                "query": {"type": "string", "description": "Substring match against the supplier name."},
                 "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 10}
             },
             "required": ["query"],
@@ -296,10 +296,10 @@ fn tool_bp_get(ctx: &Arc<ServerContext>) -> ToolDescriptor {
             let hub = match &ctx.business_hub {
                 Some(h) => h,
                 None => return Ok(CallToolResult::error(
-                    "oracle.party.get: SAP Business Accelerator Hub disabled. Set SAP_BUSINESS_HUB_KEY.".to_string()
+                    "oracle.party.get: Oracle Fusion party backend disabled. Set ORACLE_FUSION_BASE_URL.".to_string()
                 )),
             };
-            match hub.get_business_partner(&args.id).await {
+            match hub.get_party(&args.id).await {
                 Ok(bp) => render_json("oracle.party.get", &bp),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.party.get: {e}"))),
             }
@@ -307,12 +307,12 @@ fn tool_bp_get(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     });
     ToolDescriptor::new(
         "oracle.party.get",
-        Some("Fetch a single SAP A_BusinessPartner by id from the SAP Business Accelerator Hub sandbox (OData v4). \
-              Requires SAP_BUSINESS_HUB_KEY.".into()),
+        Some("Fetch a single Oracle Fusion supplier (TCA party) by SupplierId. \
+              Requires ORACLE_FUSION_BASE_URL.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
-                "id": {"type": "string", "description": "Business Partner identifier (e.g. '1003764')."}
+                "id": {"type": "string", "description": "SupplierId (e.g. 300100)."}
             },
             "required": ["id"],
             "additionalProperties": false

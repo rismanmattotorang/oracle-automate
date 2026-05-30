@@ -1299,7 +1299,6 @@ name = "oracle-automate-erp"
 version = "1.4.0"
 dependencies = [
  "async-trait",
- "quick-xml",
  "reqwest",
  "serde",
  "serde_json",

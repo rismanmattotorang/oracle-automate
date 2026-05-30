@@ -1,0 +1,406 @@
+//! Live Oracle Fusion Cloud ERP transport over REST/JSON.
+//!
+//! Oracle Fusion is REST/JSON-homogeneous, so a single client replaces the
+//! two heterogeneous SAP live clients (SOAP RFC + Business-Hub OData) the
+//! original platform shipped:
+//!
+//! - [`HttpFusionClient`] implements [`ErpClient`] against the Fusion REST
+//!   API (`/fscmRestApi/...`).  Read-only metadata / search / structure are
+//!   served from the curated catalogue (offline-safe, deterministic); live
+//!   HTTP is used for `system_info` and `call_rfc` (REST dispatch by
+//!   operation id).  Bulk tabular extracts go through BI Publisher
+//!   (`fusion.bip.runReport`) rather than a generic table read.
+//! - [`FusionPartyClient`] reads Trading Community Architecture parties
+//!   (suppliers / customer accounts) for the `oracle.party.*` tools.
+//!
+//! Auth: OAuth2 client-credentials (IDCS/IAM) bearer, or HTTP Basic — chosen
+//! by `ORACLE_FUSION_AUTH`.  Credentials never appear in logs (only the
+//! `auth` label).
+
+use crate::client::{
+    BulkMetadata, ErpClient, ReadTableRequest, RfcCallRequest, RfcFunctionMeta, RfcSearchResult,
+    SystemInfo, TableRow, TableStructure,
+};
+use crate::error::{RfcError, RfcResult};
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::sync::Arc;
+
+const REST_BASE: &str = "/fscmRestApi/resources/11.13.18.05";
+
+// ===========================================================================
+// Config + auth
+// ===========================================================================
+
+#[derive(Clone)]
+pub enum FusionAuth {
+    /// OAuth2 client-credentials bearer (IDCS/IAM); the resolved access token.
+    Bearer(String),
+    /// HTTP Basic (integration/technical user).
+    Basic { user: String, password: String },
+}
+
+impl FusionAuth {
+    pub fn label(&self) -> &'static str {
+        match self {
+            FusionAuth::Bearer(_) => "oauth2",
+            FusionAuth::Basic { .. } => "basic",
+        }
+    }
+    fn apply(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        match self {
+            FusionAuth::Bearer(t) => rb.bearer_auth(t),
+            FusionAuth::Basic { user, password } => rb.basic_auth(user, Some(password)),
+        }
+    }
+}
+
+impl std::fmt::Debug for FusionAuth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "FusionAuth::{}", self.label())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FusionConfig {
+    /// Pod base URL, e.g. `https://kalbe.fa.ocs.oraclecloud.com`.
+    pub base_url: String,
+    pub auth: FusionAuth,
+}
+
+impl FusionConfig {
+    pub fn new(base_url: impl Into<String>, auth: FusionAuth) -> Self {
+        Self { base_url: base_url.into().trim_end_matches('/').to_string(), auth }
+    }
+
+    /// Build from `ORACLE_FUSION_*` env vars.  Returns `None` when no base
+    /// URL is configured (the server then falls back to the offline mock).
+    pub fn from_env() -> Option<Self> {
+        let base = std::env::var("ORACLE_FUSION_BASE_URL").ok()?;
+        let auth = match std::env::var("ORACLE_FUSION_AUTH").as_deref() {
+            Ok("basic") => FusionAuth::Basic {
+                user: std::env::var("ORACLE_FUSION_USER").unwrap_or_default(),
+                password: std::env::var("ORACLE_FUSION_PASSWORD").unwrap_or_default(),
+            },
+            // default: OAuth2 bearer (token resolved out-of-band / injected)
+            _ => FusionAuth::Bearer(std::env::var("ORACLE_FUSION_ACCESS_TOKEN").unwrap_or_default()),
+        };
+        Some(Self::new(base, auth))
+    }
+
+    pub fn redacted(&self) -> Value {
+        json!({ "base_url": self.base_url, "auth": self.auth.label() })
+    }
+}
+
+fn map_http_err(e: reqwest::Error) -> RfcError {
+    if e.is_timeout() || e.is_connect() {
+        RfcError::DestinationDown {
+            destination: "oracle-fusion".into(),
+            reason: format!("Fusion REST transport error: {e}"),
+        }
+    } else {
+        RfcError::Internal(format!("Fusion REST error: {e}"))
+    }
+}
+
+// ===========================================================================
+// HttpFusionClient — live ErpClient over Fusion REST
+// ===========================================================================
+
+pub struct HttpFusionClient {
+    http: reqwest::Client,
+    config: FusionConfig,
+    /// Curated catalogue (the mock) backing read-only metadata + the
+    /// read-only safety gate.  Live HTTP is used for state + system info.
+    catalogue: Arc<dyn ErpClient>,
+}
+
+impl HttpFusionClient {
+    pub fn new(config: FusionConfig, catalogue: Arc<dyn ErpClient>) -> RfcResult<Self> {
+        let http = reqwest::Client::builder()
+            .build()
+            .map_err(|e| RfcError::Internal(format!("failed to build HTTP client: {e}")))?;
+        Ok(Self { http, config, catalogue })
+    }
+
+    pub fn config(&self) -> &FusionConfig {
+        &self.config
+    }
+
+    /// Derive `(method, resource-collection)` from a catalogue operation id
+    /// like `fusion.gl.journalEntries.post` → `("POST", "journalEntries")`.
+    fn dispatch(op: &str) -> (reqwest::Method, String) {
+        let verb = op.rsplit('.').next().unwrap_or("get");
+        let resource = op.rsplit('.').nth(1).unwrap_or("").to_string();
+        let method = match verb {
+            "post" => reqwest::Method::POST,
+            "patch" => reqwest::Method::PATCH,
+            "delete" => reqwest::Method::DELETE,
+            _ => reqwest::Method::GET,
+        };
+        (method, resource)
+    }
+}
+
+#[async_trait]
+impl ErpClient for HttpFusionClient {
+    async fn system_info(&self) -> RfcResult<SystemInfo> {
+        // Touch the REST catalog root to confirm reachability + identity.
+        let url = format!("{}{}", self.config.base_url, REST_BASE);
+        let resp = self
+            .config
+            .auth
+            .apply(self.http.get(&url))
+            .header("REST-Framework-Version", "9")
+            .send()
+            .await
+            .map_err(map_http_err)?;
+        let release = resp
+            .headers()
+            .get("X-ORACLE-DMS-ECID")
+            .and_then(|v| v.to_str().ok())
+            .map(|_| "Oracle Fusion Cloud ERP (live)".to_string())
+            .unwrap_or_else(|| "Oracle Fusion Cloud ERP (live)".to_string());
+        let host = self
+            .config
+            .base_url
+            .trim_start_matches("https://")
+            .trim_start_matches("http://")
+            .to_string();
+        Ok(SystemInfo {
+            sid: host.split('.').next().unwrap_or("FA").to_uppercase(),
+            client: "LIVE".into(),
+            release,
+            system_role: "LIVE".into(),
+            host,
+            instance: "fa".into(),
+            identity: self.config.redacted(),
+        })
+    }
+
+    async fn search_rfc(&self, query: &str, limit: usize) -> RfcResult<RfcSearchResult> {
+        self.catalogue.search_rfc(query, limit).await
+    }
+
+    async fn rfc_metadata(&self, function: &str, language: &str) -> RfcResult<RfcFunctionMeta> {
+        self.catalogue.rfc_metadata(function, language).await
+    }
+
+    async fn bulk_rfc_metadata(&self, functions: &[String], language: &str) -> RfcResult<BulkMetadata> {
+        self.catalogue.bulk_rfc_metadata(functions, language).await
+    }
+
+    async fn call_rfc(&self, request: RfcCallRequest, read_only_mode: bool) -> RfcResult<Value> {
+        // Fail-closed read-only gate via the curated catalogue.
+        match self.catalogue.rfc_metadata(&request.function, "EN").await {
+            Ok(meta) => {
+                if read_only_mode && !meta.read_only {
+                    return Err(RfcError::PermissionDenied(format!(
+                        "operation '{}' modifies state; not callable in read-only mode",
+                        request.function
+                    )));
+                }
+            }
+            Err(RfcError::NotFound(_)) if read_only_mode => {
+                return Err(RfcError::PermissionDenied(format!(
+                    "operation '{}' is not in the curated read-only catalogue; refusing in read-only mode",
+                    request.function
+                )));
+            }
+            Err(RfcError::NotFound(_)) => {}
+            Err(e) => return Err(e),
+        }
+
+        let (method, resource) = Self::dispatch(&request.function);
+        let url = format!("{}{}/{}", self.config.base_url, REST_BASE, resource);
+        let mut rb = self.config.auth.apply(self.http.request(method.clone(), &url))
+            .header("REST-Framework-Version", "9");
+        if matches!(method, reqwest::Method::POST | reqwest::Method::PATCH) {
+            rb = rb.json(&request.parameters);
+        }
+        let resp = rb.send().await.map_err(map_http_err)?;
+        let status = resp.status();
+        let body: Value = resp.json().await.unwrap_or(Value::Null);
+        Ok(json!({
+            "function": request.function,
+            "executed_on": self.config.base_url,
+            "http_status": status.as_u16(),
+            "outputs": body,
+        }))
+    }
+
+    async fn read_table(&self, request: ReadTableRequest) -> RfcResult<Vec<TableRow>> {
+        // Oracle Fusion has no generic table read; tabular extracts go through
+        // BI Publisher (fusion.bip.runReport).  We serve the curated fixtures
+        // for the modelled objects and direct callers to BI Publisher
+        // otherwise — never a silent unbounded pull.
+        self.catalogue.read_table(request).await
+    }
+
+    async fn table_structure(&self, table: &str) -> RfcResult<TableStructure> {
+        self.catalogue.table_structure(table).await
+    }
+}
+
+// ===========================================================================
+// FusionPartyClient — TCA parties (suppliers / customer accounts)
+// ===========================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Party {
+    pub id: String,
+    pub name: String,
+    /// `supplier` | `customer`.
+    pub party_type: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub party_number: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+}
+
+pub struct FusionPartyClient {
+    http: reqwest::Client,
+    config: FusionConfig,
+}
+
+impl FusionPartyClient {
+    pub fn new(config: FusionConfig) -> RfcResult<Self> {
+        let http = reqwest::Client::builder()
+            .build()
+            .map_err(|e| RfcError::Internal(format!("failed to build HTTP client: {e}")))?;
+        Ok(Self { http, config })
+    }
+
+    pub fn from_env() -> Option<RfcResult<Self>> {
+        FusionConfig::from_env().map(Self::new)
+    }
+
+    pub fn config(&self) -> &FusionConfig {
+        &self.config
+    }
+
+    /// Search suppliers by name substring (`suppliers?q=Supplier LIKE '%q%'`).
+    pub async fn search_parties(&self, query: &str, top: usize) -> RfcResult<Vec<Party>> {
+        let q = format!("Supplier LIKE '%{}%'", query.replace('\'', ""));
+        let url = format!("{}{}/suppliers", self.config.base_url, REST_BASE);
+        let resp = self
+            .config
+            .auth
+            .apply(self.http.get(&url))
+            .header("REST-Framework-Version", "9")
+            .query(&[("q", q.as_str()), ("limit", &top.to_string())])
+            .send()
+            .await
+            .map_err(map_http_err)?;
+        let body: Value = resp.json().await.map_err(map_http_err)?;
+        Ok(parse_parties(&body))
+    }
+
+    /// Fetch a single supplier by SupplierId.
+    pub async fn get_party(&self, id: &str) -> RfcResult<Party> {
+        let url = format!("{}{}/suppliers/{}", self.config.base_url, REST_BASE, id);
+        let resp = self
+            .config
+            .auth
+            .apply(self.http.get(&url))
+            .header("REST-Framework-Version", "9")
+            .send()
+            .await
+            .map_err(map_http_err)?;
+        if resp.status() == reqwest::StatusCode::NOT_FOUND {
+            return Err(RfcError::NotFound(id.to_string()));
+        }
+        let body: Value = resp.json().await.map_err(map_http_err)?;
+        Ok(party_from_obj(&body).unwrap_or(Party {
+            id: id.to_string(),
+            name: String::new(),
+            party_type: "supplier".into(),
+            party_number: None,
+            status: None,
+        }))
+    }
+}
+
+fn parse_parties(body: &Value) -> Vec<Party> {
+    body.get("items")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(party_from_obj).collect())
+        .unwrap_or_default()
+}
+
+fn party_from_obj(o: &Value) -> Option<Party> {
+    let id = o.get("SupplierId").map(value_to_string)
+        .or_else(|| o.get("PartyId").map(value_to_string))?;
+    let name = o.get("Supplier").or_else(|| o.get("PartyName")).map(value_to_string).unwrap_or_default();
+    Some(Party {
+        id,
+        name,
+        party_type: "supplier".into(),
+        party_number: o.get("SupplierNumber").map(value_to_string),
+        status: o.get("Status").map(value_to_string),
+    })
+}
+
+fn value_to_string(v: &Value) -> String {
+    match v {
+        Value::String(s) => s.clone(),
+        other => other.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::MockErpClient;
+
+    #[test]
+    fn dispatch_maps_op_id_to_method_and_resource() {
+        let (m, r) = HttpFusionClient::dispatch("fusion.gl.journalEntries.post");
+        assert_eq!(m, reqwest::Method::POST);
+        assert_eq!(r, "journalEntries");
+        let (m, r) = HttpFusionClient::dispatch("fusion.scm.itemsV2.get");
+        assert_eq!(m, reqwest::Method::GET);
+        assert_eq!(r, "itemsV2");
+    }
+
+    #[test]
+    fn config_from_env_requires_base_url() {
+        std::env::remove_var("ORACLE_FUSION_BASE_URL");
+        assert!(FusionConfig::from_env().is_none());
+    }
+
+    #[test]
+    fn auth_label_never_leaks_secret() {
+        let a = FusionAuth::Basic { user: "u".into(), password: "secret".into() };
+        assert_eq!(a.label(), "basic");
+        assert!(!format!("{a:?}").contains("secret"));
+    }
+
+    #[tokio::test]
+    async fn read_only_gate_blocks_writes_via_catalogue() {
+        let cat = MockErpClient::new(2, json!({}));
+        let cfg = FusionConfig::new("https://kalbe.fa.ocs.oraclecloud.com", FusionAuth::Bearer("t".into()));
+        let client = HttpFusionClient::new(cfg, cat).unwrap();
+        let req = RfcCallRequest {
+            function: "fusion.gl.journalEntries.post".into(),
+            parameters: json!({ "JOURNAL_ENTRY": {} }),
+            timeout_ms: 1000,
+            require_read_only_safe: true,
+        };
+        let err = client.call_rfc(req, true).await.unwrap_err();
+        assert!(matches!(err, RfcError::PermissionDenied(_)));
+    }
+
+    #[test]
+    fn parse_parties_reads_items_collection() {
+        let body = json!({ "items": [
+            { "SupplierId": 300, "Supplier": "PT Sumber Bahan Kimia", "SupplierNumber": "S-300", "Status": "ACTIVE" }
+        ]});
+        let parties = parse_parties(&body);
+        assert_eq!(parties.len(), 1);
+        assert_eq!(parties[0].id, "300");
+        assert_eq!(parties[0].name, "PT Sumber Bahan Kimia");
+    }
+}
