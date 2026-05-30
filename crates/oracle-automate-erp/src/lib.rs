@@ -12,7 +12,7 @@
 //!   project-aware tool calls, AGENTS.md guardrails.
 //!
 //! The crate is split into:
-//! - `client`: the `SapClient` trait + `MockSapClient` (offline)
+//! - `client`: the `ErpClient` trait + `MockErpClient` (offline)
 //! - `credentials`: layered credential provider (env / keyring / file)
 //! - `error`: structured RFC error taxonomy mapped to MCP error codes
 //! - `pool`: tokio-semaphore-based connection limiter
@@ -41,8 +41,8 @@ pub use odata::{
 pub use soap::{SoapRfcClient, SoapRfcConfig};
 
 pub use client::{
-    BulkMetadata, MockSapClient, ReadTableRequest, RfcCallRequest, RfcFunctionMeta,
-    RfcFunctionSummary, RfcParameter, RfcParamDirection, RfcSearchResult, SapClient,
+    BulkMetadata, MockErpClient, ReadTableRequest, RfcCallRequest, RfcFunctionMeta,
+    RfcFunctionSummary, RfcParameter, RfcParamDirection, RfcSearchResult, ErpClient,
     SystemInfo, TableRow, TableStructure, TableField, MAX_ROWS_HARD_CAP,
 };
 pub use credentials::{

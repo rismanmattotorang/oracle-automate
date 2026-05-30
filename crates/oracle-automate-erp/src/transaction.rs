@@ -1,34 +1,38 @@
 //! Transactional write orchestration.
 //!
-//! A standard SAP write BAPI does **not** persist on its own — the caller
-//! must follow a successful call with `BAPI_TRANSACTION_COMMIT` (and a
-//! failed one with `BAPI_TRANSACTION_ROLLBACK`).  This module wraps that
-//! protocol so every write path enforces it identically:
+//! Oracle write paths differ by backend, but the *safety property* is the
+//! same as the SAP original: never persist an unverified change. Fusion
+//! REST writes auto-commit per request; Oracle EBS PL/SQL APIs defer
+//! persistence to an explicit `p_commit` / `COMMIT` (with `ROLLBACK` on
+//! failure); FBDI bulk loads defer to an import job. This module wraps the
+//! verify-then-finalize protocol so every write path enforces it
+//! identically:
 //!
 //! 1. refuse outright in read-only mode (fail-closed);
-//! 2. call the BAPI;
-//! 3. inspect its `BAPIRET2` — any `E`/`A`/unknown severity is a failure;
-//! 4. failure → `BAPI_TRANSACTION_ROLLBACK`, success → `BAPI_TRANSACTION_COMMIT`.
+//! 2. call the write operation;
+//! 3. inspect its FND return stack (`X_RETURN_STATUS` / `X_MSG_DATA`) — any
+//!    `E`/`U`/unknown severity is a failure;
+//! 4. failure → transaction rollback, success → transaction commit.
 //!
 //! The decision (`has_failure`) is a pure function so it can be tested
-//! directly; the orchestration is generic over the `SapClient` trait, so it
-//! works against the mock and the live SOAP backend alike.
+//! directly; the orchestration is generic over the `ErpClient` trait, so it
+//! works against the mock and the live REST/SOAP backends alike.
 
 use crate::bapiret2::{parse_bapiret2, BapiRet2Message, BapiRet2Severity};
-use crate::client::{RfcCallRequest, SapClient};
+use crate::client::{RfcCallRequest, ErpClient};
 use crate::error::{RfcError, RfcResult};
 use serde::Serialize;
 use serde_json::{json, Value};
 
-const COMMIT_FN: &str = "BAPI_TRANSACTION_COMMIT";
-const ROLLBACK_FN: &str = "BAPI_TRANSACTION_ROLLBACK";
+const COMMIT_FN: &str = "ebs.fnd.transaction.commit";
+const ROLLBACK_FN: &str = "ebs.fnd.transaction.rollback";
 
 /// Build a synthetic message so the orchestration can surface decisions
 /// (e.g. "outcome unconfirmed") in the same `messages` list as SAP's own.
 fn note(severity: BapiRet2Severity, text: &str) -> BapiRet2Message {
     BapiRet2Message {
         severity,
-        message_class: "SAPAUTO".into(),
+        message_class: "ORAAUTO".into(),
         message_number: "000".into(),
         text: text.into(),
         parameter: None,
@@ -41,7 +45,7 @@ fn note(severity: BapiRet2Severity, text: &str) -> BapiRet2Message {
 /// Issue `BAPI_TRANSACTION_ROLLBACK`, returning whether it was *confirmed*
 /// and any messages (including a synthetic warning when it couldn't be
 /// confirmed, so a `rolled_back: true` is never reported on faith).
-async fn rollback(client: &dyn SapClient) -> (bool, Vec<BapiRet2Message>) {
+async fn rollback(client: &dyn ErpClient) -> (bool, Vec<BapiRet2Message>) {
     match client.call_rfc(rollback_req(), false).await {
         Ok(v) => {
             let msgs = parse_bapiret2(&v);
@@ -84,7 +88,7 @@ pub fn has_failure(messages: &[BapiRet2Message]) -> bool {
 /// to run at all.  The underlying `call_rfc` still applies the client's own
 /// read-only gate, so this is defence in depth.
 pub async fn execute_write_bapi(
-    client: &dyn SapClient,
+    client: &dyn ErpClient,
     request: RfcCallRequest,
     read_only_mode: bool,
 ) -> RfcResult<WriteOutcome> {
@@ -163,7 +167,7 @@ fn rollback_req() -> RfcCallRequest {
 mod tests {
     use super::*;
     use crate::bapiret2::BapiRet2Severity;
-    use crate::client::MockSapClient;
+    use crate::client::MockErpClient;
 
     fn msg(sev: BapiRet2Severity) -> BapiRet2Message {
         BapiRet2Message {
@@ -190,9 +194,9 @@ mod tests {
 
     #[tokio::test]
     async fn refuses_in_read_only_mode() {
-        let client = MockSapClient::new(2, json!({"client": "100"}));
+        let client = MockErpClient::new(2, json!({"client": "100"}));
         let req = RfcCallRequest {
-            function: "BAPI_PO_CREATE1".into(),
+            function: "fusion.po.purchaseOrders.post".into(),
             parameters: json!({ "POHEADER": {}, "POHEADERX": {} }),
             timeout_ms: 1000,
             require_read_only_safe: true,
@@ -203,9 +207,9 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_direct_commit_call() {
-        let client = MockSapClient::new(2, json!({"client": "100"}));
+        let client = MockErpClient::new(2, json!({"client": "100"}));
         let req = RfcCallRequest {
-            function: "BAPI_TRANSACTION_COMMIT".into(),
+            function: "ebs.fnd.transaction.commit".into(),
             parameters: json!({ "WAIT": "X" }),
             timeout_ms: 1000,
             require_read_only_safe: false,
@@ -218,15 +222,15 @@ mod tests {
     async fn empty_bapiret2_is_fail_closed_not_committed() {
         // The mock returns no BAPIRET2, which is an *unconfirmed* outcome —
         // the gate must NOT commit it.
-        let client = MockSapClient::new(2, json!({"client": "100"}));
+        let client = MockErpClient::new(2, json!({"client": "100"}));
         let req = RfcCallRequest {
-            function: "BAPI_PO_CREATE1".into(),
-            parameters: json!({ "POHEADER": {}, "POHEADERX": {}, "TESTRUN": "" }),
+            function: "fusion.po.purchaseOrders.post".into(),
+            parameters: json!({ "PURCHASE_ORDER": {}, "DRAFT": "N" }),
             timeout_ms: 1000,
             require_read_only_safe: true,
         };
         let outcome = execute_write_bapi(client.as_ref(), req, false).await.unwrap();
-        assert!(!outcome.committed, "empty BAPIRET2 must not commit");
+        assert!(!outcome.committed, "empty FND return must not commit");
         assert!(outcome.messages.iter().any(|m| m.text.contains("unconfirmed")));
     }
 
@@ -238,7 +242,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl SapClient for ScriptedClient {
+    impl ErpClient for ScriptedClient {
         async fn call_rfc(&self, request: RfcCallRequest, _ro: bool) -> RfcResult<Value> {
             if request.function == COMMIT_FN || request.function == ROLLBACK_FN {
                 return Ok(json!({ "outputs": { "RETURN": { "TYPE": "S", "MESSAGE": "done" } } }));
@@ -273,7 +277,7 @@ mod tests {
     async fn commits_on_explicit_success_row() {
         let client = scripted(json!([{ "TYPE": "S", "ID": "06", "NUMBER": "017", "MESSAGE": "PO 4500000001 created" }]));
         let req = RfcCallRequest {
-            function: "BAPI_PO_CREATE1".into(),
+            function: "fusion.po.purchaseOrders.post".into(),
             parameters: json!({ "POHEADER": {} }),
             timeout_ms: 1000,
             require_read_only_safe: true,
@@ -287,7 +291,7 @@ mod tests {
     async fn rolls_back_on_error_row() {
         let client = scripted(json!([{ "TYPE": "E", "ID": "06", "NUMBER": "055", "MESSAGE": "Vendor 1 blocked" }]));
         let req = RfcCallRequest {
-            function: "BAPI_PO_CREATE1".into(),
+            function: "fusion.po.purchaseOrders.post".into(),
             parameters: json!({ "POHEADER": {} }),
             timeout_ms: 1000,
             require_read_only_safe: true,

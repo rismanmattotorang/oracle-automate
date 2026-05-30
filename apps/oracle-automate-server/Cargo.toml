@@ -20,7 +20,7 @@ mcp-transport = { workspace = true, features = ["http"] }
 oracle-automate-kb = { workspace = true }
 oracle-automate-rag = { workspace = true }
 oracle-automate-ingest = { workspace = true }
-oracle-automate-rfc = { workspace = true, features = ["odata", "soap"] }
+oracle-automate-erp = { workspace = true, features = ["odata", "soap"] }
 # `http` enables the live HttpAdtClient + destination TOML loader.  The
 # binary already links reqwest (via rfc/odata + mcp-transport/http), so this
 # adds no meaningful dependency surface and keeps the live-wiring code under

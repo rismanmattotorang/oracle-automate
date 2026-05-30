@@ -52,8 +52,8 @@ async fn commit_write_runs_transactional_path_and_audit() {
         .call_tool(
             "sap.rfc.call",
             Some(serde_json::json!({
-                "function": "BAPI_PO_CREATE1",
-                "parameters": { "POHEADER": {}, "POHEADERX": {} },
+                "function": "fusion.po.purchaseOrders.post",
+                "parameters": { "PURCHASE_ORDER": {} },
                 "commit": true
             })),
         )
@@ -77,8 +77,8 @@ async fn commit_write_is_denied_in_read_only_mode() {
         .call_tool(
             "sap.rfc.call",
             Some(serde_json::json!({
-                "function": "BAPI_PO_CREATE1",
-                "parameters": { "POHEADER": {}, "POHEADERX": {} },
+                "function": "fusion.po.purchaseOrders.post",
+                "parameters": { "PURCHASE_ORDER": {} },
                 "commit": true
             })),
         )

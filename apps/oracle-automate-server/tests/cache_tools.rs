@@ -62,7 +62,7 @@ async fn second_metadata_call_hits_cache() {
     let _ = client
         .call_tool(
             "sap.rfc.metadata",
-            Some(serde_json::json!({"function": "BAPI_MATERIAL_GET_DETAIL"})),
+            Some(serde_json::json!({"function": "fusion.scm.itemsV2.get"})),
         )
         .await
         .expect("first metadata call");
@@ -76,7 +76,7 @@ async fn second_metadata_call_hits_cache() {
     let _ = client
         .call_tool(
             "sap.rfc.metadata",
-            Some(serde_json::json!({"function": "BAPI_MATERIAL_GET_DETAIL"})),
+            Some(serde_json::json!({"function": "fusion.scm.itemsV2.get"})),
         )
         .await
         .expect("second metadata call");
@@ -97,7 +97,7 @@ async fn invalidate_drops_entries() {
     let _ = client
         .call_tool(
             "sap.rfc.metadata",
-            Some(serde_json::json!({"function": "BAPI_MATERIAL_GET_DETAIL"})),
+            Some(serde_json::json!({"function": "fusion.scm.itemsV2.get"})),
         )
         .await
         .expect("warm");

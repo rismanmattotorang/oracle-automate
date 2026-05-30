@@ -3,7 +3,7 @@
 //! SAP exposes RFC-enabled function modules over HTTP via the SOAP runtime
 //! at `/sap/bc/soap/rfc`.  This module posts a SOAP envelope naming the RFC
 //! and its parameters, then maps the response back to JSON / the typed
-//! `SapClient` shapes.  It needs only `reqwest` + `quick-xml` — no C SDK,
+//! `ErpClient` shapes.  It needs only `reqwest` + `quick-xml` — no C SDK,
 //! no FFI, no non-redistributable download.
 //!
 //! ## What is live vs. curated
@@ -15,13 +15,13 @@
 //!   - `call_rfc`        → the named function, generically
 //!
 //! Metadata operations (`rfc_metadata`, `search_rfc`, `bulk_rfc_metadata`)
-//! delegate to a **curated catalogue** (`Arc<dyn SapClient>`, typically the
+//! delegate to a **curated catalogue** (`Arc<dyn ErpClient>`, typically the
 //! shipped RFC catalogue).  That catalogue also drives the read-only safety
 //! gate in `call_rfc`: a function the catalogue marks as state-modifying
 //! (or doesn't know at all) is refused in read-only mode — fail-closed.
 
 use crate::client::{
-    BulkMetadata, ReadTableRequest, RfcCallRequest, RfcFunctionMeta, RfcSearchResult, SapClient,
+    BulkMetadata, ReadTableRequest, RfcCallRequest, RfcFunctionMeta, RfcSearchResult, ErpClient,
     SystemInfo, TableField, TableRow, TableStructure, MAX_ROWS_HARD_CAP,
 };
 use crate::error::{RfcError, RfcResult};
@@ -91,11 +91,11 @@ pub struct SoapRfcClient {
     http: reqwest::Client,
     config: SoapRfcConfig,
     /// Curated metadata catalogue + read-only safety source.
-    catalogue: Arc<dyn SapClient>,
+    catalogue: Arc<dyn ErpClient>,
 }
 
 impl SoapRfcClient {
-    pub fn new(config: SoapRfcConfig, catalogue: Arc<dyn SapClient>) -> RfcResult<Self> {
+    pub fn new(config: SoapRfcConfig, catalogue: Arc<dyn ErpClient>) -> RfcResult<Self> {
         let http = reqwest::Client::builder()
             .timeout(config.timeout)
             .user_agent(concat!("oracle-automate/", env!("CARGO_PKG_VERSION")))
@@ -177,7 +177,7 @@ impl SoapRfcClient {
 }
 
 #[async_trait]
-impl SapClient for SoapRfcClient {
+impl ErpClient for SoapRfcClient {
     async fn system_info(&self) -> RfcResult<SystemInfo> {
         let payload = self.invoke("RFC_SYSTEM_INFO", "").await?;
         let si = payload.get("RFCSI_EXPORT").unwrap_or(&payload);
@@ -619,7 +619,7 @@ fn parse_field_info(table: &str, payload: &Value) -> RfcResult<TableStructure> {
         fields,
         key_fields,
         authorization_group: String::new(),
-        s4hana_storage: None,
+        storage_note: None,
     })
 }
 
@@ -640,10 +640,10 @@ fn truncate(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::client::MockSapClient;
+    use crate::client::MockErpClient;
 
-    fn catalogue() -> Arc<dyn SapClient> {
-        MockSapClient::new(2, json!({"client": "100"}))
+    fn catalogue() -> Arc<dyn ErpClient> {
+        MockErpClient::new(2, json!({"client": "100"}))
     }
 
     fn cfg() -> SoapRfcConfig {

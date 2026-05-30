@@ -2,7 +2,7 @@
 //!
 //! `thupalo/sap-rfc-mcp-server` reports ~1–5 ms cached metadata reads vs
 //! ~200–500 ms direct calls.  For Oracle-Automate the same pattern is a
-//! decorator over any [`SapClient`]: it intercepts `rfc_metadata` and
+//! decorator over any [`ErpClient`]: it intercepts `rfc_metadata` and
 //! `bulk_rfc_metadata`, serves hits from a key-`(function, language)`
 //! map, and falls through to the inner client on miss.
 //!
@@ -24,7 +24,7 @@ use tokio::sync::RwLock;
 
 use crate::client::{
     BulkMetadata, PoolStatus, ReadTableRequest, RfcCallRequest, RfcFunctionMeta,
-    RfcSearchResult, SapClient, SystemInfo, TableRow, TableStructure,
+    RfcSearchResult, ErpClient, SystemInfo, TableRow, TableStructure,
 };
 use crate::error::RfcResult;
 
@@ -54,15 +54,15 @@ struct Entry {
 /// for a configurable TTL.
 ///
 /// Construct with [`MetadataCache::new`] and pass the wrapped instance
-/// into anything that takes `Arc<dyn SapClient>`.
-pub struct MetadataCache<C: SapClient + ?Sized> {
+/// into anything that takes `Arc<dyn ErpClient>`.
+pub struct MetadataCache<C: ErpClient + ?Sized> {
     inner: Arc<C>,
     ttl: Duration,
     entries: RwLock<HashMap<(String, String), Entry>>,
     stats: RwLock<CacheStats>,
 }
 
-impl<C: SapClient + ?Sized> MetadataCache<C> {
+impl<C: ErpClient + ?Sized> MetadataCache<C> {
     /// Wrap `inner` with a TTL cache.  TTL of 0 disables caching (every
     /// call falls through) — useful in tests.
     pub fn new(inner: Arc<C>, ttl: Duration) -> Arc<Self> {
@@ -110,7 +110,7 @@ impl<C: SapClient + ?Sized> MetadataCache<C> {
 }
 
 #[async_trait]
-impl<C: SapClient + ?Sized> SapClient for MetadataCache<C> {
+impl<C: ErpClient + ?Sized> ErpClient for MetadataCache<C> {
     async fn system_info(&self) -> RfcResult<SystemInfo> {
         self.inner.system_info().await
     }
@@ -193,18 +193,18 @@ impl<C: SapClient + ?Sized> SapClient for MetadataCache<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::client::MockSapClient;
+    use crate::client::MockErpClient;
 
-    fn mock() -> Arc<MockSapClient> {
-        MockSapClient::new(4, serde_json::json!({}))
+    fn mock() -> Arc<MockErpClient> {
+        MockErpClient::new(4, serde_json::json!({}))
     }
 
     #[tokio::test]
     async fn first_read_is_miss_second_is_hit() {
         let cache = MetadataCache::new(mock(), Duration::from_secs(60));
-        // Function names match the MockSapClient seed_functions() fixture.
-        let _ = cache.rfc_metadata("BAPI_MATERIAL_GET_DETAIL", "EN").await.unwrap();
-        let _ = cache.rfc_metadata("BAPI_MATERIAL_GET_DETAIL", "EN").await.unwrap();
+        // Function names match the MockErpClient seed_functions() fixture.
+        let _ = cache.rfc_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
+        let _ = cache.rfc_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
         let stats = cache.stats().await;
         assert_eq!(stats.misses, 1, "first read should be a miss");
         assert_eq!(stats.hits, 1, "second read should be a hit");
@@ -215,8 +215,8 @@ mod tests {
     #[tokio::test]
     async fn ttl_zero_disables_cache() {
         let cache = MetadataCache::new(mock(), Duration::ZERO);
-        let _ = cache.rfc_metadata("BAPI_MATERIAL_GET_DETAIL", "EN").await.unwrap();
-        let _ = cache.rfc_metadata("BAPI_MATERIAL_GET_DETAIL", "EN").await.unwrap();
+        let _ = cache.rfc_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
+        let _ = cache.rfc_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
         let stats = cache.stats().await;
         assert_eq!(stats.misses, 2, "ttl=0 forces every call to miss");
         assert_eq!(stats.hits, 0);
@@ -226,9 +226,9 @@ mod tests {
     #[tokio::test]
     async fn ttl_expiry_re_fetches() {
         let cache = MetadataCache::new(mock(), Duration::from_millis(20));
-        let _ = cache.rfc_metadata("BAPI_MATERIAL_GET_DETAIL", "EN").await.unwrap();
+        let _ = cache.rfc_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
         tokio::time::sleep(Duration::from_millis(40)).await;
-        let _ = cache.rfc_metadata("BAPI_MATERIAL_GET_DETAIL", "EN").await.unwrap();
+        let _ = cache.rfc_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
         let stats = cache.stats().await;
         assert_eq!(stats.misses, 2, "expired entry should miss");
         assert_eq!(stats.hits, 0);
@@ -238,28 +238,28 @@ mod tests {
     async fn bulk_splits_hits_and_misses() {
         let cache = MetadataCache::new(mock(), Duration::from_secs(60));
         // Prime one entry.
-        let _ = cache.rfc_metadata("BAPI_MATERIAL_GET_DETAIL", "EN").await.unwrap();
+        let _ = cache.rfc_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
         let stats_before = cache.stats().await;
         assert_eq!(stats_before.misses, 1);
 
         let bulk = cache
             .bulk_rfc_metadata(
-                &["BAPI_MATERIAL_GET_DETAIL".into(), "RFC_READ_TABLE".into()],
+                &["fusion.scm.itemsV2.get".into(), "fusion.bip.runReport".into()],
                 "EN",
             )
             .await
             .unwrap();
         assert_eq!(bulk.functions.len(), 2);
         let stats = cache.stats().await;
-        assert_eq!(stats.hits, 1, "BAPI_MATERIAL_GET_DETAIL was cached");
-        assert_eq!(stats.misses, 2, "RFC_READ_TABLE was a miss (+ the primer)");
+        assert_eq!(stats.hits, 1, "fusion.scm.itemsV2.get was cached");
+        assert_eq!(stats.misses, 2, "fusion.bip.runReport was a miss (+ the primer)");
     }
 
     #[tokio::test]
     async fn invalidate_clears_entries_and_counts_evictions() {
         let cache = MetadataCache::new(mock(), Duration::from_secs(60));
-        let _ = cache.rfc_metadata("BAPI_MATERIAL_GET_DETAIL", "EN").await.unwrap();
-        let _ = cache.rfc_metadata("RFC_READ_TABLE", "EN").await.unwrap();
+        let _ = cache.rfc_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
+        let _ = cache.rfc_metadata("fusion.bip.runReport", "EN").await.unwrap();
         assert_eq!(cache.stats().await.entries, 2);
         cache.invalidate_all().await;
         let stats = cache.stats().await;
@@ -270,8 +270,8 @@ mod tests {
     #[tokio::test]
     async fn language_is_part_of_the_key() {
         let cache = MetadataCache::new(mock(), Duration::from_secs(60));
-        let _ = cache.rfc_metadata("BAPI_MATERIAL_GET_DETAIL", "EN").await.unwrap();
-        let _ = cache.rfc_metadata("BAPI_MATERIAL_GET_DETAIL", "DE").await.unwrap();
+        let _ = cache.rfc_metadata("fusion.scm.itemsV2.get", "EN").await.unwrap();
+        let _ = cache.rfc_metadata("fusion.scm.itemsV2.get", "DE").await.unwrap();
         let stats = cache.stats().await;
         assert_eq!(stats.entries, 2, "EN and DE are separate cache entries");
         assert_eq!(stats.misses, 2);

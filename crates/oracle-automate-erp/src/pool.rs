@@ -1,7 +1,7 @@
 //! Connection pool primitive.
 //!
 //! The pool is a thin semaphore-based concurrency limiter — it does not
-//! itself manage live RFC connections, because the trait-based `SapClient`
+//! itself manage live RFC connections, because the trait-based `ErpClient`
 //! design lets backends decide whether to pool, multiplex, or open per-call.
 //! What this primitive *does* enforce is the upper bound: at most `cap`
 //! concurrent in-flight calls, with a `TOOL_BUSY`-style error when the

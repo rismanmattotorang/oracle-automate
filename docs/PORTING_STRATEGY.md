@@ -204,8 +204,27 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
 
 - **P0 — done.** Strategy authored; source surveyed (16 crates, 7 bins, web UI,
   ~21k Rust LOC); domain mapping locked (this document).
-- **P1 — in progress.** Tree lifted; product-token rename applied; crate/app
+- **P1 — done.** Tree lifted; product-token rename applied; crate/app
   directories renamed; manifests fixed; README + AGENTS rebranded; workspace
-  builds. SAP *domain* terms (BAPI/ABAP/ACDOCA/MANDT) intentionally retained,
-  scheduled for re-modeling in P2+.
-- _Subsequent phases update this section as they land._
+  builds and all tests pass.
+- **P2 — done (core ERP domain).** `oracle-automate-rfc` → `oracle-automate-erp`.
+  `SapClient` → `ErpClient` / `MockErpClient`; `S_RfcAuth` → `RequiredPrivilege`
+  (Oracle RBAC); `SystemInfo` → Fusion pod identity. The operation catalogue is
+  now **Oracle Fusion Cloud ERP**: `fusion.scm.itemsV2.get`,
+  `fusion.gl.journalEntries.post`, `fusion.erpintegrations.importBulkData.journalImport`
+  (FBDI), `fusion.po.purchaseOrders.post`, `fusion.doo.salesOrdersForOrderHub.post`,
+  `fusion.inv.receivingReceiptRequests.post`, `fusion.poz.suppliers.patch`,
+  `fusion.fnd.sandbox.publish`, `fusion.bip.runReport`, `fusion.rest.describe`,
+  plus EBS transaction-control ops. The object fixtures are Oracle:
+  `EGP_SYSTEM_ITEMS_B`, `GL_LEDGERS`, `GL_PERIOD_STATUSES`, `GL_JE_LINES`,
+  `XLA_AE_LINES`, `DOO_HEADERS_ALL`, `FND_SANDBOXES` (Kalbe/IDR data).
+  Seven **Oracle-correctness invariants** replace the SAP precision gates
+  (FND return contract, FBDI interface→import, RBAC privilege, `*_ID` scoping
+  key, `VARCHAR2(300)` item number, GL/SLA backbone with "no universal journal"
+  note, XLA→GL transfer). `transaction.rs` re-framed for Fusion auto-commit /
+  EBS `p_commit` / FBDI two-step. **Whole workspace builds; 208 tests pass.**
+  Deferred (documented): logical type renames still pending are the `Rfc*`
+  request/meta structs and the `BapiRet2*` return-parser (functionally generic,
+  re-framed in comments); live SOAP/OData transports await the Fusion REST
+  rewrite; the server tool namespace (`sap.*`→`oracle.*`) lands in P5.
+- _Subsequent phases (P3+) update this section as they land._

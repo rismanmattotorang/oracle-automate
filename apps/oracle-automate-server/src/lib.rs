@@ -20,7 +20,7 @@ use oracle_automate_ingest::{EmbeddingClient, MockEmbedder};
 use oracle_automate_kb::{InMemoryKb, KnowledgeStore};
 use oracle_automate_observability::{AuditLog, JsonStderrSink};
 use oracle_automate_rag::{GraphEngine, MockReranker, RagEngine};
-use oracle_automate_rfc::{MetadataCache, MockSapClient, SapClient};
+use oracle_automate_erp::{MetadataCache, MockErpClient, ErpClient};
 use oracle_automate_skills::SkillRegistry;
 
 pub use context::ServerContext;
@@ -65,9 +65,9 @@ pub async fn build_test_server(
     let kg = Arc::new(InMemoryGraph::with_demo_corpus());
     let graph_engine = Arc::new(GraphEngine::new(kg));
 
-    let inner = MockSapClient::new(4, serde_json::json!({}));
+    let inner = MockErpClient::new(4, serde_json::json!({}));
     let metadata_cache = MetadataCache::new(inner.clone(), opts.metadata_cache_ttl);
-    let sap_client: Arc<dyn SapClient> = metadata_cache.clone();
+    let sap_client: Arc<dyn ErpClient> = metadata_cache.clone();
 
     let adt_destination = AdtDestination::mock("test".to_string());
     let adt_client: Arc<dyn AdtClient> = MockAdtClient::new(adt_destination);

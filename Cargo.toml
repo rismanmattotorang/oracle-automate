@@ -11,7 +11,7 @@ members = [
     "crates/oracle-automate-skills",
     "crates/oracle-automate-memory",
     "crates/oracle-automate-ingest",
-    "crates/oracle-automate-rfc",
+    "crates/oracle-automate-erp",
     "crates/oracle-automate-adt",
     "crates/oracle-automate-graph",
     "crates/oracle-automate-scheduler",
@@ -64,7 +64,7 @@ oracle-automate-connectors = { path = "crates/oracle-automate-connectors" }
 oracle-automate-skills = { path = "crates/oracle-automate-skills" }
 oracle-automate-memory = { path = "crates/oracle-automate-memory" }
 oracle-automate-ingest = { path = "crates/oracle-automate-ingest" }
-oracle-automate-rfc = { path = "crates/oracle-automate-rfc" }
+oracle-automate-erp = { path = "crates/oracle-automate-erp" }
 oracle-automate-adt = { path = "crates/oracle-automate-adt" }
 oracle-automate-graph = { path = "crates/oracle-automate-graph" }
 oracle-automate-scheduler = { path = "crates/oracle-automate-scheduler" }

@@ -4,21 +4,21 @@ use oracle_automate_adt::AdtClient;
 use oracle_automate_ingest::EmbeddingClient;
 use oracle_automate_observability::AuditLog;
 use oracle_automate_rag::{GraphEngine, RagEngine};
-use oracle_automate_rfc::{BusinessHubClient, MetadataCache, MockSapClient, SapClient};
+use oracle_automate_erp::{BusinessHubClient, MetadataCache, MockErpClient, ErpClient};
 use std::sync::Arc;
 
 pub struct ServerContext {
     pub rag: Arc<RagEngine>,
     pub graph: Arc<GraphEngine>,
     pub embedder: Arc<dyn EmbeddingClient>,
-    /// The cache-decorated SapClient used by every tool.  Identical
-    /// trait surface to the underlying `MockSapClient` / future
-    /// `NetweaverSapClient`; metadata reads are TTL-cached.
-    pub sap_client: Arc<dyn SapClient>,
+    /// The cache-decorated ErpClient used by every tool.  Identical
+    /// trait surface to the underlying `MockErpClient` / future
+    /// `NetweaverErpClient`; metadata reads are TTL-cached.
+    pub sap_client: Arc<dyn ErpClient>,
     /// Direct handle to the metadata cache for the cache-stats /
     /// invalidate tools and the `sap-cache://stats` resource.  `None`
     /// when caching is disabled via `--metadata-cache-ttl-secs=0`.
-    pub metadata_cache: Option<Arc<MetadataCache<MockSapClient>>>,
+    pub metadata_cache: Option<Arc<MetadataCache<MockErpClient>>>,
     pub adt_client: Arc<dyn AdtClient>,
     /// SAP Business Accelerator Hub sandbox client.  `None` when no
     /// `SAP_BUSINESS_HUB_KEY` is configured — the `sap.bp.*` tools then

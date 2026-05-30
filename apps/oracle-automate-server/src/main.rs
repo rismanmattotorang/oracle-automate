@@ -31,9 +31,9 @@ use oracle_automate_skills::SkillRegistry;
 use oracle_automate_ingest::{EmbeddingClient, MockEmbedder};
 use oracle_automate_kb::{InMemoryKb, KnowledgeStore};
 use oracle_automate_rag::RagEngine;
-use oracle_automate_rfc::{
+use oracle_automate_erp::{
     Credentials, CredentialProvider, CredentialSource, EnvCredentialProvider,
-    LayeredCredentialProvider, MetadataCache, MockSapClient, SapClient,
+    LayeredCredentialProvider, MetadataCache, MockErpClient, ErpClient,
     SoapRfcClient, SoapRfcConfig, StaticCredentialProvider,
 };
 use std::time::Duration;
@@ -175,7 +175,7 @@ async fn main() -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("no credentials available"))?;
     tracing::info!(identity = %creds.redacted(), "SAP identity resolved");
 
-    let inner_sap_client = MockSapClient::new(cli.pool_size, creds.redacted());
+    let inner_sap_client = MockErpClient::new(cli.pool_size, creds.redacted());
 
     // Decorate with a TTL metadata cache when configured.  When TTL=0 we
     // still build the cache (with TTL::ZERO so it acts as a pass-through
@@ -193,7 +193,7 @@ async fn main() -> anyhow::Result<()> {
     // Either way the curated catalogue — reached through the metadata cache
     // — supplies metadata and drives the read-only safety gate, so the live
     // path keeps Oracle-Automate's curated safety annotations.
-    let sap_client: Arc<dyn SapClient> = match SoapRfcConfig::from_env() {
+    let sap_client: Arc<dyn ErpClient> = match SoapRfcConfig::from_env() {
         Some(soap_cfg) => {
             tracing::info!(
                 base_url = %soap_cfg.base_url,
@@ -222,8 +222,8 @@ async fn main() -> anyhow::Result<()> {
     // SAP_ODATA_BASE_URL is set (Basic / Bearer / OAuth2 per SAP_ODATA_AUTH),
     // else the public Business Hub sandbox (SAP_BUSINESS_HUB_KEY).  Absent →
     // tools stay registered but return a friendly "feature disabled" error.
-    let business_hub: Option<Arc<oracle_automate_rfc::BusinessHubClient>> =
-        match oracle_automate_rfc::BusinessHubClient::from_env() {
+    let business_hub: Option<Arc<oracle_automate_erp::BusinessHubClient>> =
+        match oracle_automate_erp::BusinessHubClient::from_env() {
             None => {
                 tracing::info!(
                     "no OData endpoint configured (set SAP_ODATA_BASE_URL for a tenant \

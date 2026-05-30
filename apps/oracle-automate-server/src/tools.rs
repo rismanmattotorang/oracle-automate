@@ -7,7 +7,7 @@
 //!     RFC search/metadata/bulk/call, table read/structure, docs.search).
 //!
 //! Every tool uses the shared `ServerContext` so they share one
-//! `SapClient`, one `RagEngine`, and one `EmbeddingClient`.
+//! `ErpClient`, one `RagEngine`, and one `EmbeddingClient`.
 
 use crate::context::ServerContext;
 use mcp_core::{CallToolResult, ToolContent, ToolInputSchema};
@@ -18,7 +18,7 @@ use oracle_automate_adt::{
 use oracle_automate_kb::Domain;
 use oracle_automate_rag::Query;
 use oracle_automate_observability::{AuditEntry, AuditLog, AuditOutcome};
-use oracle_automate_rfc::{
+use oracle_automate_erp::{
     execute_write_bapi, ReadTableRequest, RfcCallRequest, RfcError, MAX_ROWS_HARD_CAP,
 };
 use serde::Deserialize;
@@ -434,7 +434,7 @@ fn tool_bapi_parse_return(_ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("sap.bapi.parse_return: invalid arguments: {e}"))),
             };
-            let msgs = oracle_automate_rfc::parse_bapiret2(&args.value);
+            let msgs = oracle_automate_erp::parse_bapiret2(&args.value);
             let any_failure = msgs.iter().any(|m| m.is_failure());
             let summary = serde_json::json!({
                 "messages": msgs,
