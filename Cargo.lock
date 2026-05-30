@@ -1300,12 +1300,27 @@ version = "1.4.0"
 dependencies = [
  "async-trait",
  "axum",
+ "oracle-automate-fusion-mock",
  "reqwest",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "oracle-automate-fusion-mock"
+version = "1.4.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

@@ -69,6 +69,24 @@ remainder are lock-poison idioms (correct to panic), infallible-by-construction
 change — per the project's Karpathy rule, defensive handling of impossible
 scenarios is noise, not safety.
 
+### Added — Phase 4/5: mock Fusion pod + live read/write/resilience
+
+- New crate `oracle-automate-fusion-mock` (runnable lib + bin): a standalone
+  mock Oracle Fusion Cloud ERP REST API emulating the surface the live clients
+  call — supplier search, item read, `404`s, GL **journal post** + **PO create**
+  (both return a document number), supplier PATCH, Fusion error envelopes, an
+  auth gate, and **latency injection**. Lets Phases 4–5 run with no Oracle
+  access; swap `ORACLE_FUSION_BASE_URL` to a real pod to go live.
+- `crates/oracle-automate-erp/tests/fusion_pod.rs` (7 tests): the real
+  `HttpFusionClient` / `FusionPartyClient` drive the mock pod end-to-end —
+  live read, **gated PO-create + journal-post returning document numbers**, and
+  the fail-closed read-only gate still refusing writes.
+- **Request timeout** added to `HttpFusionClient` / `FusionPartyClient`
+  (`FusionConfig.timeout_ms`, default 30 s, env `ORACLE_FUSION_TIMEOUT_MS`) —
+  closes a real gap (the clients had no timeout and would hang on a stuck pod).
+  A timeout maps to `ErpError::DestinationDown`; a test proves a 500 ms pod trips
+  a 100 ms client timeout. Suite: **183 → 192 tests**.
+
 ### Added — Phase 6: production retrieval quality
 
 - `HttpReranker` (`oracle-automate-rag`, feature `remote`) — a real cross-encoder

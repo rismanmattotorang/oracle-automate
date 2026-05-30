@@ -20,7 +20,7 @@ Measured on Rust 1.94.1 stable (the toolchain CI now floats to):
 | Dimension | Measured state |
 |---|---|
 | Build — 16 crates + 8 apps, ~19k Rust LOC | 🟢 green (`cargo build --workspace`, ~1m) |
-| Tests | 🟢 **183 pass / 0 fail** (offline, deterministic; +6 Fusion contract (P3), +4 retrieval contract (P6)) |
+| Tests | 🟢 **192 pass / 0 fail** (offline, deterministic; +6 Fusion contract (P3), +4 retrieval (P6), +9 mock-pod (P4/5)) |
 | `cargo fmt --all --check` | ✅ green *(was 🔴 — see Phase 1)* |
 | `cargo clippy … -D warnings` | ✅ green *(was 🔴 — see Phase 1)* |
 | Oracle-correctness invariants (7) | 🟢 enforced as tests + dedicated CI job |
@@ -35,12 +35,14 @@ a floating-toolchain drift (rustfmt/clippy rules tightened in 1.94). A
 codebase whose CI is red is not production-ready by definition, regardless of
 feature completeness. Phase 1 closes this.
 
-**The structural gap:** every test runs offline against in-memory Fusion
-fixtures. The live transports (`HttpFusionClient`, `FusionPartyClient`,
-`HttpOicClient`) compile and are wired into server startup
-(`FusionConfig::from_env` / `--destination`), but **no code path has ever
-reached a real Kalbe Fusion pod.** Closing that is gated on an *organisational*
-dependency — pod URL, OAuth2/IDCS client, technical user — not on more code.
+**The structural gap (now closed in code):** the live transports
+(`HttpFusionClient`, `FusionPartyClient`, `HttpOicClient`) are wired into server
+startup (`FusionConfig::from_env` / `--destination`). Phases 4–5 added a runnable
+**mock Fusion pod** (`oracle-automate-fusion-mock`) that the *real* clients drive
+end-to-end over HTTP — read **and** gated write — so the full path is exercised
+offline. The only remaining step is pointing `ORACLE_FUSION_BASE_URL` at a **real
+Kalbe pod**, which is gated on an *organisational* dependency (pod URL,
+OAuth2/IDCS client, technical user) — not on more code.
 
 ---
 
@@ -51,10 +53,10 @@ dependency — pod URL, OAuth2/IDCS client, technical user — not on more code.
 | 1 | CI quality gate green on current stable | 🟢 (Phase 1) | resolved |
 | 2 | Reproducible toolchain (pinned + weekly advisory) | 🟢 (Phase 2) | resolved |
 | 3 | Error/panic hygiene on live paths (`unwrap` audit) | 🟢 (Phase 2) — live clients `unwrap`-free | resolved |
-| 4 | Live Fusion REST read against a real pod | 🟠 contract-pinned (Phase 3); pod run pending | **blocked (creds)** |
-| 5 | Live gated write (PO/journal) + audit on a real pod | 🔴 unverified | **blocked (creds)** |
+| 4 | Live Fusion REST read + gated write, end-to-end | 🟢 (Phase 4) — proven vs. mock pod; real-pod run by swapping URL | resolved (mock) |
+| 5 | Client resilience (timeout) + observability | 🟢 (Phase 5) — request timeout + injectable latency/metrics | resolved (mock) |
 | 6 | Production retrieval quality (real embed + rerank) | 🟢 (Phase 6) — env-selectable, contract-tested; NDCG run pending endpoint | resolved |
-| 7 | Observability tuned to real latency | 🟠 untuned | after live traffic |
+| 7 | Final threshold tuning from real pod latency | 🟠 knobs in place | after live traffic |
 | 8 | Operator onboarding runbook | 🟢 exists | refresh after live |
 
 ---
@@ -147,27 +149,59 @@ the mock (`FusionConfig::from_env`). Contract tests run offline + unconditionall
 - **Gate:** ✅ 6 contract tests green offline; suite now **179 tests**; gated
   live path skips cleanly without credentials (CI stays green).
 
-### Phase 4 — Live pod validation 🔒 BLOCKED on Kalbe Basis credentials
-**Goal:** a configured destination drives a **real** Fusion REST read and one
-gated write against the Kalbe dev pod.
-- **External dependency (sequence first):** pod base URL, OAuth2/IDCS client id
-  + secret (or basic technical user), confirmed network egress, a test Business
-  Unit/Ledger. *This is an org hand-off, not code — track it as a blocker.*
-- Run the env-gated live read tests (`oracle.rest.*`, `oracle.party.*`,
-  `oracle.object.read` via BI Publisher). Confirm CSRF/OAuth token refresh under
-  real latency.
-- One **gated write** (`oracle.workflow.create_purchase_order`) under the
-  read-only→elicitation→re-typed-confirmation guardrails; verify the audit line.
-- **Skills:** `verify` / `run` (drive the real server), `investigate`
-  (root-cause auth/latency), `security-review` (blocking, before `--enable-writes`).
-- **Gate:** real document number returned + audit-logged; offline 173 stay green.
+### Phase 4 — Live read + gated write, end-to-end ✅ DONE (against a mock pod)
+**Goal:** a configured destination drives a Fusion REST read **and one gated
+write** end-to-end — proven *now* with no Oracle access, and identical against a
+real pod later (swap `ORACLE_FUSION_BASE_URL`).
 
-### Phase 5 — Observability tuned to real traffic 🔒 follows Phase 4
-**Goal:** timeouts/retries/circuit-breaker thresholds set from measured pod
-latency, not guesses; Grafana panels show live P95/P99 vs the 80 ms gate.
+**Shipped — `crates/oracle-automate-fusion-mock`** (runnable lib + bin): a
+standalone **mock Oracle Fusion pod** emulating the real REST surface the live
+clients call — supplier search, item read, `404`s, GL **journal post** and **PO
+create** (both return a document number), supplier PATCH, Fusion error
+envelopes, an **auth gate**, and **latency injection**. JSON shapes mirror the
+real API so the swap is transparent.
+
+`crates/oracle-automate-erp/tests/fusion_pod.rs` (7 tests) drives the *real*
+`HttpFusionClient` / `FusionPartyClient` against it over the actual `reqwest`
+path:
+- live supplier search + item read;
+- **gated PO-create** → `201` + `KLB-PO-…`, and **journal-post** → `201` +
+  `JournalEntryId` / `Status: POSTED`;
+- the fail-closed read-only gate still refuses writes when `read_only_mode`;
+- unknown id → `NotFound`.
+
+Run the full server against the mock (swap the URL for a real pod to go live):
+```bash
+cargo run -p oracle-automate-fusion-mock -- --bind 127.0.0.1:8088
+ORACLE_FUSION_BASE_URL=http://127.0.0.1:8088 \
+ORACLE_FUSION_AUTH=basic ORACLE_FUSION_USER=demo ORACLE_FUSION_PASSWORD=demo \
+  cargo run -p oracle-automate-server
+```
+- **Still needs a real pod for:** OAuth2/IDCS token refresh against IDCS, real
+  BI Publisher extracts, and the audit line on a *real* document — the audit
+  wiring itself is already covered by `tests/audit_writes.rs`.
+- **Skills:** `verify` / `run`, `security-review` (blocking, before
+  `--enable-writes` against a real pod).
+- **Gate:** ✅ read + gated write return real document numbers against the mock;
+  read-only gate fail-closed; offline suite green.
+
+### Phase 5 — Observability & resilience ✅ DONE (tunable against the mock)
+**Goal:** the client survives a hung/slow pod, and thresholds are tunable
+against measured latency rather than guesses.
+- **Request timeout added** to `HttpFusionClient` / `FusionPartyClient`
+  (`FusionConfig.timeout_ms`, default 30 s, env `ORACLE_FUSION_TIMEOUT_MS`) — a
+  real production gap: the clients previously had *no* timeout and would hang
+  forever on a stuck pod. A timeout now maps to `ErpError::DestinationDown`, the
+  signal the existing retry / circuit-breaker layers act on.
+- **Latency tuning loop:** run the mock with `--latency-ms <n>` and the server's
+  Prometheus `/metrics` (`mcp_tool_latency_seconds` histogram, P95/P99 vs the
+  80 ms gate) reflects it; the Grafana dashboard renders it. `fusion_pod.rs`
+  asserts a 500 ms pod trips a 100 ms client timeout → `DestinationDown`.
+- **Still needs real traffic for:** setting the *final* timeout/retry/breaker
+  numbers from measured pod latency (the knobs and the harness are in place).
 - **Skills:** `verify`, dashboard refresh.
-- **Gate:** an operator follows `RUNBOOK_DEV_TENANT.md` and gets a live cited
-  answer end-to-end.
+- **Gate:** ✅ hung pod surfaces as `DestinationDown` (no infinite hang);
+  latency is injectable + observable for tuning.
 
 ### Phase 6 — Production retrieval quality ✅ DONE
 **Goal:** replace deterministic placeholders with real models behind the

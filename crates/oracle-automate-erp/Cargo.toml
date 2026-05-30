@@ -24,10 +24,17 @@ fusion = ["reqwest"]
 tokio = { workspace = true }
 axum = { workspace = true }
 serde_json = { workspace = true }
+oracle-automate-fusion-mock = { path = "../oracle-automate-fusion-mock" }
 
 # Live Fusion REST contract tests (axum mock of the Fusion REST API).
 # Only built when the `fusion` feature is active — the workspace test run
 # activates it via the server's `oracle-automate-erp/fusion` dependency.
 [[test]]
 name = "fusion_contract"
+required-features = ["fusion"]
+
+# Phase 4/5: drive the live clients against the standalone mock Fusion pod
+# (read + gated write + timeout). Swap to a real pod by changing the base URL.
+[[test]]
+name = "fusion_pod"
 required-features = ["fusion"]

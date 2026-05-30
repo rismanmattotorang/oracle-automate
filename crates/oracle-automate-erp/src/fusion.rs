@@ -62,11 +62,17 @@ impl std::fmt::Debug for FusionAuth {
     }
 }
 
+/// Default per-request timeout for the live Fusion transport.  A real pod can
+/// hang; without a timeout the client would wait forever.
+pub const DEFAULT_FUSION_TIMEOUT_MS: u64 = 30_000;
+
 #[derive(Clone, Debug)]
 pub struct FusionConfig {
     /// Pod base URL, e.g. `https://kalbe.fa.ocs.oraclecloud.com`.
     pub base_url: String,
     pub auth: FusionAuth,
+    /// Per-request timeout (ms).  Override via `ORACLE_FUSION_TIMEOUT_MS`.
+    pub timeout_ms: u64,
 }
 
 impl FusionConfig {
@@ -74,7 +80,14 @@ impl FusionConfig {
         Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             auth,
+            timeout_ms: DEFAULT_FUSION_TIMEOUT_MS,
         }
+    }
+
+    /// Override the per-request timeout (ms).
+    pub fn with_timeout_ms(mut self, ms: u64) -> Self {
+        self.timeout_ms = ms;
+        self
     }
 
     /// Build from `ORACLE_FUSION_*` env vars.  Returns `None` when no base
@@ -91,11 +104,18 @@ impl FusionConfig {
                 FusionAuth::Bearer(std::env::var("ORACLE_FUSION_ACCESS_TOKEN").unwrap_or_default())
             }
         };
-        Some(Self::new(base, auth))
+        let mut cfg = Self::new(base, auth);
+        if let Some(ms) = std::env::var("ORACLE_FUSION_TIMEOUT_MS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+        {
+            cfg.timeout_ms = ms;
+        }
+        Some(cfg)
     }
 
     pub fn redacted(&self) -> Value {
-        json!({ "base_url": self.base_url, "auth": self.auth.label() })
+        json!({ "base_url": self.base_url, "auth": self.auth.label(), "timeout_ms": self.timeout_ms })
     }
 }
 
@@ -125,6 +145,7 @@ pub struct HttpFusionClient {
 impl HttpFusionClient {
     pub fn new(config: FusionConfig, catalogue: Arc<dyn ErpClient>) -> ErpResult<Self> {
         let http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_millis(config.timeout_ms))
             .build()
             .map_err(|e| ErpError::Internal(format!("failed to build HTTP client: {e}")))?;
         Ok(Self {
@@ -298,6 +319,7 @@ pub struct FusionPartyClient {
 impl FusionPartyClient {
     pub fn new(config: FusionConfig) -> ErpResult<Self> {
         let http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_millis(config.timeout_ms))
             .build()
             .map_err(|e| ErpError::Internal(format!("failed to build HTTP client: {e}")))?;
         Ok(Self { http, config })
