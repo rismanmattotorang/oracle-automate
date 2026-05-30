@@ -12,6 +12,15 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }
+reqwest = { workspace = true, optional = true }
+
+[features]
+default = []
+# Enables the live cross-encoder reranker (HttpReranker) over a managed rerank
+# API.  Pulls in reqwest.  Off by default so the pure-algorithm build stays lean
+# and CI/offline retrieval uses the deterministic MockReranker.
+remote = ["reqwest"]
 
 [dev-dependencies]
 tokio = { workspace = true }
+axum = { workspace = true }

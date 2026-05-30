@@ -131,6 +131,21 @@ impl OpenAiEmbedder {
             dim,
         }
     }
+
+    /// Opt-in via env: returns `None` unless `ORACLE_AUTOMATE_EMBEDDINGS_BASE_URL`
+    /// is set, so the offline default keeps using `MockEmbedder`.  Defaults
+    /// match `text-embedding-3-small` (1536 dims).
+    pub fn from_env() -> Option<Self> {
+        let base_url = std::env::var("ORACLE_AUTOMATE_EMBEDDINGS_BASE_URL").ok()?;
+        let api_key = std::env::var("ORACLE_AUTOMATE_EMBEDDINGS_API_KEY").unwrap_or_default();
+        let model = std::env::var("ORACLE_AUTOMATE_EMBEDDINGS_MODEL")
+            .unwrap_or_else(|_| "text-embedding-3-small".to_string());
+        let dim = std::env::var("ORACLE_AUTOMATE_EMBEDDINGS_DIM")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(1536);
+        Some(Self::new(base_url, api_key, model, dim))
+    }
 }
 
 #[derive(Serialize)]
@@ -227,5 +242,60 @@ mod tests {
         // Normalised.
         let norm: f32 = v[0].iter().map(|x| x * x).sum::<f32>().sqrt();
         assert!((norm - 1.0).abs() < 1e-3, "norm was {norm}");
+    }
+
+    // --- OpenAiEmbedder contract tests against an in-process axum mock of the
+    // OpenAI-compatible `/embeddings` endpoint (same reqwest path, no network).
+
+    async fn spawn_embeddings_mock(dim: usize) -> std::net::SocketAddr {
+        use axum::{routing::post, Json, Router};
+        let app = Router::new().route(
+            "/v1/embeddings",
+            post(move |body: Json<serde_json::Value>| async move {
+                // Echo one embedding per input, each `dim` long.
+                let n = body
+                    .0
+                    .get("input")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.len())
+                    .unwrap_or(0);
+                let data: Vec<serde_json::Value> = (0..n)
+                    .map(|i| {
+                        serde_json::json!({
+                            "embedding": vec![0.1f32; dim],
+                            "index": i,
+                        })
+                    })
+                    .collect();
+                Json(serde_json::json!({ "data": data }))
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        addr
+    }
+
+    #[tokio::test]
+    async fn openai_embedder_parses_response_shape() {
+        let addr = spawn_embeddings_mock(4).await;
+        let e = OpenAiEmbedder::new(format!("http://{addr}/v1"), "test-key", "model", 4);
+        let v = e
+            .embed(&["period close".into(), "journal import".into()])
+            .await
+            .unwrap();
+        assert_eq!(v.len(), 2);
+        assert_eq!(v[0].len(), 4);
+    }
+
+    #[tokio::test]
+    async fn openai_embedder_rejects_dim_mismatch() {
+        // Server returns 8-dim vectors; client expects 4 → Malformed.
+        let addr = spawn_embeddings_mock(8).await;
+        let e = OpenAiEmbedder::new(format!("http://{addr}/v1"), "test-key", "model", 4);
+        let err = e.embed(&["x".into()]).await.unwrap_err();
+        assert!(matches!(err, EmbeddingError::Malformed(_)));
     }
 }

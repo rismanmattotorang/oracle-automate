@@ -29,7 +29,7 @@ use oracle_automate_erp::{
     StaticCredentialProvider,
 };
 use oracle_automate_graph::InMemoryGraph;
-use oracle_automate_ingest::{EmbeddingClient, MockEmbedder};
+use oracle_automate_ingest::{EmbeddingClient, MockEmbedder, OpenAiEmbedder};
 use oracle_automate_kb::{InMemoryKb, KnowledgeStore};
 use oracle_automate_observability::metrics::{MetricKind, MetricsRegistry};
 use oracle_automate_observability::{AuditEntry, AuditLog, AuditSink};
@@ -143,14 +143,30 @@ async fn main() -> anyhow::Result<()> {
             .as_deref()
             != Some("1");
 
-    // Build the KB + embedder.
+    // Build the KB + embedder.  Production retrieval (Phase 6): a real
+    // embedder / cross-encoder reranker are selected when configured via env,
+    // otherwise the deterministic offline mocks are used (the CI default).
     let store: Arc<dyn KnowledgeStore> = Arc::new(InMemoryKb::new());
-    let embedder: Arc<dyn EmbeddingClient> = Arc::new(MockEmbedder::new(cli.embedding_dim));
+    let embedder: Arc<dyn EmbeddingClient> = match OpenAiEmbedder::from_env() {
+        Some(e) => {
+            tracing::info!(
+                dim = e.dim(),
+                "live embedding backend active (ORACLE_AUTOMATE_EMBEDDINGS_*)"
+            );
+            Arc::new(e)
+        }
+        None => Arc::new(MockEmbedder::new(cli.embedding_dim)),
+    };
     seed::populate_with_embeddings(&store, embedder.as_ref()).await?;
-    let rag = Arc::new(
-        RagEngine::new(store.clone())
-            .with_reranker(Arc::new(oracle_automate_rag::MockReranker::new())),
-    );
+    let reranker: Arc<dyn oracle_automate_rag::Reranker> =
+        match oracle_automate_rag::HttpReranker::from_env() {
+            Some(r) => {
+                tracing::info!("live cross-encoder reranker active (ORACLE_AUTOMATE_RERANK_*)");
+                Arc::new(r)
+            }
+            None => Arc::new(oracle_automate_rag::MockReranker::new()),
+        };
+    let rag = Arc::new(RagEngine::new(store.clone()).with_reranker(reranker));
 
     // Phase 5A: cross-domain knowledge graph + GraphRAG/HippoRAG/RAPTOR.
     let kg = Arc::new(InMemoryGraph::with_demo_corpus());

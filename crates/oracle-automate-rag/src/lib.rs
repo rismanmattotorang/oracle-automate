@@ -26,6 +26,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Instant;
 
+#[cfg(feature = "remote")]
+pub use rerank::HttpReranker;
 pub use rerank::{MockReranker, Reranker, RerankerCandidate};
 
 #[derive(Debug, Clone)]

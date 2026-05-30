@@ -50,7 +50,7 @@ jobs:
           toolchain: ${{ env.RUST_PINNED }}
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --workspace --all-targets --features oracle-automate-adt/http,oracle-automate-erp/fusion -- -D warnings
+      - run: cargo clippy --workspace --all-targets --features oracle-automate-adt/http,oracle-automate-erp/fusion,oracle-automate-rag/remote -- -D warnings
 
   # ─────────────────────────────────────────────────────────────────────
   # Build + test on the pinned toolchain.
@@ -66,7 +66,7 @@ jobs:
           toolchain: ${{ env.RUST_PINNED }}
       - uses: Swatinem/rust-cache@v2
       - name: cargo test (workspace, all features)
-        run: cargo test --workspace --features oracle-automate-adt/http,oracle-automate-erp/fusion --no-fail-fast
+        run: cargo test --workspace --features oracle-automate-adt/http,oracle-automate-erp/fusion,oracle-automate-rag/remote --no-fail-fast
 
   # ─────────────────────────────────────────────────────────────────────
   # Oracle correctness invariants run dedicated so a failure is visible.
@@ -203,6 +203,6 @@ jobs:
       - name: fmt (advisory)
         run: cargo fmt --all --check
       - name: clippy (advisory)
-        run: cargo clippy --workspace --all-targets --features oracle-automate-adt/http,oracle-automate-erp/fusion -- -D warnings
+        run: cargo clippy --workspace --all-targets --features oracle-automate-adt/http,oracle-automate-erp/fusion,oracle-automate-rag/remote -- -D warnings
       - name: test (advisory)
-        run: cargo test --workspace --features oracle-automate-adt/http,oracle-automate-erp/fusion --no-fail-fast
+        run: cargo test --workspace --features oracle-automate-adt/http,oracle-automate-erp/fusion,oracle-automate-rag/remote --no-fail-fast

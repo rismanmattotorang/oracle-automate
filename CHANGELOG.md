@@ -69,6 +69,22 @@ remainder are lock-poison idioms (correct to panic), infallible-by-construction
 change — per the project's Karpathy rule, defensive handling of impossible
 scenarios is noise, not safety.
 
+### Added — Phase 6: production retrieval quality
+
+- `HttpReranker` (`oracle-automate-rag`, feature `remote`) — a real cross-encoder
+  over a managed rerank API (`POST /rerank` → `{results:[{index,
+  relevance_score}]}`). Failure is non-fatal: endpoint/parse errors degrade to
+  base-score order, so a reranker outage never breaks search. Feature-gated so
+  the default build stays reqwest-free and CI/offline uses `MockReranker`.
+- `OpenAiEmbedder::from_env` so the existing real embedder is env-selectable.
+- Server now selects both backends from env (`ORACLE_AUTOMATE_EMBEDDINGS_*` /
+  `ORACLE_AUTOMATE_RERANK_*`), falling back to the deterministic mocks — the
+  offline/CI default is unchanged; a production deploy gets real retrieval via env.
+- 4 contract tests (axum mock, offline): `OpenAiEmbedder` response-shape parse +
+  dim-mismatch guard; `HttpReranker` reorder-from-endpoint-scores + error→base-order
+  fallback. CI activates `oracle-automate-rag/remote`. Suite: **179 → 183 tests**;
+  bench gate unchanged (P95 1.24 ms).
+
 ### Added — Phase 3: Fusion REST contract tests
 
 - `crates/oracle-automate-erp/tests/fusion_contract.rs` — 6 tests driving the

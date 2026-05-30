@@ -20,7 +20,7 @@ Measured on Rust 1.94.1 stable (the toolchain CI now floats to):
 | Dimension | Measured state |
 |---|---|
 | Build — 16 crates + 8 apps, ~19k Rust LOC | 🟢 green (`cargo build --workspace`, ~1m) |
-| Tests | 🟢 **179 pass / 0 fail** (offline, deterministic; +6 Fusion REST contract tests, Phase 3) |
+| Tests | 🟢 **183 pass / 0 fail** (offline, deterministic; +6 Fusion contract (P3), +4 retrieval contract (P6)) |
 | `cargo fmt --all --check` | ✅ green *(was 🔴 — see Phase 1)* |
 | `cargo clippy … -D warnings` | ✅ green *(was 🔴 — see Phase 1)* |
 | Oracle-correctness invariants (7) | 🟢 enforced as tests + dedicated CI job |
@@ -53,7 +53,7 @@ dependency — pod URL, OAuth2/IDCS client, technical user — not on more code.
 | 3 | Error/panic hygiene on live paths (`unwrap` audit) | 🟢 (Phase 2) — live clients `unwrap`-free | resolved |
 | 4 | Live Fusion REST read against a real pod | 🟠 contract-pinned (Phase 3); pod run pending | **blocked (creds)** |
 | 5 | Live gated write (PO/journal) + audit on a real pod | 🔴 unverified | **blocked (creds)** |
-| 6 | Production retrieval quality (real embed + rerank) | 🟠 mock | quality |
+| 6 | Production retrieval quality (real embed + rerank) | 🟢 (Phase 6) — env-selectable, contract-tested; NDCG run pending endpoint | resolved |
 | 7 | Observability tuned to real latency | 🟠 untuned | after live traffic |
 | 8 | Operator onboarding runbook | 🟢 exists | refresh after live |
 
@@ -169,17 +169,38 @@ latency, not guesses; Grafana panels show live P95/P99 vs the 80 ms gate.
 - **Gate:** an operator follows `RUNBOOK_DEV_TENANT.md` and gets a live cited
   answer end-to-end.
 
-### Phase 6 — Production retrieval quality (no external deps; can parallel 3)
+### Phase 6 — Production retrieval quality ✅ DONE
 **Goal:** replace deterministic placeholders with real models behind the
 *existing* `EmbeddingClient` / `Reranker` traits — the seams are already clean.
-- Add a real embedder (e.g. an ONNX/`fastembed` local model or a remote
-  embedding endpoint) and a cross-encoder reranker, **feature-gated** so the
-  default offline build + CI keep using the deterministic mocks (no network in
-  CI, no quality regression in the bench gate).
-- **Skills:** `claude-api` (if a hosted embedding endpoint is chosen),
-  `code-review`, bench-gate `verify` (P95 < 80 ms must hold for the mock path).
-- **Gate:** real retrieval improves NDCG on a small labelled set; mock path and
-  the 80 ms bench gate unchanged.
+
+**Shipped:**
+- **Reranker (the missing real backend):** `HttpReranker` in
+  `oracle-automate-rag` — a cross-encoder over a managed rerank API
+  (Cohere/Jina/Voyage-style `POST /rerank` → `{results:[{index, relevance_score}]}`),
+  the single biggest precision-at-K lift per the design note. **Failure is
+  non-fatal** — endpoint/parse errors degrade to base-score order (the
+  `Reranker` trait is infallible), so a reranker outage never breaks search.
+  Feature-gated behind `oracle-automate-rag/remote` (pulls `reqwest`); the
+  pure-algorithm default build stays lean and CI/offline uses `MockReranker`.
+- **Embedder:** the real `OpenAiEmbedder` (OpenAI-compatible `/embeddings`) was
+  already present; added `OpenAiEmbedder::from_env` so it's selectable, and a
+  dim-mismatch guard test.
+- **Server wiring:** both backends are now selected from env
+  (`ORACLE_AUTOMATE_EMBEDDINGS_*` / `ORACLE_AUTOMATE_RERANK_*`) with the
+  deterministic mocks as the fallback — so the offline/CI default is unchanged
+  but a production deploy gets real retrieval by setting env.
+- **Contract tests (axum mock, deterministic, offline):** 2 for `OpenAiEmbedder`
+  (response-shape parse + dim-mismatch → `Malformed`) and 2 for `HttpReranker`
+  (endpoint scores reorder candidates; endpoint error → base-order, never
+  truncated). CI activates `oracle-automate-rag/remote` so they run + lint.
+
+NDCG validation on a labelled set still needs a *real* endpoint (same class of
+external dependency as Phase 4); the contract tests pin the integration
+deterministically in the meantime.
+- **Skills:** `claude-api` (hosted embedding/rerank endpoint), `code-review`,
+  bench-gate `verify`.
+- **Gate:** ✅ mock path + the 80 ms bench gate unchanged (P95 1.24 ms); suite
+  now **183 tests**; default `rag` build stays reqwest-free.
 
 ---
 

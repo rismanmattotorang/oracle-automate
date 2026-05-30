@@ -1344,6 +1344,7 @@ name = "oracle-automate-ingest"
 version = "1.4.0"
 dependencies = [
  "async-trait",
+ "axum",
  "hex",
  "oracle-automate-kb",
  "reqwest",
@@ -1416,8 +1417,10 @@ name = "oracle-automate-rag"
 version = "1.4.0"
 dependencies = [
  "async-trait",
+ "axum",
  "oracle-automate-graph",
  "oracle-automate-kb",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",

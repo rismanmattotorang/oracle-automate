@@ -18,7 +18,9 @@ mcp-core = { workspace = true }
 mcp-server = { workspace = true }
 mcp-transport = { workspace = true, features = ["http"] }
 oracle-automate-kb = { workspace = true }
-oracle-automate-rag = { workspace = true }
+# `remote` enables the live cross-encoder HttpReranker (selected from env at
+# runtime; defaults to the offline MockReranker when unconfigured).
+oracle-automate-rag = { workspace = true, features = ["remote"] }
 oracle-automate-ingest = { workspace = true }
 oracle-automate-erp = { workspace = true, features = ["fusion"] }
 # `http` enables the live HttpAdtClient + destination TOML loader.  The
