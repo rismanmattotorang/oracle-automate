@@ -127,18 +127,18 @@ pub fn register_completers(builder: mcp_server::ServerBuilder) -> mcp_server::Se
         .completer("oracle.skill.security_sod_audit", "scope", move |prefix, _| {
             starts_with(&["user", "role", "system"], prefix)
         })
-        // ABAP code review: kind enum.
-        .completer("oracle.skill.abap_code_review", "kind", move |prefix, _| {
-            starts_with(&["class", "program", "interface", "function_module"], prefix)
+        // Custom-code review: artifact kind enum.
+        .completer("oracle.skill.custom_code_review", "kind", move |prefix, _| {
+            starts_with(&["integration", "groovy_script", "connection", "bip_report"], prefix)
         })
-        // BW migration: target release dropdown.
-        .completer("oracle.skill.bw_to_datasphere_migration", "target_release", move |prefix, _| {
+        // Analytics migration: target platform dropdown.
+        .completer("oracle.skill.analytics_migration", "target_release", move |prefix, _| {
             starts_with(&[
-                "SAP Datasphere 2026-Q1",
-                "SAP Datasphere 2026-Q2",
-                "SAP Datasphere 2026-Q3",
-                "BW Bridge",
-                "Cloud Embedded Analytics",
+                "Fusion Analytics Warehouse",
+                "Oracle Analytics Cloud",
+                "Autonomous Data Warehouse",
+                "OTBI",
+                "BICC extract",
             ], prefix)
         })
 }

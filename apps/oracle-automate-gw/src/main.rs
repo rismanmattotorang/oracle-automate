@@ -1,6 +1,6 @@
 //! Multi-channel gateway binary.
 //!
-//! Paper §X-K acceptance gate: a Teams-initiated `sap.atc.investigate`
+//! Paper §X-K acceptance gate: a Teams-initiated `oracle.sod.investigate`
 //! query returns a cited answer within the existing P95 budget plus a
 //! 50 ms gateway tax.
 //!
@@ -185,9 +185,9 @@ async fn route(
         }
     }
 
-    let (tool, args) = if lc.contains("atc") || lc.contains("test cockpit") {
+    let (tool, args) = if lc.contains("sod") || lc.contains("access control") {
         ("oracle.docs.search", serde_json::json!({
-            "query": "ATC findings test cockpit recent",
+            "query": "Advanced Access Controls segregation of duties incidents recent",
             "top_k": 3,
             "domain": "all"
         }))
@@ -242,35 +242,37 @@ fn match_skill(lc: &str) -> Option<(&'static str, Option<serde_json::Value>)> {
             "scope": "user"
         }))));
     }
-    if lc.contains("bw") && (lc.contains("datasphere") || lc.contains("modernis") || lc.contains("moderniz") || lc.contains("migrat")) {
-        return Some(("oracle.skill.bw_to_datasphere_migration", Some(serde_json::json!({
-            "bw_object": "*"
+    if (lc.contains("analytics") || lc.contains("otbi") || lc.contains("bicc") || lc.contains("oac") || lc.contains("bi publisher"))
+        && (lc.contains("modernis") || lc.contains("moderniz") || lc.contains("migrat"))
+    {
+        return Some(("oracle.skill.analytics_migration", Some(serde_json::json!({
+            "source_object": "*"
         }))));
     }
-    if lc.contains("period close") || lc.contains("period-close") || lc.contains("closing") && lc.contains("fi") {
+    if lc.contains("period close") || lc.contains("period-close") || lc.contains("closing") && lc.contains("gl") {
         return Some(("oracle.skill.period_close_investigation", Some(serde_json::json!({
-            "company_code": "1000"
+            "ledger": "Kalbe Primary Ledger"
         }))));
     }
-    if lc.contains("code review") || lc.contains("review") && (lc.contains("abap") || lc.contains("class") || lc.contains("program")) {
-        return Some(("oracle.skill.abap_code_review", Some(serde_json::json!({
-            "object_name": "ZCL_FIN_POSTER",
-            "kind": "class"
+    if lc.contains("code review") || lc.contains("review") && (lc.contains("groovy") || lc.contains("integration") || lc.contains("oic")) {
+        return Some(("oracle.skill.custom_code_review", Some(serde_json::json!({
+            "object_name": "KLB_INVOICE_HOLD_RULE",
+            "kind": "groovy_script"
         }))));
     }
-    if lc.contains("odata") && (lc.contains("design") || lc.contains("expose") || lc.contains("proxy")) {
-        return Some(("oracle.skill.odata_service_design", Some(serde_json::json!({
-            "service_name": "ZUI_PURCHASE_ORDER_O2"
+    if (lc.contains("rest") || lc.contains("service")) && (lc.contains("design") || lc.contains("expose") || lc.contains("proxy")) {
+        return Some(("oracle.skill.rest_service_design", Some(serde_json::json!({
+            "service_name": "purchaseOrders"
         }))));
     }
-    if lc.contains("transport") && (lc.contains("impact") || lc.contains("release") || lc.contains("analyse") || lc.contains("analyze")) {
-        return Some(("oracle.skill.transport_impact_analysis", Some(serde_json::json!({
-            "transport_id": "ER1K900042"
+    if lc.contains("sandbox") && (lc.contains("impact") || lc.contains("publish") || lc.contains("analyse") || lc.contains("analyze")) {
+        return Some(("oracle.skill.sandbox_impact_analysis", Some(serde_json::json!({
+            "sandbox": "KLB_AR_AUTOINVOICE_FIX"
         }))));
     }
-    if lc.contains("clean core") || lc.contains("clean-core") {
-        return Some(("oracle.skill.clean_core_audit", Some(serde_json::json!({
-            "package": "ZFIN"
+    if lc.contains("extensibility") || lc.contains("clean core") || lc.contains("clean-core") {
+        return Some(("oracle.skill.extensibility_audit", Some(serde_json::json!({
+            "project": "KLB_FINANCE_INTEGRATIONS"
         }))));
     }
     if lc.contains("guideline") || lc.contains("how should i think") || lc.contains("preflight") || lc.contains("pre-flight") {

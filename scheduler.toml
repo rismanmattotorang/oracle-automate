@@ -1,33 +1,33 @@
-# Phase 8 declared SAP monitoring jobs.  Each fires through the
+# Declared Oracle Fusion monitoring jobs.  Each fires through the
 # gateway, hits an MCP tool, and posts the result to the declared
 # channel (when an adapter is registered).
 #
-# These are the canonical examples from paper §IX-B P4.
+# These are the canonical examples from paper §IX-B P4, re-fitted for Oracle.
 
 [[jobs]]
-name = "atc_weekly_summary"
-tool = "sap.docs.search"
+name = "aac_sod_weekly_summary"
+tool = "oracle.docs.search"
 channel = "cli:fin-ops"
-arguments = { query = "ATC findings test cockpit recent", top_k = 3, domain = "all" }
+arguments = { query = "Advanced Access Controls segregation of duties incidents recent", top_k = 3, domain = "all" }
 schedule = { kind = "weekly", weekday = 1, hour = 8, minute = 0 }
 
 [[jobs]]
-name = "leanix_eol_quarterly"
+name = "app_portfolio_eol_quarterly"
 tool = "kb.global_query"
 channel = "cli:enterprise-arch"
-arguments = { query = "LeanIX applications years-to-EOL", top_k = 3 }
+arguments = { query = "application portfolio years-to-EOL replacement roadmap", top_k = 3 }
 schedule = { kind = "quarterly", day = 1, hour = 9, minute = 0 }
 
 [[jobs]]
 name = "period_close_daily"
-tool = "sap.docs.search"
+tool = "oracle.docs.search"
 channel = "cli:fin-ops"
-arguments = { query = "period close procedure FAGLF03", top_k = 3 }
+arguments = { query = "general ledger period close transfer to GL revaluation", top_k = 3 }
 schedule = { kind = "daily", hour = 7, minute = 30 }
 
 [[jobs]]
-name = "transport_qa_hourly"
-tool = "sap.docs.search"
-channel = "cli:basis"
-arguments = { query = "transport release QA TMS_MGR_FORWARD_TR_REQUEST", top_k = 2 }
+name = "sandbox_publish_qa_hourly"
+tool = "oracle.docs.search"
+channel = "cli:config"
+arguments = { query = "sandbox publish validation configuration package promotion", top_k = 2 }
 schedule = { kind = "hourly", minute = 15 }

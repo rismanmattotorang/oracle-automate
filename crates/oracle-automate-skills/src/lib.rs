@@ -5,16 +5,16 @@
 //! catalogue (CAP Agentic Engineered Skills, ARC-1 SAP Skills, RAP Skills):
 //!
 //! A **skill** is a declarative workflow template that wraps tool composition
-//! + prompt engineering for a specific SAP scenario.  Agents invoke skills
+//! + prompt engineering for a specific Oracle Fusion scenario.  Agents invoke skills
 //! via MCP `prompts/get`.  Each skill ships as a markdown file with YAML
 //! frontmatter:
 //!
 //! ```text
 //! ---
-//! name: sap.skill.period-close-investigation
+//! name: oracle.skill.period-close-investigation
 //! description: Investigate root causes of an FI period-close delay
 //! tags: [fi, period-close, investigation]
-//! requires_tools: [sap.docs.search, sap.table.read, abap.adt.where_used]
+//! requires_tools: [oracle.docs.search, oracle.object.read, oracle.oic.where_used]
 //! arguments:
 //!   - name: company_code
 //!     description: BUKRS, e.g. "1000"
@@ -27,7 +27,7 @@
 //! Investigate the FI period close for {{company_code}} ({{fiscal_period}}).
 //!
 //! Steps:
-//! 1. Use sap.docs.search to find the official period-close procedure ...
+//! 1. Use oracle.docs.search to find the official period-close procedure ...
 //! ```
 //!
 //! At server start `SkillRegistry::scan_paths()` walks the configured
@@ -253,10 +253,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let path = tmp.path().join("test.md");
         let content = r#"---
-name: sap.skill.test
+name: oracle.skill.test
 description: A test skill
 tags: [test, demo]
-requires_tools: [sap.docs.search]
+requires_tools: [oracle.docs.search]
 arguments:
   - name: company_code
     description: BUKRS
@@ -269,9 +269,9 @@ Investigate period close for {{company_code}}.
 "#;
         tokio::fs::write(&path, content).await.unwrap();
         let skill = parse_skill_file(&path).await.unwrap();
-        assert_eq!(skill.name, "sap.skill.test");
+        assert_eq!(skill.name, "oracle.skill.test");
         assert_eq!(skill.tags, vec!["test", "demo"]);
-        assert_eq!(skill.requires_tools, vec!["sap.docs.search"]);
+        assert_eq!(skill.requires_tools, vec!["oracle.docs.search"]);
         assert_eq!(skill.arguments.len(), 2);
         assert!(skill.arguments[0].required);
         assert!(skill.body.contains("Investigate period close"));
@@ -282,7 +282,7 @@ Investigate period close for {{company_code}}.
         let tmp = tempfile::tempdir().unwrap();
         for (slug, body) in [("a", "A skill"), ("b", "B skill")] {
             let path = tmp.path().join(format!("{slug}.md"));
-            let content = format!("---\nname: sap.skill.{slug}\ndescription: {body}\n---\n\nBody {slug}.\n");
+            let content = format!("---\nname: oracle.skill.{slug}\ndescription: {body}\n---\n\nBody {slug}.\n");
             tokio::fs::write(&path, content).await.unwrap();
         }
         let mut reg = SkillRegistry::new();

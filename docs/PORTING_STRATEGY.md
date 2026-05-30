@@ -275,4 +275,20 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
   Deferred internal cleanup (non-user-facing): the `ErpClient`/`AdtClient`
   trait method names (`get_program`→`get_integration`), `BapiRet2*`→`ErpMessage`,
   and the live OIC/BIP/Fusion-REST transport rewrite (SOAP/OData/ADT `http.rs`).
-- _Subsequent phases (P6+) update this section as they land._
+- **P6 — done (skills, scheduler, gateway, channels).** All 13 skill workflow
+  templates re-modeled to Oracle Fusion. Renamed: `abap_code_review`→
+  `custom_code_review` (OIC/Groovy/BIP), `bw_to_datasphere_migration`→
+  `analytics_migration` (OTBI/BICC→OAC/FAW/ADW), `clean_core_audit`→
+  `extensibility_audit` (personalization-not-customization), `odata_service_design`→
+  `rest_service_design`, `rap_service_scaffolding`→`rest_service_scaffolding`,
+  `transport_impact_analysis`→`sandbox_impact_analysis`, `transport_release_elicit`→
+  `sandbox_publish_elicit` (files + `name:` + completers + gateway routing).
+  Reframed in place: `period_close_investigation` (GL/ledger/`GL_PERIOD_STATUSES`/
+  XLA→GL transfer), `po_creation_elicit` (Procurement/charge account),
+  `customer_master_elicit` (TCA party), `security_sod_audit` (Oracle RBAC +
+  Risk Management AAC — name kept for completer/spec-test pins), `karpathy_guidelines`
+  + `aipnv_ai_pairing` (Oracle examples). `scheduler.toml` jobs are Oracle
+  (AAC SoD weekly, app-portfolio EOL quarterly, GL period-close daily, sandbox
+  publish hourly). Gateway intent router + demo query Oracle-ized; skills-crate
+  doc/test fixtures Oracle-ized. **Workspace builds; 208 tests pass.**
+- _Subsequent phases (P7+) update this section as they land._
