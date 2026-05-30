@@ -52,7 +52,16 @@ curl -s -H "Authorization: Basic ZGVtbzpkZW1v" \
 
 # MCP server — Prometheus metrics (latency histograms, etc.)
 curl -s "http://localhost:3030/metrics" | head
+
+# Either mock — no-auth liveness probe (this is what the health checks use)
+curl -s "http://localhost:8088/healthz"   # → {"status":"ok","pod":"fusion-mock"}
+curl -s "http://localhost:8089/healthz"   # → {"status":"ok","pod":"oic-mock"}
 ```
+
+Both mocks expose a no-auth `GET /healthz`. Compose health-checks them by
+running the binary's own `--healthcheck` self-probe (the distroless image has no
+shell or curl), and `server` only starts once both report
+`condition: service_healthy`.
 
 Connect any MCP client to **`http://localhost:3030/mcp`** (SSE events at
 `/mcp/events`). Read-only is the default; the server is started without

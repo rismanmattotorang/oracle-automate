@@ -80,6 +80,11 @@ scenarios is noise, not safety.
 - `deploy/demo/destinations/mock-oic.toml` (OIC destination → mock) and
   `deploy/demo/README.md` (run + verification + go-live swap). Going live is two
   URL changes (`ORACLE_FUSION_BASE_URL` + the OIC destination `base_url`).
+- Both mocks expose a no-auth `GET /healthz` (registered after the guard layer,
+  so it skips auth + latency) plus a `--healthcheck` self-probe mode. The
+  distroless image has no shell/curl, so the compose health checks run the
+  binary itself (`--healthcheck`); `server` now waits on
+  `condition: service_healthy` for both mocks.
 
 ### Added — Phase 4/5: mock Fusion pod + live read/write/resilience
 

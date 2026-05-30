@@ -27,6 +27,13 @@ services:
       RUST_LOG: "info"
     ports:
       - "8088:8088"
+    # The binary self-probes /healthz (distroless image has no shell/curl).
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/oracle-automate-fusion-mock", "--healthcheck", "--bind", "0.0.0.0:8088"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
 
   # --- Mock Oracle Integration Cloud (custom-code) pod --------------------
   oic-mock:
@@ -38,6 +45,13 @@ services:
       RUST_LOG: "info"
     ports:
       - "8089:8089"
+    # The binary self-probes /healthz (distroless image has no shell/curl).
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/oracle-automate-oic-mock", "--healthcheck", "--bind", "0.0.0.0:8089"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
 
   # --- Oracle-Automate MCP server (HTTP transport) ------------------------
   # The image's default ENTRYPOINT/CMD already runs:
@@ -61,5 +75,7 @@ services:
     ports:
       - "3030:3030"
     depends_on:
-      - fusion-mock
-      - oic-mock
+      fusion-mock:
+        condition: service_healthy
+      oic-mock:
+        condition: service_healthy

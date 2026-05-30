@@ -87,6 +87,14 @@ pub fn router(cfg: MockConfig) -> Router {
             get(bip_report),
         )
         .layer(middleware::from_fn_with_state(cfg, guard))
+        // Registered AFTER the guard layer, so /healthz skips both auth and
+        // latency injection — a clean liveness probe for Docker / k8s.
+        .route("/healthz", get(healthz))
+}
+
+/// No-auth liveness probe (skips the guard layer).
+async fn healthz() -> impl IntoResponse {
+    Json(json!({ "status": "ok", "pod": "oic-mock" }))
 }
 
 /// Latency injection + auth gate, applied to every route.
@@ -252,5 +260,37 @@ mod tests {
     fn extract_name_pulls_term() {
         assert_eq!(extract_name("{name:'journal'}").as_deref(), Some("journal"));
         assert_eq!(extract_name("no quotes"), None);
+    }
+
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt; // oneshot
+
+    #[tokio::test]
+    async fn healthz_is_unauthenticated() {
+        let resp = router(MockConfig::default())
+            .oneshot(
+                Request::builder()
+                    .uri("/healthz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn business_route_still_requires_auth() {
+        let resp = router(MockConfig::default())
+            .oneshot(
+                Request::builder()
+                    .uri("/ic/api/integration/v1/integrations/KLB_GL_JOURNAL_IMPORT")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
     }
 }
