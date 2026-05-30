@@ -69,6 +69,18 @@ remainder are lock-poison idioms (correct to panic), infallible-by-construction
 change — per the project's Karpathy rule, defensive handling of impossible
 scenarios is noise, not safety.
 
+### Added — one-command local demo (docker-compose)
+
+- `docker-compose.yml` (repo root) boots the full stack with no real Oracle
+  access: `fusion-mock` (`:8088`), `oic-mock` (`:8089`), and the MCP `server`
+  (HTTP, `:3030`) wired to both — `oracle.rest.*`/`oracle.party.*` → Fusion mock,
+  `oracle.oic.*` → OIC mock. `docker compose up --build`.
+- `deploy/Dockerfile` now also builds + ships the two mock binaries (one image,
+  four binaries; the mocks share the build graph).
+- `deploy/demo/destinations/mock-oic.toml` (OIC destination → mock) and
+  `deploy/demo/README.md` (run + verification + go-live swap). Going live is two
+  URL changes (`ORACLE_FUSION_BASE_URL` + the OIC destination `base_url`).
+
 ### Added — Phase 4/5: mock Fusion pod + live read/write/resilience
 
 - New crate `oracle-automate-fusion-mock` (runnable lib + bin): a standalone

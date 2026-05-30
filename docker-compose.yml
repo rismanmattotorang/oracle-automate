@@ -1,0 +1,65 @@
+# One-command local demo: the MCP server wired to a mock Oracle Fusion pod and a
+# mock Oracle Integration Cloud (OIC) pod — no real Oracle access required.
+#
+#   docker compose up --build
+#
+# Then the server's `oracle.rest.*` / `oracle.party.*` tools hit the Fusion mock
+# and `oracle.oic.*` hits the OIC mock.  To go live, swap the two base URLs (and
+# auth) to real pods — nothing else in the stack changes.
+#
+# See deploy/demo/README.md for verification commands.
+name: oracle-automate-demo
+
+# One image holds all four binaries (server + both mocks); built once, reused.
+x-image: &image oracle-automate:demo
+x-build: &build
+  context: .
+  dockerfile: deploy/Dockerfile
+
+services:
+  # --- Mock Oracle Fusion Cloud ERP REST pod ------------------------------
+  fusion-mock:
+    image: *image
+    build: *build
+    entrypoint: []
+    command: ["/usr/local/bin/oracle-automate-fusion-mock", "--bind", "0.0.0.0:8088"]
+    environment:
+      RUST_LOG: "info"
+    ports:
+      - "8088:8088"
+
+  # --- Mock Oracle Integration Cloud (custom-code) pod --------------------
+  oic-mock:
+    image: *image
+    build: *build
+    entrypoint: []
+    command: ["/usr/local/bin/oracle-automate-oic-mock", "--bind", "0.0.0.0:8089"]
+    environment:
+      RUST_LOG: "info"
+    ports:
+      - "8089:8089"
+
+  # --- Oracle-Automate MCP server (HTTP transport) ------------------------
+  # The image's default ENTRYPOINT/CMD already runs:
+  #   oracle-automate-server --transport http --bind 0.0.0.0:3030
+  server:
+    image: *image
+    build: *build
+    environment:
+      RUST_LOG: "info"
+      # Live Fusion REST backend → the mock Fusion pod.
+      ORACLE_FUSION_BASE_URL: "http://fusion-mock:8088"
+      ORACLE_FUSION_AUTH: "basic"
+      ORACLE_FUSION_USER: "demo"
+      ORACLE_FUSION_PASSWORD: "demo"
+      # Live OIC custom-code backend → the mock OIC pod (via the mounted
+      # destination TOML selected by name).
+      ORACLE_AUTOMATE_DESTINATION: "mock-oic"
+      ORACLE_AUTOMATE_DESTINATION_DIR: "/etc/oracle-automate/destinations"
+    volumes:
+      - ./deploy/demo/destinations:/etc/oracle-automate/destinations:ro
+    ports:
+      - "3030:3030"
+    depends_on:
+      - fusion-mock
+      - oic-mock

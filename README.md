@@ -57,6 +57,13 @@ curl http://127.0.0.1:3030/metrics     # → Prometheus exposition
 cargo test --workspace
 ```
 
+**One-command local demo** — the MCP server wired to a mock Oracle Fusion pod
+and a mock OIC pod, no real Oracle access needed (swap two URLs to go live):
+
+```bash
+docker compose up --build      # see deploy/demo/README.md
+```
+
 ---
 
 ## Why Kalbe is building this

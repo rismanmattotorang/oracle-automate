@@ -1,0 +1,15 @@
+# Demo OIC destination → the mock OIC pod (oracle-automate-oic-mock).
+#
+# This is what makes `oracle.oic.*` (custom-code retrieval / search / where-used
+# / gated activate) reach the mock instead of the offline MockOicClient.
+#
+# To go live against a real Oracle Integration Cloud / Fusion pod, change
+# `base_url` (and the [auth] block) — nothing else in the stack changes.
+base_url = "http://oic-mock:8089"
+client = "100"
+language = "EN"
+
+[auth]
+type = "basic"
+user = "demo"
+password = "demo"

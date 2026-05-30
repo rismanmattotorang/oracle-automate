@@ -23,21 +23,29 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
 COPY apps/ ./apps/
 
-# Build the two binaries that production needs.
+# Build the production binaries (server + gateway) plus the two standalone mock
+# pods used by the one-command local demo (docker-compose.yml).  The mocks are
+# tiny and share the build graph, so they add negligible image build time.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo build --release \
         --bin oracle-automate-server \
         --bin oracle-automate-gw \
+        --bin oracle-automate-fusion-mock \
+        --bin oracle-automate-oic-mock \
         --features oracle-automate-adt/http \
- && cp /src/target/release/oracle-automate-server /usr/local/bin/ \
- && cp /src/target/release/oracle-automate-gw     /usr/local/bin/
+ && cp /src/target/release/oracle-automate-server      /usr/local/bin/ \
+ && cp /src/target/release/oracle-automate-gw          /usr/local/bin/ \
+ && cp /src/target/release/oracle-automate-fusion-mock /usr/local/bin/ \
+ && cp /src/target/release/oracle-automate-oic-mock    /usr/local/bin/
 
 # Runtime stage: distroless cc base (≈ 20 MB).
 FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
 
-COPY --from=builder /usr/local/bin/oracle-automate-server /usr/local/bin/
-COPY --from=builder /usr/local/bin/oracle-automate-gw     /usr/local/bin/
+COPY --from=builder /usr/local/bin/oracle-automate-server      /usr/local/bin/
+COPY --from=builder /usr/local/bin/oracle-automate-gw          /usr/local/bin/
+COPY --from=builder /usr/local/bin/oracle-automate-fusion-mock /usr/local/bin/
+COPY --from=builder /usr/local/bin/oracle-automate-oic-mock    /usr/local/bin/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Default to the server binary; the gateway is selectable per-pod via
