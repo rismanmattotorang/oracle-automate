@@ -185,7 +185,7 @@ pub struct TableStructure {
     pub description: String,
     pub fields: Vec<TableField>,
     pub key_fields: Vec<String>,
-    /// SAP authorization group (TBRG_D).  Drives S_TABU_DIS.  Sensitive
+    /// Oracle data-security policy group.  Sensitive
     /// tables (BSEG, PA0008) carry restricted groups; open tables carry
     /// `&NC&` ("not classified").  Empty string for views.
     #[serde(default)]
@@ -554,8 +554,8 @@ fn sql_like(haystack: &str, pattern: &str) -> bool {
 // ===========================================================================
 
 // ---------------------------------------------------------------------------
-// SAP signature constants — sourced from the Oracle REST API catalog / DDIC.
-// Every write REST operation carries `commit_required: true` because the standard SAP
+// Oracle operation signatures — sourced from the Oracle REST API catalog / DDIC.
+// Every write REST operation carries `commit_required: true` because the standard Oracle
 // convention is that BAPIs do NOT commit on their own; the caller must
 // follow up with the EBS commit op to persist (paper §VII-F note;
 // confirmed in Oracle Help documentation).
@@ -600,14 +600,14 @@ fn seed_functions() -> Vec<ErpOperationMeta> {
             function_group: "Product Management".into(),
             package: Some("EGP".into()),
             parameters: vec![
-                p_imp("ITEM_NUMBER", "VARCHAR2(300)", false, "Item number — VARCHAR2(300) in Fusion (was the SAP MATNR analog)"),
+                p_imp("ITEM_NUMBER", "VARCHAR2(300)", false, "Item number — VARCHAR2(300) in Fusion"),
                 p_imp("ORGANIZATION_CODE", "VARCHAR2(18)", true, "Inventory organization code (org-specific view)"),
                 p_imp_default("EXPAND", "VARCHAR2(240)", "", "Child resources to expand (e.g. ItemEFF)"),
                 p_exp("ITEM", "STRUCT(itemsV2-item-response)", false, "Item resource representation (EGP_SYSTEM_ITEMS_B)"),
             ],
             deprecated: false, read_only: true, commit_required: false,
             authorization: vec![RequiredPrivilege::view("EGP_VIEW_ITEM_PRIV", "Product Hub Inquiry")],
-            erp_note: Some("Item number is VARCHAR2(300) in Fusion Product Hub (EGP_SYSTEM_ITEMS_B.ITEM_NUMBER), much wider than the SAP MATNR CHAR(40).".into()),
+            erp_note: Some("Item number is VARCHAR2(300) in Fusion Product Hub (EGP_SYSTEM_ITEMS_B.ITEM_NUMBER)".into()),
         },
         // ---- Financials/GL: Post journal (synchronous REST) --------------
         // POST /fscmRestApi/resources/.../journalEntries — synchronous,
@@ -649,7 +649,7 @@ fn seed_functions() -> Vec<ErpOperationMeta> {
             ],
             deprecated: false, read_only: false, commit_required: true,
             authorization: vec![RequiredPrivilege::run("GL_RUN_JOURNAL_IMPORT_PRIV", "General Accounting Manager")],
-            erp_note: Some("Two-step bulk write: FBDI document → GL_INTERFACE → Journal Import ESS job. Nothing posts until the import job completes — this is the Oracle analog of the SAP interface/commit two-phase write.".into()),
+            erp_note: Some("Two-step bulk write: FBDI document → GL_INTERFACE → Journal Import ESS job. Nothing posts until the import job completes — this is the interface-then-import two-phase write.".into()),
         },
         // ---- Procurement: Create purchase order --------------------------
         ErpOperationMeta {
@@ -684,7 +684,7 @@ fn seed_functions() -> Vec<ErpOperationMeta> {
             ],
             deprecated: false, read_only: false, commit_required: false,
             authorization: vec![RequiredPrivilege::manage("DOO_MANAGE_SALES_ORDER_PRIV", "Order Entry Specialist")],
-            erp_note: Some("Sold-to is a TCA party (BUYING_PARTY_ID) — the Oracle analog of the SAP sold-to Business Partner.".into()),
+            erp_note: Some("Sold-to is a TCA party (BUYING_PARTY_ID).".into()),
         },
         // ---- Inventory: Receiving (goods receipt) ------------------------
         ErpOperationMeta {
@@ -721,10 +721,10 @@ fn seed_functions() -> Vec<ErpOperationMeta> {
             ],
             deprecated: false, read_only: false, commit_required: false,
             authorization: vec![RequiredPrivilege::manage("POZ_MANAGE_SUPPLIER_PROFILE_PRIV", "Supplier Administrator")],
-            erp_note: Some("Suppliers and customers are TCA parties; the SAP Business Partner unification maps onto Oracle Trading Community Architecture.".into()),
+            erp_note: Some("Suppliers and customers are TCA parties; suppliers and customers are modelled as Oracle Trading Community Architecture parties.".into()),
         },
         // ---- Configuration: Publish sandbox (change promotion) -----------
-        // The SAP transport-release analog. Publishing a sandbox merges its
+        // The change-promotion action. Publishing a sandbox merges its
         // metadata to the mainline; promotion to PROD is high-stakes and
         // guarded by a re-typed confirmation in the workflow layer.
         ErpOperationMeta {
@@ -829,7 +829,7 @@ fn tf(name: &str, data_element: &str, ty: &str, length: u32, desc: &str) -> Tabl
 fn seed_tables() -> Vec<MockTable> {
     vec![
         // ---- EGP_SYSTEM_ITEMS_B — Product Hub item master ---------------
-        // The SAP MARA analog. Item number is VARCHAR2(300) in Fusion.
+        // Item number is VARCHAR2(300) in Fusion.
         MockTable {
             structure: TableStructure {
                 table: "EGP_SYSTEM_ITEMS_B".into(),
@@ -838,7 +838,7 @@ fn seed_tables() -> Vec<MockTable> {
                 fields: vec![
                     tf_key("INVENTORY_ITEM_ID", "NUMBER", "NUMBER", 18, "Item surrogate key"),
                     tf_key("ORGANIZATION_ID", "NUMBER", "NUMBER", 18, "Inventory organization id"),
-                    tf("ITEM_NUMBER", "VARCHAR2", "VARCHAR2", 300, "Item number — VARCHAR2(300) in Fusion (SAP MATNR analog)"),
+                    tf("ITEM_NUMBER", "VARCHAR2", "VARCHAR2", 300, "Item number — VARCHAR2(300) in Fusion"),
                     tf("ITEM_DESCRIPTION", "VARCHAR2", "VARCHAR2", 240, "Item description"),
                     tf("ITEM_CLASS", "VARCHAR2", "VARCHAR2", 80, "Item class (catalog)"),
                     tf("PRIMARY_UOM_CODE", "VARCHAR2", "VARCHAR2", 3, "Primary unit of measure"),
@@ -855,7 +855,7 @@ fn seed_tables() -> Vec<MockTable> {
                 row(&[("INVENTORY_ITEM_ID","300100003"),("ORGANIZATION_ID","207"),("ITEM_NUMBER","KLB-TRADE-HYDROCOCO-250"),("ITEM_DESCRIPTION","Hydro Coco 250ml (trade)"),("ITEM_CLASS","TRADE_GOOD"),("PRIMARY_UOM_CODE","EA"),("ITEM_STATUS_CODE","Active"),("CREATION_DATE","2025-10-01"),("CREATED_BY","KALBE_DEV")]),
             ],
         },
-        // ---- GL_LEDGERS — ledgers (SAP company-code analog) -------------
+        // ---- GL_LEDGERS — ledgers -------------
         MockTable {
             structure: TableStructure {
                 table: "GL_LEDGERS".into(),
@@ -871,7 +871,7 @@ fn seed_tables() -> Vec<MockTable> {
                     tf("LEGAL_ENTITY_ID", "NUMBER", "NUMBER", 18, "Default legal entity (XLE_ENTITY_PROFILES)"),
                 ],
                 authorization_group: "GL_LEDGER_DATA".into(),
-                storage_note: Some("Company-code analog. The SAP BUKRS maps onto Ledger + Legal Entity; data access is scoped by Data Access Set, not an SAP client.".into()),
+                storage_note: Some("Company-code analog. Company code maps onto Ledger + Legal Entity; data access is scoped by Data Access Set, not a tenant client.".into()),
             },
             rows: vec![
                 row(&[("LEDGER_ID","300100001"),("NAME","Kalbe Primary Ledger"),("CURRENCY_CODE","IDR"),("CHART_OF_ACCOUNTS_ID","101"),("PERIOD_SET_NAME","KALBE_FISCAL"),("LEDGER_CATEGORY_CODE","PRIMARY"),("LEGAL_ENTITY_ID","500001")]),
@@ -895,7 +895,7 @@ fn seed_tables() -> Vec<MockTable> {
                     tf("END_DATE", "DATE", "DATE", 7, "Period end"),
                 ],
                 authorization_group: "GL_PERIOD_DATA".into(),
-                storage_note: Some("Managed via 'Manage Accounting Periods'. CLOSING_STATUS drives whether a journal can post — the GL_PERIOD_STATUSES analog of the SAP T001B posting-period gate.".into()),
+                storage_note: Some("Managed via 'Manage Accounting Periods'. CLOSING_STATUS drives whether a journal can post — the posting-period gate.".into()),
             },
             rows: vec![
                 row(&[("LEDGER_ID","300100001"),("APPLICATION_ID","101"),("PERIOD_NAME","MAR-26"),("CLOSING_STATUS","C"),("PERIOD_YEAR","2026"),("PERIOD_NUM","3"),("START_DATE","2026-03-01"),("END_DATE","2026-03-31")]),
@@ -922,7 +922,7 @@ fn seed_tables() -> Vec<MockTable> {
                     tf("CURRENCY_CODE", "VARCHAR2", "VARCHAR2", 15, "Transaction currency"),
                 ],
                 authorization_group: "GL_JOURNAL_DATA".into(),
-                storage_note: Some("The GL leg of Oracle's accounting backbone (the closest analog to the SAP GL_JE_LINES Universal Journal). Oracle has NO single universal journal: GL_JE_LINES holds GL detail while subledger detail lives in XLA_AE_LINES and balances in GL_BALANCES.".into()),
+                storage_note: Some("The GL leg of Oracle's accounting backbone (the GL accounting backbone). Oracle has NO single universal journal: GL_JE_LINES holds GL detail while subledger detail lives in XLA_AE_LINES and balances in GL_BALANCES.".into()),
             },
             rows: vec![
                 row(&[("JE_HEADER_ID","700100123"),("JE_LINE_NUM","1"),("LEDGER_ID","300100001"),("CODE_COMBINATION_ID","12345"),("PERIOD_NAME","MAR-26"),("EFFECTIVE_DATE","2026-03-15"),("ENTERED_DR","22500000"),("ENTERED_CR","0"),("ACCOUNTED_DR","22500000"),("ACCOUNTED_CR","0"),("CURRENCY_CODE","IDR")]),
@@ -964,7 +964,7 @@ fn seed_tables() -> Vec<MockTable> {
                 fields: vec![
                     tf_key("HEADER_ID", "NUMBER", "NUMBER", 18, "Order header id"),
                     tf("ORDER_NUMBER", "VARCHAR2", "VARCHAR2", 50, "Order number"),
-                    tf("BUYING_PARTY_ID", "NUMBER", "NUMBER", 18, "Sold-to TCA party (SAP sold-to BP analog)"),
+                    tf("BUYING_PARTY_ID", "NUMBER", "NUMBER", 18, "Sold-to TCA party"),
                     tf("TRANSACTIONAL_CURR_CODE", "VARCHAR2", "VARCHAR2", 15, "Order currency"),
                     tf("ORDERED_DATE", "DATE", "DATE", 7, "Order date"),
                     tf("STATUS_CODE", "VARCHAR2", "VARCHAR2", 30, "Order status"),
@@ -972,7 +972,7 @@ fn seed_tables() -> Vec<MockTable> {
                     tf("TOTAL_AMOUNT", "NUMBER", "NUMBER", 38, "Order net amount"),
                 ],
                 authorization_group: "DOO_ORDER_DATA".into(),
-                storage_note: Some("Fusion Order Management. Data access is scoped by Business Unit (BUSINESS_UNIT_ID), the Oracle analog of the SAP sales-org/client scoping.".into()),
+                storage_note: Some("Fusion Order Management. Data access is scoped by Business Unit (BUSINESS_UNIT_ID), the Business-Unit scoping model.".into()),
             },
             rows: vec![
                 row(&[("HEADER_ID","400100501"),("ORDER_NUMBER","KLB-SO-5001"),("BUYING_PARTY_ID","600100"),("TRANSACTIONAL_CURR_CODE","IDR"),("ORDERED_DATE","2026-01-12"),("STATUS_CODE","OPEN"),("BUSINESS_UNIT_ID","204"),("TOTAL_AMOUNT","187500000")]),
@@ -984,7 +984,7 @@ fn seed_tables() -> Vec<MockTable> {
         MockTable {
             structure: TableStructure {
                 table: "FND_SANDBOXES".into(),
-                description: "Configuration sandboxes (change-promotion unit; SAP transport-request analog)".into(),
+                description: "Configuration sandboxes (change-promotion unit; change-promotion unit)".into(),
                 key_fields: vec!["SANDBOX_ID".into()],
                 fields: vec![
                     tf_key("SANDBOX_ID", "NUMBER", "NUMBER", 18, "Sandbox id"),
@@ -995,7 +995,7 @@ fn seed_tables() -> Vec<MockTable> {
                     tf("PUBLISH_TARGET", "VARCHAR2", "VARCHAR2", 30, "MAINLINE / target pod for config-package promotion"),
                 ],
                 authorization_group: "FND_SANDBOX_DATA".into(),
-                storage_note: Some("Oracle's change-promotion unit. Publishing merges to MAINLINE; cross-pod promotion uses FSM Configuration Packages. This is the Oracle analog of an SAP transport request (E070).".into()),
+                storage_note: Some("Oracle's change-promotion unit. Publishing merges to MAINLINE; cross-pod promotion uses FSM Configuration Packages. This is the change-promotion unit.".into()),
             },
             rows: vec![
                 row(&[("SANDBOX_ID","800100001"),("SANDBOX_NAME","KLB_AR_AUTOINVOICE_FIX"),("STATUS","ACTIVE"),("CREATED_BY","KALBE_DEV"),("CREATION_DATE","2026-03-18"),("PUBLISH_TARGET","MAINLINE")]),
@@ -1025,7 +1025,7 @@ mod tests {
 
     /// Every write operation must surface the FND standard return contract
     /// (`X_RETURN_STATUS` + the `X_MSG_DATA` FND_MSG_PUB stack) so agents
-    /// can inspect business-side messages — the Oracle analog of the SAP
+    /// can inspect business-side messages — the Oracle equivalent of the legacy
     /// "every write REST operation returns FND return stack" rule.
     #[test]
     fn every_write_op_returns_standard_result() {
@@ -1076,9 +1076,9 @@ mod tests {
         }
     }
 
-    /// Oracle is not client-first like SAP (no the ledger/BU scope/RCLNT). Instead every
+    /// Oracle is not client-first (no client column). Instead every
     /// business object is keyed by an Oracle surrogate/scoping id ending in
-    /// `_ID`. This replaces the SAP "client as first key" invariant.
+    /// `_ID`. This replaces the legacy "client as first key" invariant.
     #[test]
     fn every_business_object_declares_scoping_id_key() {
         for t in seed_tables() {
@@ -1096,7 +1096,7 @@ mod tests {
     }
 
     /// The single most-cited DDIC->Oracle change: item number is
-    /// VARCHAR2(300) in Fusion Product Hub, not the SAP MATNR CHAR(40).
+    /// VARCHAR2(300) in Fusion Product Hub, not a fixed short code.
     #[test]
     fn item_number_is_varchar2_300_per_fusion() {
         let items = seed_tables().into_iter()
@@ -1108,7 +1108,7 @@ mod tests {
     }
 
     /// GL_JE_LINES is the accounting backbone, and the fixture must record
-    /// that Oracle has no single universal journal (unlike SAP GL_JE_LINES).
+    /// that Oracle has no single universal journal.
     #[test]
     fn gl_je_lines_is_present_as_accounting_backbone() {
         let t = seed_tables().into_iter()
@@ -1126,7 +1126,7 @@ mod tests {
     }
 
     /// Subledger objects must document the XLA → GL transfer (Create
-    /// Accounting / Transfer to GL), the Oracle analog of the SAP
+    /// Accounting / Transfer to GL), the Oracle equivalent of the legacy
     /// compatibility-view storage note.
     #[test]
     fn subledger_objects_note_xla_to_gl_transfer() {
