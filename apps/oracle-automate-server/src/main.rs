@@ -4,13 +4,13 @@
 //! the design insights from the reference projects studied in
 //! `docs/COMPARISON.md`:
 //!
-//! - **8 new SAP tools** (`sap.system.info`, `sap.rfc.search`,
-//!   `sap.rfc.metadata`, `sap.rfc.bulk_metadata`, `sap.rfc.call`,
-//!   `sap.table.read`, `sap.table.structure`, `sap.docs.search`)
+//! - **8 new SAP tools** (`oracle.system.info`, `oracle.rest.search`,
+//!   `oracle.rest.metadata`, `oracle.rest.bulk_metadata`, `oracle.rest.call`,
+//!   `oracle.object.read`, `oracle.object.structure`, `oracle.docs.search`)
 //!   alongside the four existing RAG tools.
-//! - **Resources**: `sap-system://info`, `sap-table://{name}/structure`,
-//!   `sap-rfc://{name}`, plus an AGENTS-md guardrails resource.
-//! - **Prompts**: `sap.review-rfc-call`, `sap.transport-impact-analysis`.
+//! - **Resources**: `oracle-erp://info`, `oracle-object://{name}/structure`,
+//!   `oracle-rest://{name}`, plus an AGENTS-md guardrails resource.
+//! - **Prompts**: `oracle.review-rest-call`, `oracle.sandbox-impact-analysis`.
 //! - **Read-only mode by default** (CData pattern); explicit
 //!   `--enable-writes` flips the safety gate.
 //! - **AGENTS.md loader** (MDK pattern): per-project guardrails surfaced
@@ -69,7 +69,7 @@ struct Cli {
     embedding_dim: usize,
 
     /// ADT destination *label* for the offline MockAdtClient (cosmetic;
-    /// shows up in the `adt-destination://info` resource).  Ignored when
+    /// shows up in the `oic-connection://info` resource).  Ignored when
     /// `--destination` selects a live SAP system.
     #[arg(long)]
     adt_destination: Option<String>,
@@ -106,8 +106,8 @@ struct Cli {
     allowed_origins: Vec<String>,
 
     /// TTL in seconds for the RFC metadata cache (thupalo/sap-rfc-mcp-server
-    /// pattern).  `0` disables caching — every `sap.rfc.metadata` and
-    /// `sap.rfc.bulk_metadata` call falls through to the backend.
+    /// pattern).  `0` disables caching — every `oracle.rest.metadata` and
+    /// `oracle.rest.bulk_metadata` call falls through to the backend.
     /// Default 300 (5 minutes) matches the inter-transport-import horizon
     /// most SAP basis teams maintain.
     #[arg(long, default_value_t = 300)]
@@ -218,7 +218,7 @@ async fn main() -> anyhow::Result<()> {
     // system whose auth is not `mock` (Sprint 1: live dev-tenant wiring).
     let adt_client: Arc<dyn AdtClient> = build_adt_client(&cli)?;
 
-    // OData v4 client for the sap.bp.* tools — a customer tenant when
+    // OData v4 client for the oracle.party.* tools — a customer tenant when
     // SAP_ODATA_BASE_URL is set (Basic / Bearer / OAuth2 per SAP_ODATA_AUTH),
     // else the public Business Hub sandbox (SAP_BUSINESS_HUB_KEY).  Absent →
     // tools stay registered but return a friendly "feature disabled" error.
@@ -227,7 +227,7 @@ async fn main() -> anyhow::Result<()> {
             None => {
                 tracing::info!(
                     "no OData endpoint configured (set SAP_ODATA_BASE_URL for a tenant \
-                     or SAP_BUSINESS_HUB_KEY for the sandbox) — sap.bp.* tools disabled"
+                     or SAP_BUSINESS_HUB_KEY for the sandbox) — oracle.party.* tools disabled"
                 );
                 None
             }
@@ -238,12 +238,12 @@ async fn main() -> anyhow::Result<()> {
                     base_url = %base,
                     auth = %client.config().auth.label(),
                     target = if is_sandbox { "business-hub-sandbox" } else { "tenant" },
-                    "OData v4 backend active (sap.bp.* live)"
+                    "OData v4 backend active (oracle.party.* live)"
                 );
                 Some(Arc::new(client))
             }
             Some(Err(e)) => {
-                tracing::warn!(error = %e, "OData client init failed — sap.bp.* tools disabled");
+                tracing::warn!(error = %e, "OData client init failed — oracle.party.* tools disabled");
                 None
             }
         };
@@ -409,17 +409,17 @@ fn build_instructions(agents_md: &Option<String>, read_only: bool) -> String {
     let mut s = String::new();
     s.push_str(
         "Oracle-Automate MCP server (Phase 2 + ADT). Tool groups:\n\
-         - RAG search: abap.search, bpmn.find_process, eam.search_apps, sap.help.search, sap.docs.search.\n\
-         - RFC + tables: sap.system.info, sap.system.health, sap.system.cache_stats, sap.system.cache_invalidate, sap.rfc.search, sap.rfc.metadata, sap.rfc.bulk_metadata, sap.rfc.call, sap.table.read, sap.table.structure.\n\
-         - ABAP ADT (read-only): abap.adt.get_program, abap.adt.get_class, abap.adt.get_function_module, abap.adt.get_interface, abap.adt.get_include, abap.adt.get_package_contents, abap.adt.get_cds_view, abap.adt.where_used, abap.adt.search, abap.adt.get_table_contents.\n\
-         - ABAP ADT (write): abap.adt.activate (hidden in read-only mode).\n\
-         Resources: sap-system://info, sap-rfc://{name}, sap-table://{name}/structure, adt-destination://info, sap-cache://stats, agents://guardrails.\n\
-         Prompts: sap.review-rfc-call, sap.transport-impact-analysis, abap.review-where-used.\n",
+         - RAG search: integration.search, bpmn.find_process, eam.search_apps, oracle.help.search, oracle.docs.search.\n\
+         - RFC + tables: oracle.system.info, oracle.system.health, oracle.system.cache_stats, oracle.system.cache_invalidate, oracle.rest.search, oracle.rest.metadata, oracle.rest.bulk_metadata, oracle.rest.call, oracle.object.read, oracle.object.structure.\n\
+         - ABAP ADT (read-only): oracle.oic.get_integration, oracle.oic.get_groovy_script, oracle.oic.get_ess_job, oracle.oic.get_connection, oracle.oic.get_lookup, oracle.oic.get_project_contents, oracle.oic.get_bip_report, oracle.oic.where_used, oracle.oic.search, oracle.oic.preview_data.\n\
+         - ABAP ADT (write): oracle.oic.activate (hidden in read-only mode).\n\
+         Resources: oracle-erp://info, oracle-rest://{name}, oracle-object://{name}/structure, oic-connection://info, oracle-cache://stats, agents://guardrails.\n\
+         Prompts: oracle.review-rest-call, oracle.sandbox-impact-analysis, oracle.review-where-used.\n",
     );
     if read_only {
         s.push_str("Mode: READ-ONLY. Write-side RFCs (e.g. BAPI_SALESORDER_CREATEFROMDAT2, BAPI_ACC_DOCUMENT_POST) are blocked. Pass --enable-writes to allow.\n");
     } else {
-        s.push_str("Mode: WRITE-ENABLED. Treat every sap.rfc.call invocation as authorised.\n");
+        s.push_str("Mode: WRITE-ENABLED. Treat every oracle.rest.call invocation as authorised.\n");
     }
     if let Some(md) = agents_md {
         s.push_str("\n--- AGENTS.md guardrails ---\n");

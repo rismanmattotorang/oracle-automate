@@ -31,15 +31,15 @@ use std::time::Instant;
 
 pub fn rag_tools(ctx: &Arc<ServerContext>) -> Vec<ToolDescriptor> {
     vec![
-        make_rag_tool(ctx, "abap.search", "Hybrid search over the ABAP corpus.", Domain::Integration),
-        make_rag_tool(ctx, "bpmn.find_process", "Search the Signavio BPMN process repository.", Domain::Bpmn),
-        make_rag_tool(ctx, "eam.search_apps", "Search the LeanIX EAM application fact sheets.", Domain::AppCatalog),
-        make_rag_tool(ctx, "sap.help.search", "Search the SAP Help Portal corpus.", Domain::OracleHelp),
+        make_rag_tool(ctx, "integration.search", "Hybrid search over the OIC integration + custom-code corpus.", Domain::Integration),
+        make_rag_tool(ctx, "bpmn.find_process", "Search the Oracle process-model repository.", Domain::Bpmn),
+        make_rag_tool(ctx, "eam.search_apps", "Search the application-portfolio fact sheets.", Domain::AppCatalog),
+        make_rag_tool(ctx, "oracle.help.search", "Search the Oracle Help Center corpus.", Domain::OracleHelp),
         tool_kb_navigate(ctx),
     ]
 }
 
-// --- sap.kb.navigate ------------------------------------------------------
+// --- oracle.kb.navigate ------------------------------------------------------
 // OpenKB + PageIndex convergent pattern.  Walks the hierarchical document
 // tree built by `oracle_automate_kb::build_document_tree`.  When the agent has
 // a long SAP Help page (period close, transport release, RAP service
@@ -66,14 +66,14 @@ fn tool_kb_navigate(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: KbNavigateArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.kb.navigate: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.kb.navigate: invalid arguments: {e}"))),
             };
             // Use the KnowledgeStore's default tree builder via the RAG engine's store.
             let store = ctx.rag.store();
             let tree = match store.get_document_tree(&args.document_id).await {
                 Ok(Some(t)) => t,
-                Ok(None) => return Ok(CallToolResult::error(format!("sap.kb.navigate: document '{}' not found", args.document_id))),
-                Err(e) => return Ok(CallToolResult::error(format!("sap.kb.navigate: {e}"))),
+                Ok(None) => return Ok(CallToolResult::error(format!("oracle.kb.navigate: document '{}' not found", args.document_id))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.kb.navigate: {e}"))),
             };
             let path = args.path.as_deref().unwrap_or("");
             let node = if path.is_empty() {
@@ -82,13 +82,13 @@ fn tool_kb_navigate(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 match tree.root.find(path) {
                     Some(n) => n,
                     None => return Ok(CallToolResult::error(format!(
-                        "sap.kb.navigate: path '{path}' not found in document tree (max_depth={}, leaf_count={})",
+                        "oracle.kb.navigate: path '{path}' not found in document tree (max_depth={}, leaf_count={})",
                         tree.max_depth, tree.leaf_count,
                     ))),
                 }
             };
             let view = serialize_node_bounded(node, args.depth);
-            render_json("sap.kb.navigate", &serde_json::json!({
+            render_json("oracle.kb.navigate", &serde_json::json!({
                 "document_id": tree.document_id,
                 "max_depth": tree.max_depth,
                 "leaf_count": tree.leaf_count,
@@ -97,7 +97,7 @@ fn tool_kb_navigate(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new(
-        "sap.kb.navigate",
+        "oracle.kb.navigate",
         Some("Walk the hierarchical document tree (OpenKB + PageIndex pattern) section by section. Pass a document_id and an optional dotted path (e.g. '1.2.1') and depth to bound the returned subtree. Use this for long SAP Help pages / ABAP source files when similarity-blind retrieval would miss the right section.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -222,10 +222,10 @@ pub fn sap_tools(ctx: &Arc<ServerContext>) -> Vec<ToolDescriptor> {
     ]
 }
 
-// --- sap.bp.search / sap.bp.get -------------------------------------------
+// --- oracle.party.search / oracle.party.get -------------------------------------------
 // Live SAP backend tier: SAP Business Accelerator Hub sandbox.
 // Convergent with the OData generic-proxy design discipline shipped as
-// `sap.skill.odata_service_design`.
+// `oracle.skill.odata_service_design`.
 
 #[derive(Deserialize)]
 struct BpSearchArgs {
@@ -242,27 +242,27 @@ fn tool_bp_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: BpSearchArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.bp.search: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.party.search: invalid arguments: {e}"))),
             };
             let hub = match &ctx.business_hub {
                 Some(h) => h,
                 None => return Ok(CallToolResult::error(
-                    "sap.bp.search: SAP Business Accelerator Hub disabled. \
+                    "oracle.party.search: SAP Business Accelerator Hub disabled. \
                      Set SAP_BUSINESS_HUB_KEY (free key from a SAP Community account) and restart the server.".to_string()
                 )),
             };
             match hub.search_business_partners(&args.query, args.limit.clamp(1, 100)).await {
-                Ok(rows) => render_json("sap.bp.search", &serde_json::json!({
+                Ok(rows) => render_json("oracle.party.search", &serde_json::json!({
                     "query": args.query,
                     "count": rows.len(),
                     "results": rows,
                 })),
-                Err(e) => Ok(CallToolResult::error(format!("sap.bp.search: {e}"))),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.party.search: {e}"))),
             }
         }
     });
     ToolDescriptor::new(
-        "sap.bp.search",
+        "oracle.party.search",
         Some("Search SAP A_BusinessPartner (OData v4) on the SAP Business Accelerator Hub sandbox. \
               Returns matching Business Partner rows with id, full name, category, organization name, \
               and BP creation date. Requires SAP_BUSINESS_HUB_KEY env var (free SAP Community login).".into()),
@@ -291,22 +291,22 @@ fn tool_bp_get(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: BpGetArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.bp.get: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.party.get: invalid arguments: {e}"))),
             };
             let hub = match &ctx.business_hub {
                 Some(h) => h,
                 None => return Ok(CallToolResult::error(
-                    "sap.bp.get: SAP Business Accelerator Hub disabled. Set SAP_BUSINESS_HUB_KEY.".to_string()
+                    "oracle.party.get: SAP Business Accelerator Hub disabled. Set SAP_BUSINESS_HUB_KEY.".to_string()
                 )),
             };
             match hub.get_business_partner(&args.id).await {
-                Ok(bp) => render_json("sap.bp.get", &bp),
-                Err(e) => Ok(CallToolResult::error(format!("sap.bp.get: {e}"))),
+                Ok(bp) => render_json("oracle.party.get", &bp),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.party.get: {e}"))),
             }
         }
     });
     ToolDescriptor::new(
-        "sap.bp.get",
+        "oracle.party.get",
         Some("Fetch a single SAP A_BusinessPartner by id from the SAP Business Accelerator Hub sandbox (OData v4). \
               Requires SAP_BUSINESS_HUB_KEY.".into()),
         ToolInputSchema::from_value(serde_json::json!({
@@ -321,9 +321,9 @@ fn tool_bp_get(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     )
 }
 
-// --- sap.system.cache_stats ------------------------------------------------
+// --- oracle.system.cache_stats ------------------------------------------------
 // Convergent with thupalo/sap-rfc-mcp-server `get_metadata_cache_stats`.
-// Returns hits/misses/entries/evictions/hit_ratio for the RFC metadata cache.
+// Returns hits/misses/entries/evictions/hit_ratio for the REST operation-metadata cache.
 
 fn tool_system_cache_stats(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let ctx = Arc::clone(ctx);
@@ -331,13 +331,13 @@ fn tool_system_cache_stats(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         let ctx = Arc::clone(&ctx);
         async move {
             match &ctx.metadata_cache {
-                None => render_json("sap.system.cache_stats", &serde_json::json!({
+                None => render_json("oracle.system.cache_stats", &serde_json::json!({
                     "enabled": false,
-                    "note": "RFC metadata cache is disabled. Restart the server with --metadata-cache-ttl-secs > 0.",
+                    "note": "REST operation-metadata cache is disabled. Restart the server with --metadata-cache-ttl-secs > 0.",
                 })),
                 Some(cache) => {
                     let s = cache.stats().await;
-                    render_json("sap.system.cache_stats", &serde_json::json!({
+                    render_json("oracle.system.cache_stats", &serde_json::json!({
                         "enabled": true,
                         "hits": s.hits,
                         "misses": s.misses,
@@ -350,14 +350,14 @@ fn tool_system_cache_stats(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new(
-        "sap.system.cache_stats",
-        Some("Read RFC metadata cache statistics (thupalo/sap-rfc-mcp-server pattern). Returns hits, misses, entries, evictions, and hit_ratio. Always read-only — touches local cache state only, never SAP.".into()),
+        "oracle.system.cache_stats",
+        Some("Read REST operation-metadata cache statistics (thupalo/sap-rfc-mcp-server pattern). Returns hits, misses, entries, evictions, and hit_ratio. Always read-only — touches local cache state only, never SAP.".into()),
         ToolInputSchema::from_value(serde_json::json!({"type": "object", "additionalProperties": false})),
         Arc::new(handler),
     )
 }
 
-// --- sap.system.cache_invalidate -------------------------------------------
+// --- oracle.system.cache_invalidate -------------------------------------------
 // Operator escape hatch for the case where an upstream transport import has
 // changed an RFC signature and the cached metadata is now stale.  Read-only
 // from the SAP-state perspective (we never write to SAP), but it does mutate
@@ -369,14 +369,14 @@ fn tool_system_cache_invalidate(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         let ctx = Arc::clone(&ctx);
         async move {
             match &ctx.metadata_cache {
-                None => render_json("sap.system.cache_invalidate", &serde_json::json!({
+                None => render_json("oracle.system.cache_invalidate", &serde_json::json!({
                     "enabled": false,
-                    "note": "RFC metadata cache is disabled. Nothing to invalidate.",
+                    "note": "REST operation-metadata cache is disabled. Nothing to invalidate.",
                 })),
                 Some(cache) => {
                     let before = cache.stats().await.entries;
                     cache.invalidate_all().await;
-                    render_json("sap.system.cache_invalidate", &serde_json::json!({
+                    render_json("oracle.system.cache_invalidate", &serde_json::json!({
                         "ok": true,
                         "entries_dropped": before,
                     }))
@@ -385,14 +385,14 @@ fn tool_system_cache_invalidate(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new(
-        "sap.system.cache_invalidate",
-        Some("Drop every entry in the RFC metadata cache so the next sap.rfc.metadata / bulk_metadata call re-fetches from SAP. Use after a transport import that changed RFC signatures. Does not touch SAP state.".into()),
+        "oracle.system.cache_invalidate",
+        Some("Drop every entry in the REST operation-metadata cache so the next oracle.rest.metadata / bulk_metadata call re-fetches from Oracle. Use after a release that changed REST operation signatures. Does not touch Oracle state.".into()),
         ToolInputSchema::from_value(serde_json::json!({"type": "object", "additionalProperties": false})),
         Arc::new(handler),
     )
 }
 
-// --- sap.system.health -----------------------------------------------------
+// --- oracle.system.health -----------------------------------------------------
 
 fn tool_system_health(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let ctx = Arc::clone(ctx);
@@ -411,18 +411,18 @@ fn tool_system_health(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 },
                 "protocol_version": mcp_core::PROTOCOL_VERSION,
             });
-            render_json("sap.system.health", &snap)
+            render_json("oracle.system.health", &snap)
         }
     });
     ToolDescriptor::new(
-        "sap.system.health",
+        "oracle.system.health",
         Some("Operator health snapshot: connection pool, read-only mode, ADT destination summary, graph stats. Always read-only.".into()),
         ToolInputSchema::from_value(serde_json::json!({"type": "object", "additionalProperties": false})),
         Arc::new(handler),
     )
 }
 
-// --- sap.bapi.parse_return -------------------------------------------------
+// --- oracle.rest.parse_result -------------------------------------------------
 
 #[derive(Deserialize)]
 struct BapiParseArgs { value: serde_json::Value }
@@ -432,7 +432,7 @@ fn tool_bapi_parse_return(_ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: BapiParseArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.bapi.parse_return: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.parse_result: invalid arguments: {e}"))),
             };
             let msgs = oracle_automate_erp::parse_bapiret2(&args.value);
             let any_failure = msgs.iter().any(|m| m.is_failure());
@@ -447,17 +447,17 @@ fn tool_bapi_parse_return(_ctx: &Arc<ServerContext>) -> ToolDescriptor {
                     "All BAPIRET2 messages are non-failure (S/W/I). Safe to call BAPI_TRANSACTION_COMMIT."
                 }
             });
-            render_json("sap.bapi.parse_return", &summary)
+            render_json("oracle.rest.parse_result", &summary)
         }
     });
     ToolDescriptor::new(
-        "sap.bapi.parse_return",
+        "oracle.rest.parse_result",
         Some("Parse a BAPIRET2 array (the standard SAP return contract) and surface structured messages. Returns severity, message class, number, text, and a guidance string that tells the agent whether it's safe to commit.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
                 "value": {
-                    "description": "The full JSON result from a sap.rfc.call invocation, or a bare BAPIRET2 array.",
+                    "description": "The full JSON result from a oracle.rest.call invocation, or a bare BAPIRET2 array.",
                 }
             },
             "required": ["value"],
@@ -467,7 +467,7 @@ fn tool_bapi_parse_return(_ctx: &Arc<ServerContext>) -> ToolDescriptor {
     )
 }
 
-// --- sap.system.info -------------------------------------------------------
+// --- oracle.system.info -------------------------------------------------------
 
 fn tool_system_info(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let ctx = Arc::clone(ctx);
@@ -475,20 +475,20 @@ fn tool_system_info(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         let ctx = Arc::clone(&ctx);
         async move {
             match ctx.sap_client.system_info().await {
-                Ok(info) => render_json("sap.system.info", &info),
-                Err(e) => Ok(CallToolResult::error(format!("sap.system.info: {e}"))),
+                Ok(info) => render_json("oracle.system.info", &info),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.system.info: {e}"))),
             }
         }
     });
     ToolDescriptor::new(
-        "sap.system.info",
-        Some("Retrieve SAP system identity (SID, client, release, host). Always read-only.".into()),
+        "oracle.system.info",
+        Some("Retrieve Oracle environment identity (SID, client, release, host). Always read-only.".into()),
         ToolInputSchema::from_value(serde_json::json!({"type": "object", "additionalProperties": false})),
         Arc::new(handler),
     )
 }
 
-// --- sap.rfc.search --------------------------------------------------------
+// --- oracle.rest.search --------------------------------------------------------
 
 #[derive(Deserialize)]
 struct RfcSearchArgs { query: String, #[serde(default = "default_limit_20")] limit: usize }
@@ -501,16 +501,16 @@ fn tool_rfc_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: RfcSearchArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.rfc.search: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.search: invalid arguments: {e}"))),
             };
             match ctx.sap_client.search_rfc(&args.query, args.limit).await {
-                Ok(result) => render_json("sap.rfc.search", &result),
-                Err(e) => Ok(CallToolResult::error(format!("sap.rfc.search: {e}"))),
+                Ok(result) => render_json("oracle.rest.search", &result),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.rest.search: {e}"))),
             }
         }
     });
     ToolDescriptor::new(
-        "sap.rfc.search",
+        "oracle.rest.search",
         Some("Search the RFC catalogue by keyword. Returns ranked function names with descriptions and read-only flag.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -525,7 +525,7 @@ fn tool_rfc_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     )
 }
 
-// --- sap.rfc.metadata ------------------------------------------------------
+// --- oracle.rest.metadata ------------------------------------------------------
 
 #[derive(Deserialize)]
 struct RfcMetaArgs { function: String, #[serde(default = "default_lang")] language: String }
@@ -538,16 +538,16 @@ fn tool_rfc_metadata(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: RfcMetaArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.rfc.metadata: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.metadata: invalid arguments: {e}"))),
             };
             match ctx.sap_client.rfc_metadata(&args.function, &args.language).await {
-                Ok(meta) => render_json("sap.rfc.metadata", &meta),
-                Err(e) => Ok(CallToolResult::error(format!("sap.rfc.metadata: {e}"))),
+                Ok(meta) => render_json("oracle.rest.metadata", &meta),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.rest.metadata: {e}"))),
             }
         }
     });
     ToolDescriptor::new(
-        "sap.rfc.metadata",
+        "oracle.rest.metadata",
         Some("Get full parameter signature, function group, and read-only flag for an RFC function.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -562,7 +562,7 @@ fn tool_rfc_metadata(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     )
 }
 
-// --- sap.rfc.bulk_metadata -------------------------------------------------
+// --- oracle.rest.bulk_metadata -------------------------------------------------
 
 #[derive(Deserialize)]
 struct RfcBulkArgs { functions: Vec<String>, #[serde(default = "default_lang")] language: String }
@@ -574,21 +574,21 @@ fn tool_rfc_bulk_metadata(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: RfcBulkArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.rfc.bulk_metadata: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.bulk_metadata: invalid arguments: {e}"))),
             };
             if args.functions.is_empty() || args.functions.len() > 100 {
                 return Ok(CallToolResult::error(
-                    "sap.rfc.bulk_metadata: provide 1..=100 function names",
+                    "oracle.rest.bulk_metadata: provide 1..=100 function names",
                 ));
             }
             match ctx.sap_client.bulk_rfc_metadata(&args.functions, &args.language).await {
-                Ok(out) => render_json("sap.rfc.bulk_metadata", &out),
-                Err(e) => Ok(CallToolResult::error(format!("sap.rfc.bulk_metadata: {e}"))),
+                Ok(out) => render_json("oracle.rest.bulk_metadata", &out),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.rest.bulk_metadata: {e}"))),
             }
         }
     });
     ToolDescriptor::new(
-        "sap.rfc.bulk_metadata",
+        "oracle.rest.bulk_metadata",
         Some("Batch-fetch metadata for up to 100 RFCs in one call. Mirrors `bulk_load_metadata` from the Python reference project, avoiding N round-trips.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -603,7 +603,7 @@ fn tool_rfc_bulk_metadata(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     )
 }
 
-// --- sap.rfc.call ----------------------------------------------------------
+// --- oracle.rest.call ----------------------------------------------------------
 
 fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let ctx = Arc::clone(ctx);
@@ -615,7 +615,7 @@ fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
             let audit_args = arguments.clone();
             let request: RfcCallRequest = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.rfc.call: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.call: invalid arguments: {e}"))),
             };
             if commit {
                 // Transactional write: call the BAPI, then auto
@@ -632,8 +632,8 @@ fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                                 outcome.function, outcome.rolled_back
                             ))
                         };
-                        record_write_audit(&ctx, "sap.rfc.call", &audit_args, audit_outcome, started).await;
-                        render_json("sap.rfc.call", &serde_json::json!({
+                        record_write_audit(&ctx, "oracle.rest.call", &audit_args, audit_outcome, started).await;
+                        render_json("oracle.rest.call", &serde_json::json!({
                             "function": outcome.function,
                             "committed": outcome.committed,
                             "rolled_back": outcome.rolled_back,
@@ -646,19 +646,19 @@ fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                             RfcError::PermissionDenied(r) => AuditOutcome::denied(r.clone()),
                             other => AuditOutcome::failed(other.code().as_i32(), other.to_string()),
                         };
-                        record_write_audit(&ctx, "sap.rfc.call", &audit_args, audit_outcome, started).await;
-                        Ok(CallToolResult::error(format!("sap.rfc.call [{:?}]: {e}", e.code())))
+                        record_write_audit(&ctx, "oracle.rest.call", &audit_args, audit_outcome, started).await;
+                        Ok(CallToolResult::error(format!("oracle.rest.call [{:?}]: {e}", e.code())))
                     }
                 };
             }
             match ctx.sap_client.call_rfc(request, ctx.read_only).await {
-                Ok(result) => render_json("sap.rfc.call", &result),
-                Err(e) => Ok(CallToolResult::error(format!("sap.rfc.call [{:?}]: {e}", e.code()))),
+                Ok(result) => render_json("oracle.rest.call", &result),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.rest.call [{:?}]: {e}", e.code()))),
             }
         }
     });
     ToolDescriptor::new(
-        "sap.rfc.call",
+        "oracle.rest.call",
         Some("Execute an RFC function by name with a parameters object. Read-only mode (default) blocks any RFC not declared safe. Set commit=true to run it as a transactional write: the BAPI is followed by BAPI_TRANSACTION_COMMIT on success or BAPI_TRANSACTION_ROLLBACK on a BAPIRET2 error (requires --enable-writes). Errors carry structured codes (RFC_TIMEOUT, RFC_AUTH_FAILED, etc.).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -676,7 +676,7 @@ fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     )
 }
 
-// --- sap.table.read --------------------------------------------------------
+// --- oracle.object.read --------------------------------------------------------
 
 fn tool_table_read(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let ctx = Arc::clone(ctx);
@@ -685,16 +685,16 @@ fn tool_table_read(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let request: ReadTableRequest = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.table.read: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.object.read: invalid arguments: {e}"))),
             };
             match ctx.sap_client.read_table(request).await {
-                Ok(rows) => render_json("sap.table.read", &serde_json::json!({"rows": rows, "count": rows.len()})),
-                Err(e) => Ok(CallToolResult::error(format!("sap.table.read [{:?}]: {e}", e.code()))),
+                Ok(rows) => render_json("oracle.object.read", &serde_json::json!({"rows": rows, "count": rows.len()})),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.object.read [{:?}]: {e}", e.code()))),
             }
         }
     });
     ToolDescriptor::new(
-        "sap.table.read",
+        "oracle.object.read",
         Some("Read rows from a SAP table with optional field projection and SQL-like WHERE clauses. Hard-capped at 1000 rows to avoid buffer overflow.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -711,7 +711,7 @@ fn tool_table_read(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     )
 }
 
-// --- sap.table.structure ---------------------------------------------------
+// --- oracle.object.structure ---------------------------------------------------
 
 #[derive(Deserialize)]
 struct TableStructArgs { table: String }
@@ -723,16 +723,16 @@ fn tool_table_structure(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: TableStructArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.table.structure: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.object.structure: invalid arguments: {e}"))),
             };
             match ctx.sap_client.table_structure(&args.table).await {
-                Ok(s) => render_json("sap.table.structure", &s),
-                Err(e) => Ok(CallToolResult::error(format!("sap.table.structure: {e}"))),
+                Ok(s) => render_json("oracle.object.structure", &s),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.object.structure: {e}"))),
             }
         }
     });
     ToolDescriptor::new(
-        "sap.table.structure",
+        "oracle.object.structure",
         Some("Get DDIC field metadata for an SAP table or structure (name, type, length, key flag).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -744,7 +744,7 @@ fn tool_table_structure(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     )
 }
 
-// --- sap.docs.search -------------------------------------------------------
+// --- oracle.docs.search -------------------------------------------------------
 
 #[derive(Deserialize)]
 struct DocsSearchArgs {
@@ -762,7 +762,7 @@ fn tool_docs_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: DocsSearchArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.docs.search: invalid arguments: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.docs.search: invalid arguments: {e}"))),
             };
             let domain = match args.domain.as_deref() {
                 None | Some("all") => None,
@@ -770,7 +770,7 @@ fn tool_docs_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Some("abap") => Some(Domain::Integration),
                 Some("bpmn") => Some(Domain::Bpmn),
                 Some("leanix") => Some(Domain::AppCatalog),
-                Some(other) => return Ok(CallToolResult::error(format!("sap.docs.search: unknown domain '{other}'"))),
+                Some(other) => return Ok(CallToolResult::error(format!("oracle.docs.search: unknown domain '{other}'"))),
             };
             let q_vec = ctx.embedder.embed(&[args.query.clone()]).await.ok().and_then(|mut v| v.pop());
             match ctx.rag.search(Query { text: &args.query, domain, top_k: args.top_k, embedding: q_vec }).await {
@@ -783,14 +783,14 @@ fn tool_docs_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                             "snippet": truncate(&h.hit.chunk.text, 200),
                         })
                     }).collect();
-                    render_json("sap.docs.search", &serde_json::json!({"hits": body}))
+                    render_json("oracle.docs.search", &serde_json::json!({"hits": body}))
                 }
-                Err(e) => Ok(CallToolResult::error(format!("sap.docs.search: {e}"))),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.docs.search: {e}"))),
             }
         }
     });
     ToolDescriptor::new(
-        "sap.docs.search",
+        "oracle.docs.search",
         Some("Semantic search across the unified SAP knowledge base (Help Portal + ABAP + BPMN + LeanIX). Use this instead of guessing which domain holds the answer.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -845,15 +845,15 @@ fn adt_get_program(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: NameArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.get_program: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_integration: {e}"))),
             };
             match ctx.adt_client.get_program(&args.name).await {
-                Ok(p) => render_json("abap.adt.get_program", &p),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.get_program [{:?}]: {e}", e.code()))),
+                Ok(p) => render_json("oracle.oic.get_integration", &p),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_integration [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.get_program",
+    ToolDescriptor::new("oracle.oic.get_integration",
         Some("Retrieve ABAP program source by name via ADT REST. Returns source, line count, active flag.".into()),
         name_schema(), Arc::new(handler))
 }
@@ -865,15 +865,15 @@ fn adt_get_class(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: NameArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.get_class: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_groovy_script: {e}"))),
             };
             match ctx.adt_client.get_class(&args.name).await {
-                Ok(p) => render_json("abap.adt.get_class", &p),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.get_class [{:?}]: {e}", e.code()))),
+                Ok(p) => render_json("oracle.oic.get_groovy_script", &p),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_groovy_script [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.get_class",
+    ToolDescriptor::new("oracle.oic.get_groovy_script",
         Some("Retrieve ABAP class source via ADT.".into()),
         name_schema(), Arc::new(handler))
 }
@@ -885,15 +885,15 @@ fn adt_get_interface(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: NameArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.get_interface: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_connection: {e}"))),
             };
             match ctx.adt_client.get_interface(&args.name).await {
-                Ok(p) => render_json("abap.adt.get_interface", &p),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.get_interface [{:?}]: {e}", e.code()))),
+                Ok(p) => render_json("oracle.oic.get_connection", &p),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_connection [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.get_interface",
+    ToolDescriptor::new("oracle.oic.get_connection",
         Some("Retrieve ABAP interface source via ADT.".into()),
         name_schema(), Arc::new(handler))
 }
@@ -905,15 +905,15 @@ fn adt_get_include(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: NameArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.get_include: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_lookup: {e}"))),
             };
             match ctx.adt_client.get_include(&args.name).await {
-                Ok(p) => render_json("abap.adt.get_include", &p),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.get_include [{:?}]: {e}", e.code()))),
+                Ok(p) => render_json("oracle.oic.get_lookup", &p),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_lookup [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.get_include",
+    ToolDescriptor::new("oracle.oic.get_lookup",
         Some("Retrieve ABAP include source via ADT.".into()),
         name_schema(), Arc::new(handler))
 }
@@ -928,15 +928,15 @@ fn adt_get_function_module(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: FmArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.get_function_module: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_ess_job: {e}"))),
             };
             match ctx.adt_client.get_function_module(&args.group, &args.name).await {
-                Ok(p) => render_json("abap.adt.get_function_module", &p),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.get_function_module [{:?}]: {e}", e.code()))),
+                Ok(p) => render_json("oracle.oic.get_ess_job", &p),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_ess_job [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.get_function_module",
+    ToolDescriptor::new("oracle.oic.get_ess_job",
         Some("Retrieve ABAP function module source. Requires both function group and module name (the ADT URL nests them).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -960,15 +960,15 @@ fn adt_get_package_contents(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: PackageArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.get_package_contents: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_project_contents: {e}"))),
             };
             match ctx.adt_client.get_package_contents(&args.package).await {
-                Ok(c) => render_json("abap.adt.get_package_contents", &c),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.get_package_contents [{:?}]: {e}", e.code()))),
+                Ok(c) => render_json("oracle.oic.get_project_contents", &c),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_project_contents [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.get_package_contents",
+    ToolDescriptor::new("oracle.oic.get_project_contents",
         Some("List the objects under an ABAP package (programs, classes, interfaces, CDS views, ...).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -986,15 +986,15 @@ fn adt_get_cds_view(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: NameArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.get_cds_view: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_bip_report: {e}"))),
             };
             match ctx.adt_client.get_cds_view(&args.name).await {
-                Ok(v) => render_json("abap.adt.get_cds_view", &v),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.get_cds_view [{:?}]: {e}", e.code()))),
+                Ok(v) => render_json("oracle.oic.get_bip_report", &v),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_bip_report [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.get_cds_view",
+    ToolDescriptor::new("oracle.oic.get_bip_report",
         Some("Retrieve a Core Data Services (CDS) view source via ADT.".into()),
         name_schema(), Arc::new(handler))
 }
@@ -1017,17 +1017,17 @@ fn adt_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: AdtSearchArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.search: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.search: {e}"))),
             };
             let req = AdtSearchRequest { query: args.query, kind: args.kind, max_results: args.max_results };
             match ctx.adt_client.search(req).await {
-                Ok(hits) => render_json("abap.adt.search", &serde_json::json!({"hits": hits})),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.search [{:?}]: {e}", e.code()))),
+                Ok(hits) => render_json("oracle.oic.search", &serde_json::json!({"hits": hits})),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.search [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.search",
-        Some("Live ABAP object search via ADT (different from abap.search which queries the RAG-indexed corpus). Constrained kind enum.".into()),
+    ToolDescriptor::new("oracle.oic.search",
+        Some("Live ABAP object search via ADT (different from integration.search which queries the RAG-indexed corpus). Constrained kind enum.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -1056,16 +1056,16 @@ fn adt_where_used(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: WhereUsedArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.where_used: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.where_used: {e}"))),
             };
             let req = WhereUsedRequest { name: args.name, kind: args.kind };
             match ctx.adt_client.where_used(req).await {
-                Ok(hits) => render_json("abap.adt.where_used", &serde_json::json!({"hits": hits})),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.where_used [{:?}]: {e}", e.code()))),
+                Ok(hits) => render_json("oracle.oic.where_used", &serde_json::json!({"hits": hits})),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.where_used [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.where_used",
+    ToolDescriptor::new("oracle.oic.where_used",
         Some("Impact analysis: list places that use a given ABAP object. Returns object name, kind, location, and usage type (implements / call / include / etc.).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -1093,18 +1093,18 @@ fn adt_get_table_contents(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: TableContentsArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.get_table_contents: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.preview_data: {e}"))),
             };
             match ctx.adt_client.get_table_contents(&args.table, args.max_rows).await {
-                Ok(rows) => render_json("abap.adt.get_table_contents", &serde_json::json!({
+                Ok(rows) => render_json("oracle.oic.preview_data", &serde_json::json!({
                     "rows": rows, "count": rows.len()
                 })),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.get_table_contents [{:?}]: {e}", e.code()))),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.preview_data [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.get_table_contents",
-        Some("Table data via the ADT Data Preview API. Some tables are blocked on SAP BTP backends — error code DataPreviewBlocked tells the agent to fall back to sap.table.read (RFC).".into()),
+    ToolDescriptor::new("oracle.oic.preview_data",
+        Some("Table data via the ADT Data Preview API. Some tables are blocked on SAP BTP backends — error code DataPreviewBlocked tells the agent to fall back to oracle.object.read (RFC).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -1127,18 +1127,18 @@ fn adt_activate(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         async move {
             let args: ActivateArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("abap.adt.activate: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.activate: {e}"))),
             };
             let req = ActivationRequest { name: args.name, kind: args.kind };
             let call_ctx = AdtCallContext { read_only: ctx.read_only };
             match ctx.adt_client.activate(req, call_ctx).await {
-                Ok(outcome) => render_json("abap.adt.activate", &outcome),
-                Err(e) => Ok(CallToolResult::error(format!("abap.adt.activate [{:?}]: {e}", e.code()))),
+                Ok(outcome) => render_json("oracle.oic.activate", &outcome),
+                Err(e) => Ok(CallToolResult::error(format!("oracle.oic.activate [{:?}]: {e}", e.code()))),
             }
         }
     });
-    ToolDescriptor::new("abap.adt.activate",
-        Some("Activate an ABAP object (state-mutating). Hidden in read-only mode by the server exposure policy. When exposed, it still re-checks the per-request read-only flag.".into()),
+    ToolDescriptor::new("oracle.oic.activate",
+        Some("Activate an Oracle artifact (state-mutating). Hidden in read-only mode by the server exposure policy. When exposed, it still re-checks the per-request read-only flag.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -1314,7 +1314,7 @@ fn kb_graph_neighborhood(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     });
     ToolDescriptor::new(
         "kb.graph_neighborhood",
-        Some("Multi-hop neighbourhood of an explicit set of entity IDs (e.g. ['abap:ZFIN_POST_JE', 'rfc:BAPI_ACC_DOCUMENT_POST']). PPR-ranked. Use after sap.docs.search or abap.adt.where_used has identified concrete entities.".into()),
+        Some("Multi-hop neighbourhood of an explicit set of entity IDs (e.g. ['abap:ZFIN_POST_JE', 'rfc:BAPI_ACC_DOCUMENT_POST']). PPR-ranked. Use after oracle.docs.search or oracle.oic.where_used has identified concrete entities.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -1361,7 +1361,7 @@ fn workflow_create_purchase_order(ctx: &Arc<ServerContext>) -> ToolDescriptor {
             }
             let args: PoArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.workflow.create_purchase_order: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.workflow.create_purchase_order: {e}"))),
             };
 
             // Elicit the high-stakes confirmation parameters.
@@ -1386,25 +1386,25 @@ fn workflow_create_purchase_order(ctx: &Arc<ServerContext>) -> ToolDescriptor {
             match elicit.action {
                 ElicitationAction::Accept => {
                     let content = elicit.content.unwrap_or_else(|| serde_json::json!({}));
-                    record_write_audit(&ctx, "sap.workflow.create_purchase_order", &audit_args, AuditOutcome::ok("purchase order confirmed (mock)"), started).await;
+                    record_write_audit(&ctx, "oracle.workflow.create_purchase_order", &audit_args, AuditOutcome::ok("purchase order confirmed (mock)"), started).await;
                     Ok(CallToolResult::text(format!(
-                        "Purchase order confirmed (mock execution; no real BAPI fired):\n\n{}\n\nNext step (when enable-writes): sap.rfc.call BAPI_PO_CREATE1.",
+                        "Purchase order confirmed (mock execution; no real BAPI fired):\n\n{}\n\nNext step (when enable-writes): oracle.rest.call BAPI_PO_CREATE1.",
                         serde_json::to_string_pretty(&content).unwrap_or_default(),
                     )))
                 }
                 ElicitationAction::Decline => {
-                    record_write_audit(&ctx, "sap.workflow.create_purchase_order", &audit_args, AuditOutcome::declined("user declined elicitation"), started).await;
+                    record_write_audit(&ctx, "oracle.workflow.create_purchase_order", &audit_args, AuditOutcome::declined("user declined elicitation"), started).await;
                     Ok(CallToolResult::text("Purchase order cancelled by user (declined elicitation)."))
                 }
                 ElicitationAction::Cancel => {
-                    record_write_audit(&ctx, "sap.workflow.create_purchase_order", &audit_args, AuditOutcome::denied("user aborted or elicitation unavailable"), started).await;
+                    record_write_audit(&ctx, "oracle.workflow.create_purchase_order", &audit_args, AuditOutcome::denied("user aborted or elicitation unavailable"), started).await;
                     Ok(CallToolResult::error("Purchase order cancelled (user aborted or elicitation unavailable). No action taken."))
                 }
             }
         }
     });
     ToolDescriptor::new(
-        "sap.workflow.create_purchase_order",
+        "oracle.workflow.create_purchase_order",
         Some("Walk the user through a guided purchase-order creation. Mid-execution the tool elicits vendor, material, quantity, cost centre, company code, currency, and delivery date — declining the form cancels the operation without side-effects. Wires BAPI_PO_CREATE1 in write mode.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -1432,7 +1432,7 @@ fn workflow_maintain_customer_master(ctx: &Arc<ServerContext>) -> ToolDescriptor
             }
             let args: CmArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.workflow.maintain_customer_master: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.workflow.maintain_customer_master: {e}"))),
             };
             // First elicit: which fields to change.
             let pick_schema = mcp_server::object_schema(
@@ -1447,7 +1447,7 @@ fn workflow_maintain_customer_master(ctx: &Arc<ServerContext>) -> ToolDescriptor
 
             use mcp_core::ElicitationAction;
             if pick.action != ElicitationAction::Accept {
-                record_write_audit(&ctx, "sap.workflow.maintain_customer_master", &audit_args, AuditOutcome::declined("cancelled at scope selection"), started).await;
+                record_write_audit(&ctx, "oracle.workflow.maintain_customer_master", &audit_args, AuditOutcome::declined("cancelled at scope selection"), started).await;
                 return Ok(CallToolResult::error("Customer master maintenance cancelled at scope selection."));
             }
             let picked = pick.content.unwrap_or(serde_json::Value::Null);
@@ -1486,25 +1486,25 @@ fn workflow_maintain_customer_master(ctx: &Arc<ServerContext>) -> ToolDescriptor
             match confirm.action {
                 ElicitationAction::Accept => {
                     let changes = confirm.content.unwrap_or(serde_json::json!({}));
-                    record_write_audit(&ctx, "sap.workflow.maintain_customer_master", &audit_args, AuditOutcome::ok(format!("customer {customer} change confirmed (mock)")), started).await;
+                    record_write_audit(&ctx, "oracle.workflow.maintain_customer_master", &audit_args, AuditOutcome::ok(format!("customer {customer} change confirmed (mock)")), started).await;
                     Ok(CallToolResult::text(format!(
-                        "Customer master change confirmed (mock):\n  customer: {customer}\n  scope:    {scope}\n  changes:\n{}\n\nNext step (when enable-writes): sap.rfc.call BAPI_CUSTOMER_CHANGEFROMDATA.",
+                        "Customer master change confirmed (mock):\n  customer: {customer}\n  scope:    {scope}\n  changes:\n{}\n\nNext step (when enable-writes): oracle.rest.call BAPI_CUSTOMER_CHANGEFROMDATA.",
                         serde_json::to_string_pretty(&changes).unwrap_or_default(),
                     )))
                 }
                 ElicitationAction::Decline => {
-                    record_write_audit(&ctx, "sap.workflow.maintain_customer_master", &audit_args, AuditOutcome::declined("user declined field entry"), started).await;
+                    record_write_audit(&ctx, "oracle.workflow.maintain_customer_master", &audit_args, AuditOutcome::declined("user declined field entry"), started).await;
                     Ok(CallToolResult::text("Customer master change declined; no action taken."))
                 }
                 ElicitationAction::Cancel  => {
-                    record_write_audit(&ctx, "sap.workflow.maintain_customer_master", &audit_args, AuditOutcome::denied("cancelled"), started).await;
+                    record_write_audit(&ctx, "oracle.workflow.maintain_customer_master", &audit_args, AuditOutcome::denied("cancelled"), started).await;
                     Ok(CallToolResult::error("Customer master cancelled."))
                 }
             }
         }
     });
     ToolDescriptor::new(
-        "sap.workflow.maintain_customer_master",
+        "oracle.workflow.maintain_customer_master",
         Some("Two-step elicitation walking the user through a customer master change: pick the data view, then fill in the scoped fields. Demonstrates *chained* elicitation calls — each step has its own form and either step can be declined safely.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
@@ -1523,24 +1523,24 @@ fn workflow_release_transport(ctx: &Arc<ServerContext>) -> ToolDescriptor {
             let started = Instant::now();
             let audit_args = arguments.clone();
             #[derive(Deserialize)]
-            struct TrArgs { transport: Option<String> }
+            struct TrArgs { sandbox: Option<String> }
             let args: TrArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
-                Err(e) => return Ok(CallToolResult::error(format!("sap.workflow.release_transport: {e}"))),
+                Err(e) => return Ok(CallToolResult::error(format!("oracle.workflow.publish_sandbox: {e}"))),
             };
-            let initial = args.transport.unwrap_or_default();
+            let initial = args.sandbox.unwrap_or_default();
             let schema = mcp_server::object_schema(
                 serde_json::json!({
-                    "transport":           { "type": "string", "description": "Transport request ID (TRKORR), e.g. ZTRA01K900123", "default": initial },
-                    "target_system":       { "type": "string", "description": "Target system", "enum": ["DEV", "QA", "PRODUCTION"], "default": "QA" },
-                    "release_dependents":  { "type": "boolean", "description": "Release dependent transports?", "default": false },
-                    "skip_atc":            { "type": "boolean", "description": "Skip ATC checks (dangerous)", "default": false },
-                    "confirmation_phrase": { "type": "string", "description": "Type the transport ID again to confirm" },
+                    "sandbox":             { "type": "string", "description": "Sandbox name to publish, e.g. KLB_AR_AUTOINVOICE_FIX", "default": initial },
+                    "target":              { "type": "string", "description": "Publish target", "enum": ["MAINLINE", "QA_POD", "PRODUCTION"], "default": "MAINLINE" },
+                    "publish_dependents":  { "type": "boolean", "description": "Publish dependent sandboxes?", "default": false },
+                    "skip_validation":     { "type": "boolean", "description": "Skip pre-publish validation (dangerous)", "default": false },
+                    "confirmation_phrase": { "type": "string", "description": "Type the sandbox name again to confirm" },
                 }).as_object().unwrap().clone(),
-                vec!["transport".into(), "target_system".into(), "confirmation_phrase".into()],
+                vec!["sandbox".into(), "target".into(), "confirmation_phrase".into()],
             );
             let elicit = mcp_server::elicit(
-                "Transport release is irreversible in production. Confirm details and re-enter the transport ID to proceed.",
+                "Publishing a sandbox to the mainline (or a target pod) is irreversible. Confirm details and re-enter the sandbox name to proceed.",
                 schema,
             ).await;
 
@@ -1548,39 +1548,39 @@ fn workflow_release_transport(ctx: &Arc<ServerContext>) -> ToolDescriptor {
             match elicit.action {
                 ElicitationAction::Accept => {
                     let v = elicit.content.unwrap_or(serde_json::Value::Null);
-                    let tr     = v.get("transport").and_then(|x| x.as_str()).unwrap_or("");
+                    let sb     = v.get("sandbox").and_then(|x| x.as_str()).unwrap_or("");
                     let phrase = v.get("confirmation_phrase").and_then(|x| x.as_str()).unwrap_or("");
-                    let target = v.get("target_system").and_then(|x| x.as_str()).unwrap_or("QA");
-                    if tr != phrase {
-                        record_write_audit(&ctx, "sap.workflow.release_transport", &audit_args, AuditOutcome::denied("confirmation phrase mismatch"), started).await;
+                    let target = v.get("target").and_then(|x| x.as_str()).unwrap_or("MAINLINE");
+                    if sb != phrase {
+                        record_write_audit(&ctx, "oracle.workflow.publish_sandbox", &audit_args, AuditOutcome::denied("confirmation phrase mismatch"), started).await;
                         return Ok(CallToolResult::error(format!(
-                            "Confirmation phrase '{phrase}' does not match transport '{tr}'. Release aborted.",
+                            "Confirmation phrase '{phrase}' does not match sandbox '{sb}'. Publish aborted.",
                         )));
                     }
-                    record_write_audit(&ctx, "sap.workflow.release_transport", &audit_args, AuditOutcome::ok(format!("transport {tr} release confirmed → {target} (mock)")), started).await;
+                    record_write_audit(&ctx, "oracle.workflow.publish_sandbox", &audit_args, AuditOutcome::ok(format!("sandbox {sb} publish confirmed → {target} (mock)")), started).await;
                     Ok(CallToolResult::text(format!(
-                        "Transport release plan confirmed (mock):\n  transport:           {tr}\n  target_system:       {target}\n  release_dependents:  {}\n  skip_atc:            {}\n\nNext step (when enable-writes): TMS_MGR_FORWARD_TR_REQUEST.",
-                        v.get("release_dependents").and_then(|x| x.as_bool()).unwrap_or(false),
-                        v.get("skip_atc").and_then(|x| x.as_bool()).unwrap_or(false),
+                        "Sandbox publish plan confirmed (mock):\n  sandbox:             {sb}\n  target:              {target}\n  publish_dependents:  {}\n  skip_validation:     {}\n\nNext step (when enable-writes): fusion.fnd.sandbox.publish (cross-pod promotion via an FSM Configuration Package).",
+                        v.get("publish_dependents").and_then(|x| x.as_bool()).unwrap_or(false),
+                        v.get("skip_validation").and_then(|x| x.as_bool()).unwrap_or(false),
                     )))
                 }
                 ElicitationAction::Decline => {
-                    record_write_audit(&ctx, "sap.workflow.release_transport", &audit_args, AuditOutcome::declined("user declined release"), started).await;
-                    Ok(CallToolResult::text("Transport release declined; no action taken."))
+                    record_write_audit(&ctx, "oracle.workflow.publish_sandbox", &audit_args, AuditOutcome::declined("user declined publish"), started).await;
+                    Ok(CallToolResult::text("Sandbox publish declined; no action taken."))
                 }
                 ElicitationAction::Cancel  => {
-                    record_write_audit(&ctx, "sap.workflow.release_transport", &audit_args, AuditOutcome::denied("elicitation unavailable"), started).await;
-                    Ok(CallToolResult::error("Transport release cancelled (client lacks elicitation capability — refusing to proceed without confirmation)."))
+                    record_write_audit(&ctx, "oracle.workflow.publish_sandbox", &audit_args, AuditOutcome::denied("elicitation unavailable"), started).await;
+                    Ok(CallToolResult::error("Sandbox publish cancelled (client lacks elicitation capability — refusing to proceed without confirmation)."))
                 }
             }
         }
     });
     ToolDescriptor::new(
-        "sap.workflow.release_transport",
-        Some("Release a transport request with a confirmation form. Requires the user to re-type the transport ID and explicitly opt in to dangerous flags (skip_atc, release_dependents). Refuses entirely on clients that don't advertise the elicitation capability.".into()),
+        "oracle.workflow.publish_sandbox",
+        Some("Publish a configuration sandbox with a confirmation form (the change-promotion / transport-release analog). Requires the user to re-type the sandbox name and explicitly opt in to dangerous flags (skip_validation, publish_dependents). Refuses entirely on clients that don't advertise the elicitation capability.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
-            "properties": {"transport": {"type": "string", "description": "Initial transport hint"}},
+            "properties": {"sandbox": {"type": "string", "description": "Initial sandbox-name hint"}},
             "additionalProperties": false
         })),
         Arc::new(handler),

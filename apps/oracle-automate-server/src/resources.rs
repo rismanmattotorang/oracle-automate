@@ -1,10 +1,10 @@
 //! MCP resources (paper §IV-F).
 //!
 //! Phase 2 publishes four read-only resources:
-//!   - `sap-system://info`               — live system identity
-//!   - `sap-table://{name}/structure`    — DDIC structure (one resource per
+//!   - `oracle-erp://info`               — live system identity
+//!   - `oracle-object://{name}/structure`    — DDIC structure (one resource per
 //!     seeded table)
-//!   - `sap-rfc://{name}`                — RFC function metadata (one per
+//!   - `oracle-rest://{name}`                — REST operation metadata (one per
 //!     seeded function)
 //!   - `agents://guardrails`             — the loaded AGENTS.md, if any
 //!
@@ -24,19 +24,19 @@ pub fn all(ctx: &Arc<ServerContext>) -> Vec<ResourceDescriptor> {
 
     out.push(make_system_info(ctx));
 
-    // One resource per seeded SAP table.
-    for table in &["MARA", "T001", "VBAK"] {
+    // One resource per seeded Oracle object.
+    for table in &["EGP_SYSTEM_ITEMS_B", "GL_LEDGERS", "DOO_HEADERS_ALL"] {
         out.push(make_table_structure(ctx, table));
     }
 
-    // One resource per seeded RFC.
+    // One resource per seeded Oracle REST operation.
     for rfc in &[
-        "RFC_SYSTEM_INFO",
-        "BAPI_MATERIAL_GET_DETAIL",
-        "BAPI_ACC_DOCUMENT_POST",
-        "BAPI_SALESORDER_CREATEFROMDAT2",
-        "RFC_READ_TABLE",
-        "DDIF_FIELDINFO_GET",
+        "fusion.system.serverInformation",
+        "fusion.scm.itemsV2.get",
+        "fusion.gl.journalEntries.post",
+        "fusion.doo.salesOrdersForOrderHub.post",
+        "fusion.bip.runReport",
+        "fusion.rest.describe",
     ] {
         out.push(make_rfc_meta(ctx, rfc));
     }
@@ -81,9 +81,9 @@ fn make_cache_stats(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
     }
     ResourceDescriptor {
         resource: Resource {
-            uri: "sap-cache://stats".into(),
-            name: "RFC metadata cache stats".into(),
-            description: Some("Live hit/miss counters for the RFC metadata cache (thupalo/sap-rfc-mcp-server pattern). JSON.".into()),
+            uri: "oracle-cache://stats".into(),
+            name: "REST operation-metadata cache stats".into(),
+            description: Some("Live hit/miss counters for the REST operation-metadata cache (thupalo/sap-rfc-mcp-server pattern). JSON.".into()),
             mime_type: Some("application/json".into()),
         },
         handler: Arc::new(H(Arc::clone(ctx))),
@@ -109,9 +109,9 @@ fn make_adt_destination(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
     }
     ResourceDescriptor {
         resource: Resource {
-            uri: "adt-destination://info".into(),
+            uri: "oic-connection://info".into(),
             name: "ADT destination".into(),
-            description: Some("Redacted view of the configured ABAP Development Tools destination (name, base URL, client, language, auth type).".into()),
+            description: Some("Redacted view of the configured Oracle Integration Cloud (OIC) connection (name, base URL, client, language, auth type).".into()),
             mime_type: Some("application/json".into()),
         },
         handler: Arc::new(H(Arc::clone(ctx))),
@@ -141,8 +141,8 @@ fn make_system_info(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
     }
     ResourceDescriptor {
         resource: Resource {
-            uri: "sap-system://info".into(),
-            name: "SAP system identity".into(),
+            uri: "oracle-erp://info".into(),
+            name: "Oracle environment identity".into(),
             description: Some("Live SID, client, release, host, and identity. JSON.".into()),
             mime_type: Some("application/json".into()),
         },
@@ -172,7 +172,7 @@ fn make_table_structure(ctx: &Arc<ServerContext>, table: &str) -> ResourceDescri
     }
     ResourceDescriptor {
         resource: Resource {
-            uri: format!("sap-table://{table}/structure"),
+            uri: format!("oracle-object://{table}/structure"),
             name: format!("DDIC structure of {table}"),
             description: Some(format!("Field metadata for SAP table {table}.")),
             mime_type: Some("application/json".into()),
@@ -203,7 +203,7 @@ fn make_rfc_meta(ctx: &Arc<ServerContext>, function: &str) -> ResourceDescriptor
     }
     ResourceDescriptor {
         resource: Resource {
-            uri: format!("sap-rfc://{function}"),
+            uri: format!("oracle-rest://{function}"),
             name: format!("RFC metadata: {function}"),
             description: Some(format!("Parameter signature and read-only flag for {function}.")),
             mime_type: Some("application/json".into()),

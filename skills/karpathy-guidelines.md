@@ -1,5 +1,5 @@
 ---
-name: sap.skill.karpathy_guidelines
+name: oracle.skill.karpathy_guidelines
 description: Behavioural guidelines that reduce common LLM coding/agent mistakes — surface assumptions, simplicity first, surgical changes, goal-driven execution. Apply to any Oracle-Automate task before you touch code, tables, or transports.
 tags: [behaviour, guidelines, meta, karpathy]
 requires_tools: []
@@ -19,7 +19,7 @@ spirit; the SAP-specific examples and ABAP/RFC adaptations are
 Oracle-Automate's contribution.
 
 **Tradeoff:** these guidelines bias toward caution over speed. For trivial
-SAP tasks (one-shot table lookup, a single `sap.docs.search`) skip down to
+SAP tasks (one-shot table lookup, a single `oracle.docs.search`) skip down to
 section 4 only.
 
 The task you are about to perform: **{{task}}**.
@@ -28,21 +28,21 @@ The task you are about to perform: **{{task}}**.
 
 Don't assume. Don't hide confusion. Surface tradeoffs.
 
-Before invoking any write-side tool (`sap.rfc.call` with `read_only=false`,
-`abap.adt.activate`, any `sap.workflow.*`):
+Before invoking any write-side tool (`oracle.rest.call` with `read_only=false`,
+`oracle.oic.activate`, any `oracle.workflow.*`):
 
 - **State your SAP assumptions explicitly.** Which company code? Which
   fiscal variant? Which transport layer? If uncertain, call the
-  corresponding read-only tool (`sap.system.info`, `sap.table.read` on
+  corresponding read-only tool (`oracle.system.info`, `oracle.object.read` on
   `T001` / `T009`) *before* the write.
 - **If multiple BAPIs could satisfy the goal, present them.** PO_CREATE1
   vs PO_CREATE_NOITEMVIEW; CUSTOMER_CREATEFROMDATA1 vs `BAPI_CUSTOMER_*`
   modular set. Don't pick silently.
 - **If a simpler approach exists, say so.** Direct table read often beats
-  a custom RFC. `sap.docs.search` often beats a code dive.
+  a custom RFC. `oracle.docs.search` often beats a code dive.
 - **If a precondition is unclear, stop.** Name what's confusing (e.g.
   "I cannot tell from the metadata whether `IMPORTING` is required or
-  optional"). Use the `sap.review-rfc-call` prompt to summarise the
+  optional"). Use the `oracle.review-rest-call` prompt to summarise the
   intended call before invoking it.
 
 ## 2. Simplicity first
@@ -50,7 +50,7 @@ Before invoking any write-side tool (`sap.rfc.call` with `read_only=false`,
 Minimum tool calls that solve the problem. Nothing speculative.
 
 - **No retrieval layer escalation beyond what's needed.** Start with
-  `sap.docs.search` (L2 hybrid). Promote to `kb.multi_hop` (L4 HippoRAG)
+  `oracle.docs.search` (L2 hybrid). Promote to `kb.multi_hop` (L4 HippoRAG)
   *only* when the user explicitly asks about dependencies / impact / callers.
   Do not pre-emptively fan out across L2/L3/L4/L5.
 - **No unbounded table reads.** Always set `fields` (column projection).
@@ -71,7 +71,7 @@ If yes, simplify.
 
 Touch only what the user asked you to touch. Clean up only your own mess.
 
-When editing ABAP via `abap.adt.activate` (or any future write-side ADT
+When editing ABAP via `oracle.oic.activate` (or any future write-side ADT
 tool):
 
 - **Don't "improve" adjacent code, comments, or formatting.** That's the
@@ -86,7 +86,7 @@ tool):
 
 When your changes create orphans (deleted callers, dangling form
 routines): remove only the orphans *your* change created. Pre-existing
-dead code stays. Always call `abap.adt.where_used` first.
+dead code stays. Always call `oracle.oic.where_used` first.
 
 The test: **every changed line should trace directly to the user's
 request or to an orphan your change created.**
@@ -99,9 +99,9 @@ Transform fuzzy SAP tasks into verifiable goals:
 
 - "Investigate period close" → "List the open postings in `ACDOCA` for
   the affected fiscal period, then map each to the SAP-canonical clearing
-  procedure via `sap.docs.search`."
+  procedure via `oracle.docs.search`."
 - "Fix the dump" → "Reproduce the dump in `ST22`, find the failing
-  statement via `abap.adt.where_used`, write a unit test that triggers
+  statement via `oracle.oic.where_used`, write a unit test that triggers
   it, then make it pass."
 - "Add validation to ZCL_X" → "Write unit tests for invalid inputs
   (negative quantity, future posting date, blocked customer), then make
@@ -123,10 +123,10 @@ the user.
 
 - [ ] I stated my SAP assumptions before any write-side call.
 - [ ] I used the lowest retrieval layer that worked.
-- [ ] I cited every claim with a `sap-help://` / `sap-rfc://` /
-      `sap-table://` URI.
+- [ ] I cited every claim with a `oracle-help://` / `oracle-rest://` /
+      `oracle-object://` URI.
 - [ ] My change touches only what was asked.
 - [ ] My change has explicit, verifiable success criteria.
-- [ ] I ran `abap.adt.where_used` before activating any ABAP object.
+- [ ] I ran `oracle.oic.where_used` before activating any ABAP object.
 - [ ] No write-side tool was called without `--enable-writes` AND
       explicit user authorisation in the current session.

@@ -1,8 +1,8 @@
 ---
-name: sap.skill.security_sod_audit
+name: oracle.skill.security_sod_audit
 description: Segregation-of-Duties (SoD) audit workflow for SAP authorisations — read-only analytical review across users, roles, profiles, RFC connections, and critical T-Codes. Convergent pattern from the Security MCP Server family in marianfoo/sap-ai-mcp-servers.
 tags: [security, sod, audit, governance]
-requires_tools: [sap.table.read, sap.rfc.metadata, sap.docs.search, sap.system.info]
+requires_tools: [oracle.object.read, oracle.rest.metadata, oracle.docs.search, oracle.system.info]
 arguments:
   - name: user_or_role
     description: Target SAP user ID OR role name to audit (e.g. "EDWIN" or "SAP_ALL")
@@ -24,12 +24,12 @@ no role assignments, no profile changes, no transport creation.
 
 ## Step 1 — Identify the target
 
-Call `sap.system.info` first. Record `sid` / `client` / `system_role`.
+Call `oracle.system.info` first. Record `sid` / `client` / `system_role`.
 
 For `{{scope}} == "user"`:
 
 ```
-sap.table.read table=USR02
+oracle.object.read table=USR02
   fields=BNAME,USTYP,ACCNT,GLTGV,GLTGB,LOCKED,UFLAG
   where_conditions=["BNAME = '{{user_or_role}}'"]
 ```
@@ -37,7 +37,7 @@ sap.table.read table=USR02
 For `{{scope}} == "role"`:
 
 ```
-sap.table.read table=AGR_DEFINE
+oracle.object.read table=AGR_DEFINE
   fields=AGR_NAME,PARENT_AGR,TEXT,CREATE_USER,CREATE_DAT
   where_conditions=["AGR_NAME = '{{user_or_role}}'"]
 ```
@@ -47,7 +47,7 @@ sap.table.read table=AGR_DEFINE
 **User → roles:**
 
 ```
-sap.table.read table=AGR_USERS
+oracle.object.read table=AGR_USERS
   fields=AGR_NAME,UNAME,FROM_DAT,TO_DAT,ORG_FLAG
   where_conditions=["UNAME = '{{user_or_role}}'", "TO_DAT >= sy-datum"]
 ```
@@ -55,7 +55,7 @@ sap.table.read table=AGR_USERS
 **Role → authorisation objects:**
 
 ```
-sap.table.read table=AGR_1251
+oracle.object.read table=AGR_1251
   fields=AGR_NAME,OBJECT,FIELD,LOW,HIGH,DELETED
   where_conditions=["AGR_NAME = '{{user_or_role}}'", "DELETED = ' '"]
 ```
@@ -63,7 +63,7 @@ sap.table.read table=AGR_1251
 **Role → T-Codes:**
 
 ```
-sap.table.read table=AGR_TCODES
+oracle.object.read table=AGR_TCODES
   fields=AGR_NAME,TCODE,COL_FLAG
   where_conditions=["AGR_NAME = '{{user_or_role}}'"]
 ```
@@ -81,7 +81,7 @@ The classical FI/MM conflicts:
 | `XK01` (create customer) + `VA01` (create order) + `VF01` (bill) | Phantom-customer revenue inflation |
 | `SU01` (create user) + `PFCG` (assign roles) + `SCC4` (open client) | Self-privilege escalation |
 
-Cite the SAP-canonical SoD documentation via `sap.docs.search` for each
+Cite the SAP-canonical SoD documentation via `oracle.docs.search` for each
 conflict found (search terms: "SoD", "segregation of duties",
 "sensitive transactions").
 
@@ -102,7 +102,7 @@ universally over-privileged:
 For `{{scope}} == "system"`:
 
 ```
-sap.table.read table=RFCDES
+oracle.object.read table=RFCDES
   fields=RFCDEST,RFCTYPE,RFCHOST,RFCUSER,RFCCLIENT
   where_conditions=["RFCTYPE IN ('3', 'H', 'T', 'W')"]
 ```
@@ -135,8 +135,8 @@ nothing else:
 | ...
 
 ## Citations
-- sap-help://... (SAP SoD reference)
-- sap-table://USR02/structure
+- oracle-help://... (SAP SoD reference)
+- oracle-object://USR02/structure
 - ...
 
 ## Recommendation

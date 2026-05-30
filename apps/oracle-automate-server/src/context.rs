@@ -16,12 +16,12 @@ pub struct ServerContext {
     /// `NetweaverErpClient`; metadata reads are TTL-cached.
     pub sap_client: Arc<dyn ErpClient>,
     /// Direct handle to the metadata cache for the cache-stats /
-    /// invalidate tools and the `sap-cache://stats` resource.  `None`
+    /// invalidate tools and the `oracle-cache://stats` resource.  `None`
     /// when caching is disabled via `--metadata-cache-ttl-secs=0`.
     pub metadata_cache: Option<Arc<MetadataCache<MockErpClient>>>,
     pub adt_client: Arc<dyn AdtClient>,
     /// SAP Business Accelerator Hub sandbox client.  `None` when no
-    /// `SAP_BUSINESS_HUB_KEY` is configured — the `sap.bp.*` tools then
+    /// `SAP_BUSINESS_HUB_KEY` is configured — the `oracle.party.*` tools then
     /// return a friendly "feature disabled" error instead of crashing.
     pub business_hub: Option<Arc<BusinessHubClient>>,
     pub read_only: bool,

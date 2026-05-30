@@ -186,7 +186,7 @@ async fn route(
     }
 
     let (tool, args) = if lc.contains("atc") || lc.contains("test cockpit") {
-        ("sap.docs.search", serde_json::json!({
+        ("oracle.docs.search", serde_json::json!({
             "query": "ATC findings test cockpit recent",
             "top_k": 3,
             "domain": "all"
@@ -198,7 +198,7 @@ async fn route(
             "max_hops": 4
         }))
     } else {
-        ("sap.docs.search", serde_json::json!({
+        ("oracle.docs.search", serde_json::json!({
             "query": msg.text,
             "top_k": 3
         }))
@@ -237,44 +237,44 @@ fn match_skill(lc: &str) -> Option<(&'static str, Option<serde_json::Value>)> {
     {
         // Extract a trailing token as user/role; default to wildcard.
         let target = lc.split_whitespace().last().unwrap_or("*").to_uppercase();
-        return Some(("sap.skill.security_sod_audit", Some(serde_json::json!({
+        return Some(("oracle.skill.security_sod_audit", Some(serde_json::json!({
             "user_or_role": target,
             "scope": "user"
         }))));
     }
     if lc.contains("bw") && (lc.contains("datasphere") || lc.contains("modernis") || lc.contains("moderniz") || lc.contains("migrat")) {
-        return Some(("sap.skill.bw_to_datasphere_migration", Some(serde_json::json!({
+        return Some(("oracle.skill.bw_to_datasphere_migration", Some(serde_json::json!({
             "bw_object": "*"
         }))));
     }
     if lc.contains("period close") || lc.contains("period-close") || lc.contains("closing") && lc.contains("fi") {
-        return Some(("sap.skill.period_close_investigation", Some(serde_json::json!({
+        return Some(("oracle.skill.period_close_investigation", Some(serde_json::json!({
             "company_code": "1000"
         }))));
     }
     if lc.contains("code review") || lc.contains("review") && (lc.contains("abap") || lc.contains("class") || lc.contains("program")) {
-        return Some(("sap.skill.abap_code_review", Some(serde_json::json!({
+        return Some(("oracle.skill.abap_code_review", Some(serde_json::json!({
             "object_name": "ZCL_FIN_POSTER",
             "kind": "class"
         }))));
     }
     if lc.contains("odata") && (lc.contains("design") || lc.contains("expose") || lc.contains("proxy")) {
-        return Some(("sap.skill.odata_service_design", Some(serde_json::json!({
+        return Some(("oracle.skill.odata_service_design", Some(serde_json::json!({
             "service_name": "ZUI_PURCHASE_ORDER_O2"
         }))));
     }
     if lc.contains("transport") && (lc.contains("impact") || lc.contains("release") || lc.contains("analyse") || lc.contains("analyze")) {
-        return Some(("sap.skill.transport_impact_analysis", Some(serde_json::json!({
+        return Some(("oracle.skill.transport_impact_analysis", Some(serde_json::json!({
             "transport_id": "ER1K900042"
         }))));
     }
     if lc.contains("clean core") || lc.contains("clean-core") {
-        return Some(("sap.skill.clean_core_audit", Some(serde_json::json!({
+        return Some(("oracle.skill.clean_core_audit", Some(serde_json::json!({
             "package": "ZFIN"
         }))));
     }
     if lc.contains("guideline") || lc.contains("how should i think") || lc.contains("preflight") || lc.contains("pre-flight") {
-        return Some(("sap.skill.karpathy_guidelines", Some(serde_json::json!({
+        return Some(("oracle.skill.karpathy_guidelines", Some(serde_json::json!({
             "task": "investigate without a clear scope"
         }))));
     }

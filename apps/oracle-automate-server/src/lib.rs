@@ -124,15 +124,15 @@ pub fn register_completers(builder: mcp_server::ServerBuilder) -> mcp_server::Se
     };
     builder
         // SoD audit: scope enum.
-        .completer("sap.skill.security_sod_audit", "scope", move |prefix, _| {
+        .completer("oracle.skill.security_sod_audit", "scope", move |prefix, _| {
             starts_with(&["user", "role", "system"], prefix)
         })
         // ABAP code review: kind enum.
-        .completer("sap.skill.abap_code_review", "kind", move |prefix, _| {
+        .completer("oracle.skill.abap_code_review", "kind", move |prefix, _| {
             starts_with(&["class", "program", "interface", "function_module"], prefix)
         })
         // BW migration: target release dropdown.
-        .completer("sap.skill.bw_to_datasphere_migration", "target_release", move |prefix, _| {
+        .completer("oracle.skill.bw_to_datasphere_migration", "target_release", move |prefix, _| {
             starts_with(&[
                 "SAP Datasphere 2026-Q1",
                 "SAP Datasphere 2026-Q2",

@@ -53,13 +53,13 @@ async fn logging_setlevel_validates_enum() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn completion_complete_returns_registered_values() {
     let client = connect().await;
-    // sap.skill.security_sod_audit's `scope` argument has a completer
+    // oracle.skill.security_sod_audit's `scope` argument has a completer
     // registered in lib.rs that returns user / role / system.
     let r: serde_json::Value = client
         .raw_request(
             "completion/complete",
             Some(serde_json::json!({
-                "ref": {"type": "ref/prompt", "name": "sap.skill.security_sod_audit"},
+                "ref": {"type": "ref/prompt", "name": "oracle.skill.security_sod_audit"},
                 "argument": {"name": "scope", "value": ""},
             })),
         )
@@ -80,7 +80,7 @@ async fn completion_complete_filters_by_prefix() {
         .raw_request(
             "completion/complete",
             Some(serde_json::json!({
-                "ref": {"type": "ref/prompt", "name": "sap.skill.security_sod_audit"},
+                "ref": {"type": "ref/prompt", "name": "oracle.skill.security_sod_audit"},
                 "argument": {"name": "scope", "value": "u"},
             })),
         )

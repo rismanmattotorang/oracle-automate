@@ -1,8 +1,8 @@
 ---
-name: sap.skill.bw_to_datasphere_migration
+name: oracle.skill.bw_to_datasphere_migration
 description: BW-to-Datasphere modernisation workflow — inventory BW objects, classify migration patterns (lift-and-shift vs redesign), produce a phased migration plan. Convergent pattern from the BW Modernization MCP family in marianfoo/sap-ai-mcp-servers.
 tags: [bw, datasphere, modernization, planning]
-requires_tools: [sap.docs.search, sap.table.read, abap.adt.where_used, kb.global_query]
+requires_tools: [oracle.docs.search, oracle.object.read, oracle.oic.where_used, kb.global_query]
 arguments:
   - name: bw_object
     description: BW object name (InfoCube, ADSO, Composite Provider, Query, Process Chain) OR "*" for system-wide inventory
@@ -39,10 +39,10 @@ artefact tables:
 For a single object, fetch its definition plus where-used:
 
 ```
-sap.table.read table=<artefact_table>
+oracle.object.read table=<artefact_table>
   where_conditions=["<key_field> = '{{bw_object}}'"]
 
-abap.adt.where_used object_name={{bw_object}}
+oracle.oic.where_used object_name={{bw_object}}
 ```
 
 ## Step 2 — Classification matrix
@@ -77,7 +77,7 @@ Every BW transformation routine + start/end routine + expert routine is
 ABAP code that *will not run as-is* in Datasphere. Enumerate them:
 
 ```
-sap.table.read table=RSTRANROUT
+oracle.object.read table=RSTRANROUT
   fields=TRANID,RULEID,RULETP,ROUTID
   where_conditions=["TRANID = '<transformation_id>'"]
 ```
@@ -85,7 +85,7 @@ sap.table.read table=RSTRANROUT
 For each `ROUTID`, fetch the ABAP source:
 
 ```
-abap.adt.get_include name=GP_TRRT_<ROUTID>
+oracle.oic.get_lookup name=GP_TRRT_<ROUTID>
 ```
 
 Classify each routine:
@@ -101,7 +101,7 @@ Classify each routine:
 
 ## Step 4 — Citation pass
 
-Call `sap.docs.search` for the Datasphere migration handbook and the
+Call `oracle.docs.search` for the Datasphere migration handbook and the
 official BW Bridge documentation. Cite both URIs in the report.
 
 If the project is large (>50 BW objects), also call:
@@ -146,8 +146,8 @@ Always end with a risk register. Minimum entries:
 |---|---|---|
 | R1 | BEx variable replacement breaks in Datasphere | Variable inventory pass; manual rewrite list |
 | R2 | Reporting performance regression on first cut | Index-equivalent Analytical-Model design; baseline P95 capture |
-| R3 | Authorisation model differs (BW analysis authorisations vs Datasphere spaces) | SoD audit (`sap.skill.security_sod_audit`) before cut-over |
-| R4 | Custom ABAP routines have hidden side-effects (writes to Z-tables) | `abap.adt.where_used` on every routine before migration |
+| R3 | Authorisation model differs (BW analysis authorisations vs Datasphere spaces) | SoD audit (`oracle.skill.security_sod_audit`) before cut-over |
+| R4 | Custom ABAP routines have hidden side-effects (writes to Z-tables) | `oracle.oic.where_used` on every routine before migration |
 
 **No write operations** are performed by this skill. The deliverable is
 a markdown design document the basis team can review and turn into

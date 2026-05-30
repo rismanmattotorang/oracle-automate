@@ -1,8 +1,8 @@
 ---
-name: sap.skill.aipnv_ai_pairing
+name: oracle.skill.aipnv_ai_pairing
 description: AI-Pairing-Not-Vibing (AIPNV) pre-flight checklist — anti-autopilot guardrails for SAP write operations. Forces an explicit human-in-the-loop confirmation before transports, BAPI writes, or ADT activations.
 tags: [behaviour, guardrails, aipnv, safety]
-requires_tools: [sap.system.info, abap.adt.where_used, sap.review-rfc-call]
+requires_tools: [oracle.system.info, oracle.oic.where_used, oracle.review-rest-call]
 arguments:
   - name: intended_action
     description: One-line description of the write you are about to perform (e.g. "activate ZCL_FIN_POSTER", "release transport ER1K900042", "post BKPF document")
@@ -31,7 +31,7 @@ write tool.
 
 ### Q1. What system am I targeting?
 
-Call `sap.system.info`. State the `sid` / `client` / `system_role`
+Call `oracle.system.info`. State the `sid` / `client` / `system_role`
 (`DEV` / `QAS` / `PRD`) verbatim in your reply.
 
 **Stop conditions:**
@@ -42,14 +42,14 @@ Call `sap.system.info`. State the `sid` / `client` / `system_role`
 
 ### Q2. What is the blast radius?
 
-For ABAP activations, call `abap.adt.where_used` on the target object.
+For ABAP activations, call `oracle.oic.where_used` on the target object.
 Quote the impacted-caller count.
 
 For BAPI writes, name every dependent document type (e.g. posting
 `BKPF` ⇒ touches `BSEG` + `ACDOCA` + `MLHD/MLIT` if material ledger
 active).
 
-For transport releases, call `sap.table.read` on `E070` / `E071` to
+For transport releases, call `oracle.object.read` on `E070` / `E071` to
 enumerate impacted objects.
 
 **Stop conditions:**
@@ -72,8 +72,8 @@ Name it explicitly:
 
 ### Q4. Have I cited the SAP canon for this operation?
 
-Call `sap.docs.search` for the BAPI / transaction / procedure name.
-Cite the returned `sap-help://` URI in your reply. If the docs contradict
+Call `oracle.docs.search` for the BAPI / transaction / procedure name.
+Cite the returned `oracle-help://` URI in your reply. If the docs contradict
 your intended call signature, fix the call — don't override the canon.
 
 ### Q5. Has the user explicitly authorised this write in this session?
@@ -87,9 +87,9 @@ Re-read the most recent user turn. The authorisation must be:
 - **Current** (this session, not inferred from agent memory).
 
 If any of these are false, **invoke the elicitation flow** via the
-matching workflow tool (`sap.workflow.create_purchase_order`,
-`sap.workflow.maintain_customer_master`,
-`sap.workflow.release_transport`) which renders a structured
+matching workflow tool (`oracle.workflow.create_purchase_order`,
+`oracle.workflow.maintain_customer_master`,
+`oracle.workflow.publish_sandbox`) which renders a structured
 confirmation form on the client. Never fabricate the confirmation.
 
 ## Final gate

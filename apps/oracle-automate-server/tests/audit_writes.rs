@@ -1,7 +1,7 @@
 //! Integration test for the transactional write path + audit wiring.
 //!
 //! Drives an in-process server over `tokio::io::duplex`.  In write mode a
-//! `sap.rfc.call` with `commit=true` runs the BAPI then auto
+//! `oracle.rest.call` with `commit=true` runs the BAPI then auto
 //! commit-or-rollback, recording an audit entry inline.  This test exercises
 //! that path end-to-end (the audit `record(...)` is awaited before the tool
 //! returns, so a passing call proves the audit wiring runs without panic).
@@ -50,7 +50,7 @@ async fn commit_write_runs_transactional_path_and_audit() {
 
     let result = client
         .call_tool(
-            "sap.rfc.call",
+            "oracle.rest.call",
             Some(serde_json::json!({
                 "function": "fusion.po.purchaseOrders.post",
                 "parameters": { "PURCHASE_ORDER": {} },
@@ -58,7 +58,7 @@ async fn commit_write_runs_transactional_path_and_audit() {
             })),
         )
         .await
-        .expect("call sap.rfc.call commit");
+        .expect("call oracle.rest.call commit");
 
     assert!(!result.is_error, "write call errored: {result:?}");
     let text = text_of(&result);
@@ -75,7 +75,7 @@ async fn commit_write_is_denied_in_read_only_mode() {
 
     let result = client
         .call_tool(
-            "sap.rfc.call",
+            "oracle.rest.call",
             Some(serde_json::json!({
                 "function": "fusion.po.purchaseOrders.post",
                 "parameters": { "PURCHASE_ORDER": {} },
@@ -83,7 +83,7 @@ async fn commit_write_is_denied_in_read_only_mode() {
             })),
         )
         .await
-        .expect("call sap.rfc.call commit (read-only)");
+        .expect("call oracle.rest.call commit (read-only)");
 
     assert!(result.is_error, "commit must be refused in read-only mode");
     assert!(

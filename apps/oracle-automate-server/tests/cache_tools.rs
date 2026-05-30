@@ -2,12 +2,12 @@
 //!
 //! Drives an in-process server over `tokio::io::duplex` — no subprocess,
 //! no embedding seed cost. Verifies:
-//!   1. `sap.system.cache_stats` + `sap.system.cache_invalidate` appear
+//!   1. `oracle.system.cache_stats` + `oracle.system.cache_invalidate` appear
 //!      in `tools/list`.
-//!   2. `sap-cache://stats` appears in `resources/list`.
-//!   3. Two `sap.rfc.metadata` calls for the same function move the hit
+//!   2. `oracle-cache://stats` appears in `resources/list`.
+//!   3. Two `oracle.rest.metadata` calls for the same function move the hit
 //!      counter forward — the cache decorator is in the live request path.
-//!   4. `sap.system.cache_invalidate` drops every entry.
+//!   4. `oracle.system.cache_invalidate` drops every entry.
 //!
 //! Verify (Karpathy goal-driven execution): these are the success criteria
 //! that close the loop on the metadata-cache wiring through the server.
@@ -47,12 +47,12 @@ async fn cache_tools_and_resource_present() {
 
     let tools = client.list_tools().await.expect("list_tools");
     let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_str()).collect();
-    assert!(names.contains(&"sap.system.cache_stats"), "missing sap.system.cache_stats; have: {names:?}");
-    assert!(names.contains(&"sap.system.cache_invalidate"), "missing sap.system.cache_invalidate; have: {names:?}");
+    assert!(names.contains(&"oracle.system.cache_stats"), "missing oracle.system.cache_stats; have: {names:?}");
+    assert!(names.contains(&"oracle.system.cache_invalidate"), "missing oracle.system.cache_invalidate; have: {names:?}");
 
     let resources = client.list_resources().await.expect("list_resources");
     let uris: Vec<&str> = resources.resources.iter().map(|r| r.uri.as_str()).collect();
-    assert!(uris.contains(&"sap-cache://stats"), "missing sap-cache://stats; have: {uris:?}");
+    assert!(uris.contains(&"oracle-cache://stats"), "missing oracle-cache://stats; have: {uris:?}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -61,28 +61,28 @@ async fn second_metadata_call_hits_cache() {
 
     let _ = client
         .call_tool(
-            "sap.rfc.metadata",
+            "oracle.rest.metadata",
             Some(serde_json::json!({"function": "fusion.scm.itemsV2.get"})),
         )
         .await
         .expect("first metadata call");
 
     let stats1 = extract_json(
-        &client.call_tool("sap.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats 1"),
+        &client.call_tool("oracle.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats 1"),
     );
     assert!(stats1["enabled"].as_bool().unwrap_or(false), "cache should be enabled by default");
     let hits1 = stats1["hits"].as_u64().unwrap_or(0);
 
     let _ = client
         .call_tool(
-            "sap.rfc.metadata",
+            "oracle.rest.metadata",
             Some(serde_json::json!({"function": "fusion.scm.itemsV2.get"})),
         )
         .await
         .expect("second metadata call");
 
     let stats2 = extract_json(
-        &client.call_tool("sap.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats 2"),
+        &client.call_tool("oracle.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats 2"),
     );
     let hits2 = stats2["hits"].as_u64().unwrap_or(0);
 
@@ -96,24 +96,24 @@ async fn invalidate_drops_entries() {
 
     let _ = client
         .call_tool(
-            "sap.rfc.metadata",
+            "oracle.rest.metadata",
             Some(serde_json::json!({"function": "fusion.scm.itemsV2.get"})),
         )
         .await
         .expect("warm");
     let before = extract_json(
-        &client.call_tool("sap.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats before"),
+        &client.call_tool("oracle.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats before"),
     );
     assert!(before["entries"].as_u64().unwrap_or(0) >= 1);
 
     let inv = extract_json(
-        &client.call_tool("sap.system.cache_invalidate", Some(serde_json::json!({}))).await.expect("invalidate"),
+        &client.call_tool("oracle.system.cache_invalidate", Some(serde_json::json!({}))).await.expect("invalidate"),
     );
     assert_eq!(inv["ok"].as_bool(), Some(true));
     assert!(inv["entries_dropped"].as_u64().unwrap_or(0) >= 1);
 
     let after = extract_json(
-        &client.call_tool("sap.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats after"),
+        &client.call_tool("oracle.system.cache_stats", Some(serde_json::json!({}))).await.expect("stats after"),
     );
     assert_eq!(after["entries"].as_u64().unwrap_or(99), 0);
 }

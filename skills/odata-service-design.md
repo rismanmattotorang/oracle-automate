@@ -1,8 +1,8 @@
 ---
-name: sap.skill.odata_service_design
+name: oracle.skill.odata_service_design
 description: Design discipline for exposing a new SAP OData v2/v4 service as an MCP tool surface — the convergent OData-proxy pattern from marianfoo/sap-ai-mcp-servers. Captures the metadata-first / entity-mapping / auth-binding decisions in one place.
 tags: [odata, design, proxy, integration]
-requires_tools: [sap.docs.search, sap.system.info]
+requires_tools: [oracle.docs.search, oracle.system.info]
 arguments:
   - name: service_name
     description: OData service technical name (e.g. "ZUI_PURCHASE_ORDER_O2")
@@ -39,8 +39,8 @@ and `Action` declarations. **Do not infer.** SAP services frequently
 expose entities that look related but are not navigable (no
 `NavigationProperty`).
 
-Cite the resulting URI as a `sap-help://` reference in your output (use
-`sap.docs.search` to find the service's official documentation).
+Cite the resulting URI as a `oracle-help://` reference in your output (use
+`oracle.docs.search` to find the service's official documentation).
 
 ## Step 2 — Tool surface design
 

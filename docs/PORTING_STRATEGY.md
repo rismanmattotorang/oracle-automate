@@ -253,4 +253,26 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
   fixtures and the RAG reranker/tokenizer comments + identifier test are Oracle
   (the identifier-preserving tokenizer already handles `GL_JE_LINES`-style
   names; logic unchanged). **Whole workspace builds; 208 tests pass.**
-- _Subsequent phases (P5+) update this section as they land._
+- **P5 — done (MCP surface: tools / resources / prompts).** The entire
+  user-facing MCP surface is now Oracle. Tool namespace re-mapped: `sap.*`→
+  `oracle.*` (`oracle.rest.*`, `oracle.system.*`, `oracle.object.*`,
+  `oracle.party.*`, `oracle.docs.search`, `oracle.help.search`,
+  `oracle.kb.navigate`, `oracle.bapi`→`oracle.rest.parse_result`), `abap.adt.*`→
+  `oracle.oic.*` (`get_integration` / `get_groovy_script` / `get_connection` /
+  `get_lookup` / `get_ess_job` / `get_project_contents` / `get_bip_report` /
+  `preview_data` / `where_used` / `search` / `activate`), `abap.search`→
+  `integration.search`, skill prompts `sap.skill.*`→`oracle.skill.*`. Resource
+  URIs: `sap-system://`→`oracle-erp://`, `sap-rfc://`→`oracle-rest://`,
+  `sap-table://`→`oracle-object://`, `sap-help://`→`oracle-help://`,
+  `sap-cache://`→`oracle-cache://`, `adt-destination://`→`oic-connection://`.
+  Prompts re-modeled: `oracle.review-rest-call`, `oracle.review-where-used`,
+  `oracle.sandbox-impact-analysis`. The transport-release workflow is now
+  `oracle.workflow.publish_sandbox` (re-typed sandbox-name confirmation,
+  MAINLINE/PRODUCTION target, FSM config-package next step). Tool/resource
+  descriptions and **AGENTS.md guardrails** re-framed to Oracle. **Workspace
+  builds; 208 tests pass** (server integration tests confirm `tools/list` is
+  Oracle).
+  Deferred internal cleanup (non-user-facing): the `ErpClient`/`AdtClient`
+  trait method names (`get_program`→`get_integration`), `BapiRet2*`→`ErpMessage`,
+  and the live OIC/BIP/Fusion-REST transport rewrite (SOAP/OData/ADT `http.rs`).
+- _Subsequent phases (P6+) update this section as they land._

@@ -1,8 +1,8 @@
 ---
-name: sap.skill.abap_code_review
+name: oracle.skill.abap_code_review
 description: Structured ABAP code review with explicit checks for SAP-specific anti-patterns.
 tags: [abap, review, quality]
-requires_tools: [abap.adt.get_class, abap.adt.get_program, abap.adt.where_used, sap.docs.search]
+requires_tools: [oracle.oic.get_groovy_script, oracle.oic.get_integration, oracle.oic.where_used, oracle.docs.search]
 arguments:
   - name: object_name
     description: ABAP object name to review, e.g. "ZCL_FIN_POSTER"
@@ -23,8 +23,8 @@ Review the **{{kind}}** **{{object_name}}** for SAP-specific code quality issues
    - **Mixed-case literals where SAP uses upper** — `'eur'` vs `'EUR'` in WAERS comparisons.
    - **Hard-coded company codes / cost centres** — should be parameters.
 3. **Architectural checks**:
-   - Where-used (`abap.adt.where_used`) — is this object called only from inside its package? If yes, it should be `PRIVATE PROTECTED` not `PUBLIC`.
+   - Where-used (`oracle.oic.where_used`) — is this object called only from inside its package? If yes, it should be `PRIVATE PROTECTED` not `PUBLIC`.
    - Are there any `CALL FUNCTION 'BAPI_*' IN BACKGROUND TASK` without explicit commit handling?
-4. **SAP standard procedures** — for any non-trivial pattern, call `sap.docs.search` with the relevant procedure name to confirm the SAP-canonical approach.
+4. **SAP standard procedures** — for any non-trivial pattern, call `oracle.docs.search` with the relevant procedure name to confirm the SAP-canonical approach.
 
 Produce a markdown review with severity tags (`error`, `warning`, `info`), each citing the file location (line number) and the SAP procedure URI. Do NOT modify the code.

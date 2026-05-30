@@ -1,10 +1,10 @@
-//! Integration test for `sap.kb.navigate` — the OpenKB + PageIndex
+//! Integration test for `oracle.kb.navigate` — the OpenKB + PageIndex
 //! document-tree navigation tool.
 //!
 //! Drives an in-process server (via the same `build_test_server` helper as
 //! cache_tools.rs).  Seeds a document with a 3-level heading structure,
 //! verifies:
-//!   1. `sap.kb.navigate` is registered.
+//!   1. `oracle.kb.navigate` is registered.
 //!   2. Calling it with no `path` returns the root + its top-level
 //!      children.
 //!   3. Calling it with `path=1.2` returns the nested section verbatim.
@@ -65,14 +65,14 @@ async fn navigate_tool_is_registered() {
     let client = connect_and_seed().await;
     let tools = client.list_tools().await.expect("list_tools");
     let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_str()).collect();
-    assert!(names.contains(&"sap.kb.navigate"), "missing sap.kb.navigate; have: {names:?}");
+    assert!(names.contains(&"oracle.kb.navigate"), "missing oracle.kb.navigate; have: {names:?}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn navigate_root_returns_top_level_children() {
     let client = connect_and_seed().await;
     let result = client
-        .call_tool("sap.kb.navigate", Some(serde_json::json!({
+        .call_tool("oracle.kb.navigate", Some(serde_json::json!({
             "document_id": "oracle_help:demo-pec",
         })))
         .await
@@ -92,7 +92,7 @@ async fn navigate_root_returns_top_level_children() {
 async fn navigate_subpath_returns_named_section() {
     let client = connect_and_seed().await;
     let result = client
-        .call_tool("sap.kb.navigate", Some(serde_json::json!({
+        .call_tool("oracle.kb.navigate", Some(serde_json::json!({
             "document_id": "oracle_help:demo-pec",
             "path": "1.1",
             "depth": 2,
@@ -112,7 +112,7 @@ async fn navigate_subpath_returns_named_section() {
 async fn navigate_missing_doc_returns_clean_error() {
     let client = connect_and_seed().await;
     let result = client
-        .call_tool("sap.kb.navigate", Some(serde_json::json!({
+        .call_tool("oracle.kb.navigate", Some(serde_json::json!({
             "document_id": "oracle_help:does-not-exist",
         })))
         .await

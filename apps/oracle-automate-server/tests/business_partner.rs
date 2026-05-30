@@ -1,5 +1,5 @@
-//! Integration test for the Live SAP backend tier: `sap.bp.search` and
-//! `sap.bp.get` MCP tools that hit the SAP Business Accelerator Hub
+//! Integration test for the Live SAP backend tier: `oracle.party.search` and
+//! `oracle.party.get` MCP tools that hit the SAP Business Accelerator Hub
 //! sandbox over OData v4.
 //!
 //! The in-process `build_test_server` deliberately does NOT inject a
@@ -39,15 +39,15 @@ async fn bp_tools_are_registered() {
     let client = connect().await;
     let tools = client.list_tools().await.expect("list_tools");
     let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_str()).collect();
-    assert!(names.contains(&"sap.bp.search"), "missing sap.bp.search; have: {names:?}");
-    assert!(names.contains(&"sap.bp.get"), "missing sap.bp.get; have: {names:?}");
+    assert!(names.contains(&"oracle.party.search"), "missing oracle.party.search; have: {names:?}");
+    assert!(names.contains(&"oracle.party.get"), "missing oracle.party.get; have: {names:?}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn bp_search_without_key_returns_friendly_error() {
     let client = connect().await;
     let r = client
-        .call_tool("sap.bp.search", Some(serde_json::json!({"query": "Smith"})))
+        .call_tool("oracle.party.search", Some(serde_json::json!({"query": "Smith"})))
         .await
         .expect("call");
     assert!(r.is_error, "expected isError=true when hub is disabled");
@@ -62,7 +62,7 @@ async fn bp_search_without_key_returns_friendly_error() {
 async fn bp_get_without_key_returns_friendly_error() {
     let client = connect().await;
     let r = client
-        .call_tool("sap.bp.get", Some(serde_json::json!({"id": "1003764"})))
+        .call_tool("oracle.party.get", Some(serde_json::json!({"id": "1003764"})))
         .await
         .expect("call");
     assert!(r.is_error);
@@ -77,7 +77,7 @@ async fn bp_search_validates_required_arguments() {
     let client = connect().await;
     // Missing `query` field.
     let r = client
-        .call_tool("sap.bp.search", Some(serde_json::json!({})))
+        .call_tool("oracle.party.search", Some(serde_json::json!({})))
         .await
         .expect("call");
     assert!(r.is_error, "expected isError=true when 'query' is missing");
@@ -90,7 +90,7 @@ async fn bp_search_tool_schema_clamps_limit() {
     // on the client side eventually, but our server also clamps server-side.
     // Here we just verify the tool accepts the arg type without panicking.
     let r = client
-        .call_tool("sap.bp.search", Some(serde_json::json!({"query": "x", "limit": 5})))
+        .call_tool("oracle.party.search", Some(serde_json::json!({"query": "x", "limit": 5})))
         .await
         .expect("call");
     // Will error out at the disabled-feature gate, not at validation.
