@@ -25,8 +25,8 @@ use mcp_transport::{HttpServerConfig, HttpServerTransport, StdioTransport};
 use oracle_automate_adt::{HttpOicClient, MockOicClient, OicAuth, OicClient, OicDestination};
 use oracle_automate_erp::{
     CredentialProvider, CredentialSource, Credentials, EnvCredentialProvider, ErpClient,
-    FusionConfig, HttpFusionClient, LayeredCredentialProvider, MetadataCache, MockErpClient,
-    StaticCredentialProvider,
+    FileCredentialProvider, FusionConfig, HttpFusionClient, LayeredCredentialProvider,
+    MetadataCache, MockErpClient, StaticCredentialProvider,
 };
 use oracle_automate_graph::InMemoryGraph;
 use oracle_automate_ingest::{EmbeddingClient, MockEmbedder, OpenAiEmbedder};
@@ -178,9 +178,18 @@ async fn main() -> anyhow::Result<()> {
         "graph engine ready"
     );
 
-    // Build the SAP client.  Credentials are layered (env first, static
-    // fallback for the offline demo).
-    let creds_provider = LayeredCredentialProvider::new()
+    // Build the ERP client.  Credentials are layered: a secrets-manager file
+    // (ORACLE_AUTOMATE_CREDENTIALS_FILE — e.g. a mounted K8s Secret or Vault
+    // sidecar) is authoritative when present, then env vars, then a static
+    // offline-demo fallback.
+    let mut creds_provider = LayeredCredentialProvider::new();
+    if let Some(file) = FileCredentialProvider::from_env() {
+        tracing::info!(
+            "credentials: secrets-file provider active (ORACLE_AUTOMATE_CREDENTIALS_FILE)"
+        );
+        creds_provider = creds_provider.with_provider(Arc::new(file));
+    }
+    let creds_provider = creds_provider
         .with_provider(Arc::new(EnvCredentialProvider::new()))
         .with_provider(Arc::new(StaticCredentialProvider::new(Credentials {
             base_url: "mock.fa.oraclecloud.com".into(),

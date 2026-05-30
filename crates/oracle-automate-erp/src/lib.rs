@@ -41,7 +41,7 @@ pub use client::{
 };
 pub use credentials::{
     CredentialProvider, CredentialSource, Credentials, EnvCredentialProvider,
-    LayeredCredentialProvider, StaticCredentialProvider,
+    FileCredentialProvider, LayeredCredentialProvider, StaticCredentialProvider,
 };
 pub use error::{ErpError, ErpErrorCode, ErpResult};
 pub use pool::ConnectionPool;

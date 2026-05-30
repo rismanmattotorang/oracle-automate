@@ -26,7 +26,7 @@ Measured on Rust 1.94.1 stable (the toolchain CI now floats to):
 | Oracle-correctness invariants (7) | 🟢 enforced as tests + dedicated CI job |
 | Live Fusion/OIC transport wiring | 🟠 code exists & is selectable; **never run against a real pod** |
 | Retrieval quality (embed + rerank) | 🟠 `MockEmbedder` (hash) + `MockReranker` (term-overlap) placeholders |
-| Security: read-only-by-default, gated writes, audit log, secret redaction | 🟢 implemented & security-reviewed (v1.4.0) |
+| Security: read-only-by-default, gated writes, audit log, secret redaction | 🟢 hardened (Phase 8) — see [`SECURITY.md`](../SECURITY.md) |
 | Packaging: distroless image, K8s manifests, Grafana, runbook | 🟢 present, CI-linted |
 
 **The single most important finding:** the project's own quality gate
@@ -252,6 +252,35 @@ deterministically in the meantime.
   bench-gate `verify`.
 - **Gate:** ✅ mock path + the 80 ms bench gate unchanged (P95 1.24 ms); suite
   now **183 tests**; default `rag` build stays reqwest-free.
+
+### Phase 8 — Security & secrets hardening ✅ DONE
+**Goal:** close the credential / TLS / transport / audit gaps before any
+write-enabled run against a real pod. Full posture + checklist in
+[`SECURITY.md`](../SECURITY.md).
+
+**Shipped:**
+- **Secret-leak fix:** `Credentials` no longer derives `Debug` (it carried a
+  plaintext `password`); a hand-written `Debug` prints `password: ***`.
+  Regression-tested.
+- **Constant-time bearer check:** the HTTP transport compares the bearer token
+  in constant time (`constant_time_eq`), closing a timing side-channel.
+- **Secrets-manager integration:** `FileCredentialProvider` reads credentials
+  from a mounted-secret file (`ORACLE_AUTOMATE_CREDENTIALS_FILE` — K8s Secret /
+  Vault / OCI Vault sidecar), re-read per fetch for rotation, with a
+  loose-permission warning; wired into the server's layered chain *ahead of*
+  env so a mounted secret is authoritative and never enters the process env.
+- **Reviewed & confirmed already-correct:** TLS verification on (no
+  `danger_accept_invalid_certs`), Origin validation, fail-closed write gate,
+  redacted audit log, secret-safe `Debug` on `FusionAuth` / `OicAuth`.
+- **Skills:** `security-review` (this gate), `code-review`.
+- **Gate:** ✅ 210 offline tests; `SECURITY.md` + secure-deploy checklist
+  published; no behaviour change to the default path.
+
+> **Remaining phases to production** (tracked in the project plan): **7** live
+> dev-pod validation (🔒 needs an Oracle pod + IDCS app), **9** perf/resilience
+> tuning, **10** observability/SLOs, **11** real retrieval quality (needs an
+> embedding endpoint), **12** CD/release plumbing. Phases 10 and 12 are
+> unblocked and can proceed now.
 
 ---
 

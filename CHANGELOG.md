@@ -30,6 +30,26 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased] — Production readiness
 
+### Security — Phase 8: credential / transport hardening
+
+See [`SECURITY.md`](SECURITY.md) for the full posture and secure-deploy checklist.
+
+- **Fixed a secret-leak vector:** `Credentials` no longer derives `Debug` (it
+  carried a plaintext `password`); a hand-written `Debug` prints `password: ***`.
+  Regression-tested.
+- **Constant-time bearer comparison** in the HTTP transport (`constant_time_eq`),
+  closing a token timing side-channel.
+- **Added `FileCredentialProvider`** — reads credentials from a mounted-secret
+  file (`ORACLE_AUTOMATE_CREDENTIALS_FILE`: Kubernetes Secret / Vault / OCI Vault
+  sidecar), re-read per fetch for rotation, with a loose-permission warning.
+  Wired into the server's layered chain ahead of env, so a mounted secret is
+  authoritative and the secret never enters the process environment.
+- Reviewed & confirmed already-correct: TLS verification on (no
+  `danger_accept_invalid_certs`), Origin validation, fail-closed write gate,
+  redacted audit log, secret-safe `Debug` on `FusionAuth` / `OicAuth`.
+- Added `SECURITY.md` (posture, secrets-manager guidance, vuln reporting,
+  secure-deploy checklist). Suite: **205 → 210 tests**; no default-path change.
+
 ### Changed — company rebrand: Kalbe → Gaussian Technologies
 
 Re-contextualised the owning company from Kalbe (PT Kalbe Farma Tbk) to

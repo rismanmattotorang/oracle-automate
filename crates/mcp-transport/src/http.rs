@@ -248,9 +248,24 @@ fn check_auth(expected: &Option<String>, headers: &axum::http::HeaderMap) -> boo
         Some(token) => headers
             .get(axum::http::header::AUTHORIZATION)
             .and_then(|h| h.to_str().ok())
-            .map(|s| s == format!("Bearer {token}"))
+            .map(|s| constant_time_eq(s.as_bytes(), format!("Bearer {token}").as_bytes()))
             .unwrap_or(false),
     }
+}
+
+/// Constant-time byte comparison for the bearer token, so an attacker can't use
+/// response-timing to recover the secret one byte at a time.  (Length is not
+/// secret — the expected token length is fixed — so an early length check is
+/// acceptable and standard.)
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
 }
 
 /// DNS-rebinding mitigation.  When `allowed` is non-empty, the request
@@ -342,5 +357,21 @@ mod tests {
             &Some("secret".into()),
             &h("authorization", "Bearer secret")
         ));
+    }
+
+    #[test]
+    fn check_auth_rejects_wrong_bearer() {
+        assert!(!check_auth(
+            &Some("secret".into()),
+            &h("authorization", "Bearer wrong")
+        ));
+    }
+
+    #[test]
+    fn constant_time_eq_matches_std_eq() {
+        assert!(constant_time_eq(b"abc", b"abc"));
+        assert!(!constant_time_eq(b"abc", b"abd"));
+        assert!(!constant_time_eq(b"abc", b"abcd")); // length mismatch
+        assert!(constant_time_eq(b"", b""));
     }
 }
