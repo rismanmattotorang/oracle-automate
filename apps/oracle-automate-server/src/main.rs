@@ -50,7 +50,7 @@ use context::ServerContext;
 )]
 struct Cli {
     /// Disable read-only safety; allow MCP tools to call write-side RFCs.
-    /// Equivalent to setting `SAP_AUTOMATE_ENABLE_WRITES=1`.
+    /// Equivalent to setting `ORACLE_AUTOMATE_ENABLE_WRITES=1`.
     #[arg(long)]
     enable_writes: bool,
 
@@ -75,11 +75,11 @@ struct Cli {
     adt_destination: Option<String>,
 
     /// Name of a **live** SAP destination, loaded from a TOML file (see
-    /// `docs/INTEGRATION.md`).  Search order: `$SAP_AUTOMATE_DESTINATION_DIR`,
+    /// `docs/INTEGRATION.md`).  Search order: `$ORACLE_AUTOMATE_DESTINATION_DIR`,
     /// `./.oracle-automate/destinations/`, `~/.config/oracle-automate/destinations/`.
     /// When set and the destination's auth is not `mock`, the server talks
     /// to a real SAP system via `HttpAdtClient` instead of the offline mock.
-    /// Also settable via the `SAP_AUTOMATE_DESTINATION` env var.
+    /// Also settable via the `ORACLE_AUTOMATE_DESTINATION` env var.
     #[arg(long)]
     destination: Option<String>,
 
@@ -135,7 +135,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cli = Cli::parse();
-    let read_only = !cli.enable_writes && std::env::var("SAP_AUTOMATE_ENABLE_WRITES").ok().as_deref() != Some("1");
+    let read_only = !cli.enable_writes && std::env::var("ORACLE_AUTOMATE_ENABLE_WRITES").ok().as_deref() != Some("1");
 
     // Build the KB + embedder.
     let store: Arc<dyn KnowledgeStore> = Arc::new(InMemoryKb::new());
@@ -214,7 +214,7 @@ async fn main() -> anyhow::Result<()> {
     let metadata_cache_handle = Some(metadata_cache);
 
     // ADT client — offline MockAdtClient by default; a live HttpAdtClient
-    // when --destination / SAP_AUTOMATE_DESTINATION selects a real SAP
+    // when --destination / ORACLE_AUTOMATE_DESTINATION selects a real SAP
     // system whose auth is not `mock` (Sprint 1: live dev-tenant wiring).
     let adt_client: Arc<dyn AdtClient> = build_adt_client(&cli)?;
 
@@ -430,7 +430,7 @@ fn build_instructions(agents_md: &Option<String>, read_only: bool) -> String {
 
 /// Build the ADT client from CLI/env configuration.
 ///
-/// - No `--destination` / `SAP_AUTOMATE_DESTINATION` → offline `MockAdtClient`.
+/// - No `--destination` / `ORACLE_AUTOMATE_DESTINATION` → offline `MockAdtClient`.
 /// - A destination whose `auth = "mock"` → `MockAdtClient` (lets operators
 ///   stage a destination file before credentials exist).
 /// - Any other auth → live `HttpAdtClient` against the real SAP system.
@@ -438,7 +438,7 @@ fn build_adt_client(cli: &Cli) -> anyhow::Result<Arc<dyn AdtClient>> {
     let dest_name = cli
         .destination
         .clone()
-        .or_else(|| std::env::var("SAP_AUTOMATE_DESTINATION").ok())
+        .or_else(|| std::env::var("ORACLE_AUTOMATE_DESTINATION").ok())
         .filter(|s| !s.is_empty());
 
     let Some(name) = dest_name else {

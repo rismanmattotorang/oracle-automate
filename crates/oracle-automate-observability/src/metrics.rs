@@ -289,9 +289,9 @@ mod tests {
     fn histogram_records_buckets_correctly() {
         let r = MetricsRegistry::new();
         r.register("mcp_tool_latency_seconds", MetricKind::Histogram, "Tool latency");
-        r.observe_histogram("mcp_tool_latency_seconds", &[("tool", "sap.docs.search")], 0.0003);
-        r.observe_histogram("mcp_tool_latency_seconds", &[("tool", "sap.docs.search")], 0.07);
-        r.observe_histogram("mcp_tool_latency_seconds", &[("tool", "sap.docs.search")], 0.2);
+        r.observe_histogram("mcp_tool_latency_seconds", &[("tool", "oracle.docs.search")], 0.0003);
+        r.observe_histogram("mcp_tool_latency_seconds", &[("tool", "oracle.docs.search")], 0.07);
+        r.observe_histogram("mcp_tool_latency_seconds", &[("tool", "oracle.docs.search")], 0.2);
         let out = r.render();
         // 0.0003s ≤ 0.0005 → in 0.0005 bucket
         assert!(out.contains("le=\"0.0005\"} 1"));

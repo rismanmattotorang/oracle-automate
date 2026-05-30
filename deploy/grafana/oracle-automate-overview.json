@@ -68,7 +68,7 @@
     },
     {
       "id": 4,
-      "title": "SAP RFC calls",
+      "title": "Oracle REST calls",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
@@ -90,7 +90,7 @@
     },
     {
       "id": 6,
-      "title": "SAP connection pool in use",
+      "title": "Oracle connection pool in use",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },

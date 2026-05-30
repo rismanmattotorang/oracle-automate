@@ -1,6 +1,6 @@
 //! Sprint 1 — live ADT smoke test against a real SAP development system.
 //!
-//! Gated on `SAP_AUTOMATE_DESTINATION`: with no destination configured the
+//! Gated on `ORACLE_AUTOMATE_DESTINATION`: with no destination configured the
 //! test prints a skip notice and passes, so CI (and any contributor without
 //! SAP access) stays green.  This mirrors the gated SAP Business Hub sandbox
 //! test in `crates/oracle-automate-rfc/src/odata.rs`.
@@ -12,26 +12,26 @@
 //! 2. Run:
 //!
 //! ```bash
-//! SAP_AUTOMATE_DESTINATION=<name> \
+//! ORACLE_AUTOMATE_DESTINATION=<name> \
 //!   cargo test -p oracle-automate-server --test live_adt -- --nocapture
 //! ```
 //!
-//! Override the probed class with `SAP_AUTOMATE_TEST_CLASS` if the default
+//! Override the probed class with `ORACLE_AUTOMATE_TEST_CLASS` if the default
 //! is unavailable on your stack.
 
 use oracle_automate_adt::{AdtAuth, AdtClient, AdtDestination, HttpAdtClient};
 
 #[tokio::test]
 async fn live_adt_get_class_smoke() {
-    let Ok(name) = std::env::var("SAP_AUTOMATE_DESTINATION") else {
+    let Ok(name) = std::env::var("ORACLE_AUTOMATE_DESTINATION") else {
         eprintln!(
-            "SKIP live_adt_get_class_smoke: set SAP_AUTOMATE_DESTINATION=<name> \
+            "SKIP live_adt_get_class_smoke: set ORACLE_AUTOMATE_DESTINATION=<name> \
              (with a destination TOML on the search path) to exercise a real SAP system"
         );
         return;
     };
     if name.is_empty() {
-        eprintln!("SKIP live_adt_get_class_smoke: SAP_AUTOMATE_DESTINATION is empty");
+        eprintln!("SKIP live_adt_get_class_smoke: ORACLE_AUTOMATE_DESTINATION is empty");
         return;
     }
 
@@ -45,7 +45,7 @@ async fn live_adt_get_class_smoke() {
     let client = HttpAdtClient::new(dest).expect("HttpAdtClient init");
 
     // A class that exists on essentially every ABAP stack.
-    let class = std::env::var("SAP_AUTOMATE_TEST_CLASS")
+    let class = std::env::var("ORACLE_AUTOMATE_TEST_CLASS")
         .unwrap_or_else(|_| "CL_ABAP_CHAR_UTILITIES".to_string());
 
     let src = client

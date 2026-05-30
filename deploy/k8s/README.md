@@ -15,7 +15,7 @@ that compromising the read tier cannot escalate to writes.
 | `deployment.yaml`           | 3-replica server Deployment with distroless image, nonroot UID, read-only rootfs, dropped capabilities, hardened probes, topology spread. |
 | `service.yaml`              | ClusterIP service with ClientIP session affinity (1 h). |
 | `hpa.yaml`                  | CPU + memory autoscaler, 3–12 replicas. Latency-based scaling stub commented out (requires Prometheus Adapter). |
-| `networkpolicy.yaml`        | Default-deny ingress + allow-list egress to DNS, SAP gateway, OTLP. **Edit the SAP CIDR for your environment.** |
+| `networkpolicy.yaml`        | Default-deny ingress + allow-list egress to DNS, the Oracle Fusion pod (HTTPS), OTLP. **Edit the Fusion CIDR for your environment.** |
 | `poddisruptionbudget.yaml`  | Guarantees ≥ 2 replicas during voluntary disruptions. |
 | `kustomization.yaml`        | Kustomize entry point. Override per environment. |
 
@@ -77,7 +77,7 @@ curl -sS -X POST http://127.0.0.1:3030/mcp \
   | jq '.result.content[0].text | fromjson'
 ```
 
-### Rotate the SAP password
+### Rotate the Fusion credential
 
 1. Update the source-of-truth in your secret store.
 2. The External Secrets controller (or Vault Agent) picks up the new

@@ -9,10 +9,10 @@ metadata:
 data:
   # Server defaults.  Override per-environment via Kustomize overlays.
   RUST_LOG: "info,oracle_automate_server=info,mcp_server=info"
-  SAP_AUTOMATE_TRANSPORT: "http"
-  SAP_AUTOMATE_BIND: "0.0.0.0:3030"
-  SAP_AUTOMATE_POOL_SIZE: "16"
-  SAP_AUTOMATE_EMBEDDING_DIM: "256"
+  ORACLE_AUTOMATE_TRANSPORT: "http"
+  ORACLE_AUTOMATE_BIND: "0.0.0.0:3030"
+  ORACLE_AUTOMATE_POOL_SIZE: "16"
+  ORACLE_AUTOMATE_EMBEDDING_DIM: "256"
 
   # AGENTS.md is mounted from this ConfigMap into the container so
   # operators can change agent guardrails without rebuilding the image.

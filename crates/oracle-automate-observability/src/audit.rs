@@ -34,7 +34,7 @@ pub struct AuditEntry {
     /// User identity that authorised the call.  May be the channel
     /// adapter's user_id when called through the gateway.
     pub actor: Option<String>,
-    /// MCP tool name (e.g. "sap.workflow.create_purchase_order").
+    /// MCP tool name (e.g. "oracle.workflow.create_purchase_order").
     pub tool: String,
     /// SAP system identity (SID + client) at call time.
     pub sap_system: Option<String>,
@@ -204,7 +204,7 @@ mod tests {
             session_id: Some("S1".into()),
             tenant: Some("T1".into()),
             actor: Some("user@acme.example".into()),
-            tool: "sap.workflow.create_purchase_order".into(),
+            tool: "oracle.workflow.create_purchase_order".into(),
             sap_system: Some("S4H/100".into()),
             arguments_redacted: serde_json::json!({ "vendor": "V-100", "password": "x" }),
             outcome: AuditOutcome::ok("po created"),
@@ -213,7 +213,7 @@ mod tests {
         let drained = sink.drain().await;
         assert_eq!(drained.len(), 1);
         let e = &drained[0];
-        assert_eq!(e.tool, "sap.workflow.create_purchase_order");
+        assert_eq!(e.tool, "oracle.workflow.create_purchase_order");
         assert_eq!(e.arguments_redacted["password"], "***");
         assert!(matches!(e.outcome, AuditOutcome::Ok { .. }));
     }
@@ -226,7 +226,7 @@ mod tests {
             event_id: AuditLog::new_event_id(),
             at_ms: AuditLog::now_ms(),
             session_id: None, tenant: None, actor: None,
-            tool: "sap.rfc.call".into(),
+            tool: "oracle.rest.call".into(),
             sap_system: None,
             arguments_redacted: serde_json::json!({}),
             outcome: AuditOutcome::declined("user declined elicitation"),

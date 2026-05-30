@@ -51,9 +51,9 @@ spec:
             - "--bind"
             - "0.0.0.0:3030"
             - "--pool-size"
-            - "$(SAP_AUTOMATE_POOL_SIZE)"
+            - "$(ORACLE_AUTOMATE_POOL_SIZE)"
             - "--embedding-dim"
-            - "$(SAP_AUTOMATE_EMBEDDING_DIM)"
+            - "$(ORACLE_AUTOMATE_EMBEDDING_DIM)"
             - "--agents-md"
             - "/etc/oracle-automate/AGENTS.md"
             # Read-only by default; the write-enabled Deployment lives

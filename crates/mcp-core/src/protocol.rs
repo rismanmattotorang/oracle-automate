@@ -345,7 +345,7 @@ pub struct SetLevelParams {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogMessageParams {
     pub level: LogLevel,
-    /// Optional name of the emitting logger (e.g. `"sap.table.read"`).
+    /// Optional name of the emitting logger (e.g. `"oracle.object.read"`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logger: Option<String>,
     /// Arbitrary JSON payload — usually a string or a structured object.

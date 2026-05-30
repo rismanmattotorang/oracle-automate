@@ -12,7 +12,7 @@ WORKDIR /src
 
 # Install the few system deps the workspace needs:
 #  - pkg-config + libssl for reqwest's rustls fallback path
-#  - ca-certificates for outbound HTTPS to SAP / OpenAI
+#  - ca-certificates for outbound HTTPS to Oracle Fusion / OpenAI
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         pkg-config libssl-dev ca-certificates \

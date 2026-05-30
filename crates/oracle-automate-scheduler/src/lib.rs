@@ -219,7 +219,7 @@ mod tests {
         let toml = r#"
             [[jobs]]
             name = "atc_weekly"
-            tool = "sap.docs.search"
+            tool = "oracle.docs.search"
             channel = "teams:#fin-ops"
             arguments = { query = "ATC findings last week" }
             schedule = { kind = "weekly", weekday = 1, hour = 8, minute = 0 }

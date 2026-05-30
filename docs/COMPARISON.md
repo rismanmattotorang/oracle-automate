@@ -1,3 +1,9 @@
+> **⚠️ Provenance note.** This is the original *SAP-Automate* document, retained for
+> reference. The **authoritative plan and full SAP→Oracle mapping for the
+> oracle-automate port** is [`PORTING_STRATEGY.md`](PORTING_STRATEGY.md); the
+> correctness story is [`ORACLE_CORRECTNESS.md`](ORACLE_CORRECTNESS.md). Sections
+> below may still describe SAP specifics that the Oracle port supersedes.
+
 # Comparative analysis: Oracle-Automate vs. reference MCP servers
 
 Phase 2 of Oracle-Automate is informed by source-reading three production

@@ -1,5 +1,27 @@
 # Changelog
 
+## oracle-automate — port from SAP-Automate (2026-05)
+
+Ported the ParagonCorp SAP-Automate platform to **Oracle Fusion Cloud ERP** for
+**Kalbe**, in 8 phases (see [`docs/PORTING_STRATEGY.md`](docs/PORTING_STRATEGY.md)):
+
+- **P1** foundation/rebrand (sap-automate → oracle-automate, ParagonCorp → Kalbe).
+- **P2** core ERP crate → `oracle-automate-erp`: `ErpClient`, Fusion REST/FBDI/BIP
+  operation catalogue, Oracle object fixtures (`GL_JE_LINES`, `XLA_AE_LINES`,
+  `EGP_SYSTEM_ITEMS_B`, …), 7 Oracle-correctness invariants.
+- **P3** custom-code surface → `OracleArtifactKind` (OIC / Groovy / BIP / lookups).
+- **P4** retrieval `Domain` enum + Oracle seed corpus.
+- **P5** MCP surface re-namespaced (`oracle.*`, `oracle.oic.*`) + resources + prompts.
+- **P6** 13 skills, scheduler jobs, gateway routing → Oracle.
+- **P7** Ratatui TUI + Next.js web UI → Oracle.
+- **P8** deploy manifests, CI Oracle-correctness gate, docs.
+
+Apache-2.0, on-prem by default. The architecture, layering, and MCP/RAG
+engineering are ParagonCorp's; this port re-fits the ERP-domain layer for Oracle.
+
+---
+
+
 All notable changes to **Oracle-Automate** are documented here.  The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -17,8 +39,8 @@ secrets is unaffected (the live integration tests skip cleanly).
 ### Added — live transports
 
 - **ADT REST (live).** `HttpAdtClient` is now wired into the server via a
-  destination TOML selected with `--destination` / `SAP_AUTOMATE_DESTINATION`
-  (search path: `$SAP_AUTOMATE_DESTINATION_DIR`, `./.oracle-automate/destinations/`,
+  destination TOML selected with `--destination` / `ORACLE_AUTOMATE_DESTINATION`
+  (search path: `$ORACLE_AUTOMATE_DESTINATION_DIR`, `./.oracle-automate/destinations/`,
   `~/.config/oracle-automate/destinations/`).  `AdtDestination::load` +
   permission warnings on credential files.
 - **OData (tenant).** `BusinessHubClient` generalised beyond the sandbox:

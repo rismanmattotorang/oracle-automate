@@ -1,3 +1,9 @@
+> **⚠️ Provenance note.** This is the original *SAP-Automate* document, retained for
+> reference. The **authoritative plan and full SAP→Oracle mapping for the
+> oracle-automate port** is [`PORTING_STRATEGY.md`](PORTING_STRATEGY.md); the
+> correctness story is [`ORACLE_CORRECTNESS.md`](ORACLE_CORRECTNESS.md). Sections
+> below may still describe SAP specifics that the Oracle port supersedes.
+
 # Oracle-Automate Development Roadmap
 
 > **Status: v1.3.0 released — 2026-05-25.**  v1.0 paper phases ✅ complete; v1.1 shipped three convergence passes (skills + apps + KB/RAG/crawler); v1.2 filled in optional MCP 2025-06-18 spec utilities; v1.3 ships the Live SAP backend tier — `BusinessHubClient` against the SAP Business Accelerator Hub sandbox (OData v4, `API_BUSINESS_PARTNER`), with `sap.bp.search` / `sap.bp.get` MCP tools.  See [`CHANGELOG.md`](../CHANGELOG.md) for release notes and [`docs/INTEGRATION.md`](INTEGRATION.md) for the 3-tier integration strategy.

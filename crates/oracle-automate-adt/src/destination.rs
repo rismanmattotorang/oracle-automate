@@ -221,11 +221,11 @@ mod loader {
     impl AdtDestination {
         /// Candidate paths for a named destination, highest priority first:
         ///
-        /// 1. `$SAP_AUTOMATE_DESTINATION_DIR/<name>.toml`
+        /// 1. `$ORACLE_AUTOMATE_DESTINATION_DIR/<name>.toml`
         /// 2. `./.oracle-automate/destinations/<name>.toml` (project-local)
         /// 3. `$XDG_CONFIG_HOME` (or `~/.config`)`/oracle-automate/destinations/<name>.toml`
         pub fn config_search_paths(name: &str) -> Vec<PathBuf> {
-            let dir_override = std::env::var("SAP_AUTOMATE_DESTINATION_DIR")
+            let dir_override = std::env::var("ORACLE_AUTOMATE_DESTINATION_DIR")
                 .ok()
                 .filter(|s| !s.is_empty());
             let config_home = std::env::var("XDG_CONFIG_HOME")

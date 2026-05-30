@@ -165,7 +165,7 @@ pub struct ServerContext {
 
 impl ServerContext {
     fn capabilities(&self) -> ServerCapabilities {
-        let logging = if std::env::var_os("SAP_AUTOMATE_DISABLE_LOGGING_CAP").is_some() {
+        let logging = if std::env::var_os("ORACLE_AUTOMATE_DISABLE_LOGGING_CAP").is_some() {
             None
         } else {
             // Empty object signals "logging utility supported".

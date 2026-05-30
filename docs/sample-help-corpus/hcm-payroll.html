@@ -1,30 +1,31 @@
 <!doctype html>
 <html>
 <head>
-  <title>Payroll Run Execution - SAP Help Portal</title>
+  <title>Payroll Run Execution in Oracle HCM - Oracle Help Center</title>
   <meta name="module" content="HCM"/>
 </head>
 <body>
   <nav class="breadcrumb">
     <a>Human Capital Management</a> &gt; <a>Payroll</a> &gt; <a>Execution</a>
   </nav>
-  <h1>Payroll Run Execution</h1>
+  <h1>Payroll Run Execution in Oracle HCM</h1>
   <main>
     <p>
-      Execute the payroll run using transaction <code>PC00_M99_CALC</code>
-      or country-specific variants. The driver program reads infotypes
-      from tables PA0008 (basic pay), PA0014 (recurring payments), and
-      PA0015 (additional payments).
+      Run payroll with the <code>Calculate Payroll</code> flow (or a
+      country-specific flow). The process reads element entries and the
+      worker's salary, recurring, and one-time element values for the
+      payroll relationship.
     </p>
     <p>
-      Payroll results are stored in cluster B2 (table PCL2). Use
-      transaction <code>PC_PAYRESULT</code> to inspect a single
-      employee's wage type results for a payroll period.
+      Payroll results are stored as run results per element; use
+      <code>View Person Process Results</code> to inspect a single worker's
+      element results for a payroll period.
     </p>
     <p>
-      Post payroll results to FI/CO via transaction
-      <code>PC00_M99_CIPE</code>; the posting groups wage types into
-      symbolic accounts, which are mapped to G/L accounts in customising.
+      Transfer results to the General Ledger via <code>Transfer to
+      Subledger Accounting</code> and Create Accounting; payroll costing maps
+      element eligibility to accounts so the entries post to
+      <code>GL_JE_LINES</code>.
     </p>
   </main>
 </body>

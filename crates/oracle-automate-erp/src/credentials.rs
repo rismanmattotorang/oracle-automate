@@ -166,7 +166,7 @@ mod tests {
     #[tokio::test]
     async fn static_provider_returns_credentials() {
         let p = StaticCredentialProvider::new(Credentials {
-            ashost: "sap.example".into(),
+            ashost: "oracle.example".into(),
             sysnr: "00".into(),
             client: "100".into(),
             user: "DEMO".into(),

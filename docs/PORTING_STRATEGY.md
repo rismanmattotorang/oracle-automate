@@ -303,4 +303,35 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
   (`oracle-help`/`oic-int`/`process`/`appcat`/`oracle-rest`/`oracle-object`),
   sample queries, and prose Oracle-ized. **Verified: `cargo build`/`cargo test`
   green (208 tests); `tsc --noEmit` clean; `next build` succeeds (9 routes).**
-- _Subsequent phases (P8) update this section as they land._
+- **P8 — done (deploy, CI, docs).** Deploy: product env vars `SAP_AUTOMATE_*`→
+  `ORACLE_AUTOMATE_*` (code + manifests, consistent); secret template → Oracle
+  Fusion OAuth2/IDCS connection vars; networkpolicy egress → Fusion HTTPS;
+  Grafana panels, Dockerfile, k8s README, and the connection-template file
+  Oracle-ized (renamed `oracle-automate-connection.example.toml`,
+  `oracle-automate-overview.json`). **CI: fixed a latent break** — the precision
+  job referenced the pre-P2 crate (`oracle-automate-rfc`) and the old SAP test
+  names; now runs `oracle-automate-erp` with the 7 Oracle invariants (verified:
+  exactly 7 tests, all pass). Docs: `SAP_CORRECTNESS.md`→`ORACLE_CORRECTNESS.md`
+  (fresh, mapping each invariant to its Oracle source); the demo Help corpus
+  rewritten + renamed (`gl-period-close`, `inv-receiving`, `ar-billing`,
+  `hcm-payroll`); the long historical narrative docs (ROADMAP / COMPARISON /
+  INTEGRATION / RUNBOOK / PRODUCTION_PLAN) carry a provenance banner pointing to
+  this strategy + `ORACLE_CORRECTNESS.md` as authoritative; CHANGELOG records
+  the 8-phase port; TUI mock + remaining scheduler/observability/mcp-core test
+  fixtures Oracle-ized. **Workspace builds; 208 tests pass; 0 active SAP tool
+  references in code.**
+
+## 6. Port complete
+
+All eight phases (P0–P8) are landed, each build- and test-green. The agent, its
+operation/object catalogue, custom-code surface, retrieval corpus, MCP tool /
+resource / prompt surface, skills, scheduler, gateway, TUI, web UI, deploy
+manifests, CI gate, and docs all speak **Oracle Fusion Cloud ERP** for **Kalbe**.
+
+**Remaining (explicitly deferred, non-user-facing):** the live SOAP/OData/ADT
+HTTP transport is still the legacy SAP implementation (kept compiling, behind
+feature flags) pending a from-scratch rewrite against Oracle Fusion REST / SOAP
+ERP Integration / BI Publisher; and the internal cosmetic identifier renames
+(`Rfc*` request structs, `BapiRet2*`→`ErpMessage`, trait methods
+`get_program`→`get_integration`). Both are tracked here for a follow-up
+"live-transport" sub-phase.

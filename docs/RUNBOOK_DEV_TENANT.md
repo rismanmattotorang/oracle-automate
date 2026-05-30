@@ -1,3 +1,9 @@
+> **⚠️ Provenance note.** This is the original *SAP-Automate* document, retained for
+> reference. The **authoritative plan and full SAP→Oracle mapping for the
+> oracle-automate port** is [`PORTING_STRATEGY.md`](PORTING_STRATEGY.md); the
+> correctness story is [`ORACLE_CORRECTNESS.md`](ORACLE_CORRECTNESS.md). Sections
+> below may still describe SAP specifics that the Oracle port supersedes.
+
 # Runbook — connecting Oracle-Automate to a development S/4HANA tenant
 
 This is the end-to-end operator guide for pointing Oracle-Automate at a **real
@@ -51,10 +57,10 @@ XSUAA — `path` to the service-key JSON), or `certificate` (mTLS — `cert_path
 + `key_path`). Run and smoke-test:
 
 ```bash
-SAP_AUTOMATE_DESTINATION=dev-s4 ./target/release/oracle-automate-server
+ORACLE_AUTOMATE_DESTINATION=dev-s4 ./target/release/oracle-automate-server
 # logs: "ADT client: live HttpAdtClient against real SAP system"
 
-SAP_AUTOMATE_DESTINATION=dev-s4 \
+ORACLE_AUTOMATE_DESTINATION=dev-s4 \
   cargo test -p oracle-automate-server --test live_adt -- --nocapture
 ```
 

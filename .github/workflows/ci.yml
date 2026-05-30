@@ -63,17 +63,17 @@ jobs:
         run: cargo test --workspace --features oracle-automate-adt/http --no-fail-fast
 
   # ─────────────────────────────────────────────────────────────────────
-  # Phase 7 SAP precision tests run dedicated so a failure is visible.
+  # Oracle correctness invariants run dedicated so a failure is visible.
   # ─────────────────────────────────────────────────────────────────────
-  sap-precision:
-    name: SAP correctness invariants
+  oracle-correctness:
+    name: Oracle correctness invariants
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Run oracle-automate-rfc tests
-        run: cargo test -p oracle-automate-rfc --lib -- tests::every_write_bapi_has_bapiret2_in_tables tests::every_write_bapi_requires_commit tests::every_rfc_has_at_least_one_authorization_entry tests::every_table_has_client_as_first_key tests::material_number_is_char_40_per_s4hana tests::acdoca_is_present_and_marked_as_universal_journal tests::compatibility_views_carry_s4hana_storage_note
+      - name: Run oracle-automate-erp invariant tests
+        run: cargo test -p oracle-automate-erp --lib -- tests::every_write_op_returns_standard_result tests::every_bulk_write_uses_interface_then_import tests::every_op_declares_required_privilege tests::every_business_object_declares_scoping_id_key tests::item_number_is_varchar2_300_per_fusion tests::gl_je_lines_is_present_as_accounting_backbone tests::subledger_objects_note_xla_to_gl_transfer
 
   # ─────────────────────────────────────────────────────────────────────
   # Phase 3 acceptance gate: P95 retrieval < 80 ms.

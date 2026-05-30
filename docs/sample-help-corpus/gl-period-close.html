@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <title>Period-End Close in Oracle General Ledger - Oracle Help Center</title>
+  <meta name="module" content="GL"/>
+</head>
+<body>
+  <nav class="breadcrumb">
+    <a>Financials</a> &gt; <a>General Ledger</a> &gt; <a>Period Close</a>
+  </nav>
+  <h1>Period-End Close in Oracle General Ledger</h1>
+  <main>
+    <p>
+      The period-end close in Oracle General Ledger consists of closing the
+      subledgers, running Create Accounting and Transfer Journal Entries to GL,
+      executing balance revaluation for foreign-currency balances, opening and
+      closing accounting periods, and reviewing the close monitor and trial
+      balance.
+    </p>
+    <p>
+      Use <code>Manage Accounting Periods</code> to control which accounting
+      periods are open for each ledger; the status is held in
+      <code>GL_PERIOD_STATUSES.CLOSING_STATUS</code> (O=open, C=closed,
+      P=permanently closed, F=future).
+    </p>
+    <p>
+      Foreign-currency revaluation is run via the <code>Revalue Balances</code>
+      scheduled process; it revalues open balances at the period-end rate and
+      posts the unrealised gains and losses to the configured accounts.
+    </p>
+    <p>
+      Subledger detail in <code>XLA_AE_LINES</code> is rolled into
+      <code>GL_JE_LINES</code> by Transfer to GL; confirm everything has
+      transferred before closing the period.
+    </p>
+  </main>
+</body>
+</html>

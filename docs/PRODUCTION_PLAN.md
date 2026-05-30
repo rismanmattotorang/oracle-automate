@@ -1,3 +1,9 @@
+> **⚠️ Provenance note.** This is the original *SAP-Automate* document, retained for
+> reference. The **authoritative plan and full SAP→Oracle mapping for the
+> oracle-automate port** is [`PORTING_STRATEGY.md`](PORTING_STRATEGY.md); the
+> correctness story is [`ORACLE_CORRECTNESS.md`](ORACLE_CORRECTNESS.md). Sections
+> below may still describe SAP specifics that the Oracle port supersedes.
+
 # Oracle-Automate — Production Readiness Assessment & Sprint Plan
 
 > **Goal of this document:** get the codebase to a state where it can be
@@ -119,7 +125,7 @@ dev-tenant result by end of Sprint 1.
 ### Sprint 0 — Foundations & dev-tenant access (prep) — ✅ DONE
 **Shipped:** destination TOML loader (`AdtDestination::load` / `load_from_path`
 / `config_search_paths`, behind the `http` feature), `--destination` CLI flag
-+ `SAP_AUTOMATE_DESTINATION` env, secret-free `AdtAuth::label()`, credential
++ `ORACLE_AUTOMATE_DESTINATION` env, secret-free `AdtAuth::label()`, credential
 files gitignored, `deploy/oracle-automate-destination.example.toml` template, and
 4 offline loader unit tests (incl. a password-non-leak assertion). The one
 outstanding Sprint-0 item — obtaining real dev-tenant connection details from
@@ -130,7 +136,7 @@ Basis — is an organisational dependency, not code.
   method) from Basis. Confirm network reachability from the runtime.
 - Implement/finish the **destination TOML loader** (`~/.config/oracle-automate/
   destinations/<name>.toml`) behind the `http` feature; document the schema.
-- Add `SAP_AUTOMATE_DESTINATION` env + `--destination <name>` CLI plumbing
+- Add `ORACLE_AUTOMATE_DESTINATION` env + `--destination <name>` CLI plumbing
   (no behavior change yet — still defaults to mock).
 - Secrets: never log credentials; confirm redaction covers the new fields.
 - **Skills:** `init`, `session-start-hook`, `update-config`.
@@ -141,7 +147,7 @@ Basis — is an organisational dependency, not code.
 in `main.rs`) — a non-mock destination builds the live client instead of the
 mock; the "Phase 7" stub path is gone. `manual_div_ceil` clippy fix in the
 ADT base64 helper. Secret-gated `tests/live_adt.rs` (skips without
-`SAP_AUTOMATE_DESTINATION`, so CI stays green). Verified end-to-end against the
+`ORACLE_AUTOMATE_DESTINATION`, so CI stays green). Verified end-to-end against the
 binary: missing destination errors cleanly, a basic-auth destination logs the
 live HttpAdtClient path and serves `/health`, an `auth=mock` destination falls
 back safely. **Remaining:** point it at the real dev tenant and confirm
@@ -153,7 +159,7 @@ back safely. **Remaining:** point it at the real dev tenant and confirm
 - Wire `HttpAdtClient` selection into `main.rs`/`context.rs` when the chosen
   destination's auth ≠ `Mock` (remove the "Phase 7" stub path).
 - Add a **secret-gated live integration test** (mirrors the gated Business
-  Hub test pattern) that auto-skips without `SAP_AUTOMATE_DESTINATION`.
+  Hub test pattern) that auto-skips without `ORACLE_AUTOMATE_DESTINATION`.
 - **Skills:** `deep-research` → `autopilot` → `verify`, then `code-review`.
 - **Gate:** with a real destination set, `abap.adt.get_class` + `where_used`
   return live data; without it, suite still green.

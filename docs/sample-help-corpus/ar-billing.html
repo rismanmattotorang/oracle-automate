@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <title>Billing and AutoInvoice in Oracle Receivables - Oracle Help Center</title>
+  <meta name="module" content="AR"/>
+</head>
+<body>
+  <nav class="breadcrumb">
+    <a>Financials</a> &gt; <a>Receivables</a> &gt; <a>Billing</a>
+  </nav>
+  <h1>Billing and AutoInvoice in Oracle Receivables</h1>
+  <main>
+    <p>
+      Transaction sources feed billing lines into the AutoInvoice interface;
+      the <code>Import AutoInvoice</code> scheduled process validates and
+      creates the receivables transactions (invoices, credit memos, debit
+      memos).
+    </p>
+    <p>
+      Each completed transaction generates accounting in Subledger Accounting
+      (<code>XLA_AE_LINES</code>) under the Receivables event model, which
+      transfers to <code>GL_JE_LINES</code> via Create Accounting.
+    </p>
+    <p>
+      The bill-to and ship-to customers are TCA parties; revenue recognition
+      and tax are derived from the transaction line and the party's account
+      profile.
+    </p>
+  </main>
+</body>
+</html>

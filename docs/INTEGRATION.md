@@ -1,3 +1,9 @@
+> **⚠️ Provenance note.** This is the original *SAP-Automate* document, retained for
+> reference. The **authoritative plan and full SAP→Oracle mapping for the
+> oracle-automate port** is [`PORTING_STRATEGY.md`](PORTING_STRATEGY.md); the
+> correctness story is [`ORACLE_CORRECTNESS.md`](ORACLE_CORRECTNESS.md). Sections
+> below may still describe SAP specifics that the Oracle port supersedes.
+
 # Oracle-Automate — SAP S/4HANA integration testing
 
 Oracle-Automate supports three tiers of SAP integration, picked by what
@@ -206,7 +212,7 @@ For full RFC + ADT against a real ABAP system on your own hardware:
    this; less may run but degrades severely.
 3. Initial start-up takes 10–20 minutes on first run.
 4. Point `HttpAdtClient` at the system by creating a **destination file**
-   and selecting it with `--destination` (or `SAP_AUTOMATE_DESTINATION`):
+   and selecting it with `--destination` (or `ORACLE_AUTOMATE_DESTINATION`):
 
    ```bash
    mkdir -p ./.oracle-automate/destinations
@@ -214,11 +220,11 @@ For full RFC + ADT against a real ABAP system on your own hardware:
       ./.oracle-automate/destinations/dev-s4.toml
    # edit base_url / client / [auth] (e.g. DEVELOPER + container password)
 
-   SAP_AUTOMATE_DESTINATION=dev-s4 ./target/release/oracle-automate-server
+   ORACLE_AUTOMATE_DESTINATION=dev-s4 ./target/release/oracle-automate-server
    # logs: "ADT client: live HttpAdtClient against real SAP system"
    ```
 
-   Search order: `$SAP_AUTOMATE_DESTINATION_DIR`,
+   Search order: `$ORACLE_AUTOMATE_DESTINATION_DIR`,
    `./.oracle-automate/destinations/`, `~/.config/oracle-automate/destinations/`.
    The destination file holds credentials — `.oracle-automate/destinations/`
    is gitignored and the server never logs the password/token.
@@ -226,7 +232,7 @@ For full RFC + ADT against a real ABAP system on your own hardware:
    Smoke-test the live path (auto-skips without a destination):
 
    ```bash
-   SAP_AUTOMATE_DESTINATION=dev-s4 \
+   ORACLE_AUTOMATE_DESTINATION=dev-s4 \
      cargo test -p oracle-automate-server --test live_adt -- --nocapture
    ```
 
