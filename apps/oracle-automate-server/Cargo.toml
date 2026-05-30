@@ -1,0 +1,46 @@
+[package]
+name = "oracle-automate-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Oracle-Automate MCP server binary (Phase 1)."
+
+[lib]
+name = "oracle_automate_server_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "oracle-automate-server"
+path = "src/main.rs"
+
+[dependencies]
+mcp-core = { workspace = true }
+mcp-server = { workspace = true }
+mcp-transport = { workspace = true, features = ["http"] }
+oracle-automate-kb = { workspace = true }
+oracle-automate-rag = { workspace = true }
+oracle-automate-ingest = { workspace = true }
+oracle-automate-rfc = { workspace = true, features = ["odata", "soap"] }
+# `http` enables the live HttpAdtClient + destination TOML loader.  The
+# binary already links reqwest (via rfc/odata + mcp-transport/http), so this
+# adds no meaningful dependency surface and keeps the live-wiring code under
+# CI/clippy coverage.  Runtime still defaults to the offline mock unless
+# --destination selects a real SAP system.
+oracle-automate-adt = { workspace = true, features = ["http"] }
+oracle-automate-skills = { workspace = true }
+oracle-automate-graph = { workspace = true }
+oracle-automate-observability = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+clap = { workspace = true }
+
+[dev-dependencies]
+mcp-client = { workspace = true }
+mcp-transport = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }

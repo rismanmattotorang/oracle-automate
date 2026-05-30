@@ -1,0 +1,15 @@
+/target
+**/*.rs.bk
+Cargo.lock.bak
+.DS_Store
+*.swp
+.env
+.env.local
+node_modules/
+.next/
+dist/
+.turbo/
+.eslintcache
+# Live SAP destination files hold credentials — never commit them.
+.oracle-automate/destinations/
+*.destination.toml

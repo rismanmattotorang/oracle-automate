@@ -1,0 +1,22 @@
+[package]
+name = "oracle-automate-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Phase 3 acceptance harness: P50/P95/P99 latency over the pilot corpus."
+
+[[bin]]
+name = "oracle-automate-bench"
+path = "src/main.rs"
+
+[dependencies]
+oracle-automate-kb = { workspace = true }
+oracle-automate-rag = { workspace = true }
+oracle-automate-ingest = { workspace = true }
+oracle-automate-graph = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }

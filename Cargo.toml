@@ -1,0 +1,92 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/mcp-core",
+    "crates/mcp-transport",
+    "crates/mcp-server",
+    "crates/mcp-client",
+    "crates/oracle-automate-kb",
+    "crates/oracle-automate-rag",
+    "crates/oracle-automate-connectors",
+    "crates/oracle-automate-skills",
+    "crates/oracle-automate-memory",
+    "crates/oracle-automate-ingest",
+    "crates/oracle-automate-rfc",
+    "crates/oracle-automate-adt",
+    "crates/oracle-automate-graph",
+    "crates/oracle-automate-scheduler",
+    "crates/oracle-automate-channels",
+    "crates/oracle-automate-observability",
+    "apps/oracle-automate-server",
+    "apps/oracle-automate-ingest",
+    "apps/oracle-automate-bench",
+    "apps/oracle-automate-tui",
+    "apps/oracle-automate-gw",
+    "apps/sample-server",
+    "apps/sample-client",
+]
+
+[workspace.package]
+version = "1.4.0"
+edition = "2021"
+rust-version = "1.80"
+license = "Apache-2.0"
+repository = "https://github.com/rismanmattotorang/oracle-automate"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+futures = "0.3"
+async-trait = "0.1"
+pin-project-lite = "0.2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Errors / utility
+thiserror = "1"
+anyhow = "1"
+
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Internal crates
+mcp-core = { path = "crates/mcp-core" }
+mcp-transport = { path = "crates/mcp-transport" }
+mcp-server = { path = "crates/mcp-server" }
+mcp-client = { path = "crates/mcp-client" }
+oracle-automate-kb = { path = "crates/oracle-automate-kb" }
+oracle-automate-rag = { path = "crates/oracle-automate-rag" }
+oracle-automate-connectors = { path = "crates/oracle-automate-connectors" }
+oracle-automate-skills = { path = "crates/oracle-automate-skills" }
+oracle-automate-memory = { path = "crates/oracle-automate-memory" }
+oracle-automate-ingest = { path = "crates/oracle-automate-ingest" }
+oracle-automate-rfc = { path = "crates/oracle-automate-rfc" }
+oracle-automate-adt = { path = "crates/oracle-automate-adt" }
+oracle-automate-graph = { path = "crates/oracle-automate-graph" }
+oracle-automate-scheduler = { path = "crates/oracle-automate-scheduler" }
+oracle-automate-channels = { path = "crates/oracle-automate-channels" }
+oracle-automate-observability = { path = "crates/oracle-automate-observability" }
+axum = "0.7"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+quick-xml = { version = "0.36", features = ["serialize"] }
+toml = "0.8"
+ratatui = "0.28"
+crossterm = "0.28"
+
+# HTTP / web (Phase 1A)
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "cookies"] }
+url = "2"
+scraper = "0.20"
+sha2 = "0.10"
+hex = "0.4"
+clap = { version = "4", features = ["derive"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: oracle-automate
+  labels:
+    name: oracle-automate
+    app.kubernetes.io/part-of: oracle-automate
