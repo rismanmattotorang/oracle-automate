@@ -5,6 +5,7 @@
 //! no cold-start seeding cost.
 
 pub mod context;
+pub mod metrics;
 pub mod prompts;
 pub mod resources;
 pub mod seed;

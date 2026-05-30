@@ -30,6 +30,25 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased] — Production readiness
 
+### Added — Phase 10: observability & SLOs
+
+See [`docs/SLO.md`](docs/SLO.md) for the SLI/SLO definitions.
+
+- **Fixed dead metrics:** the Prometheus registry was registered but never
+  recorded into (the dispatch path didn't touch it), so `/metrics` emitted only
+  `HELP`/`TYPE` lines. The HTTP dispatch closure now records per-tool
+  `mcp_tool_calls_total`, `mcp_tool_errors_total`, `mcp_tool_latency_seconds`,
+  and `oracle_authz_denied_total` via a unit-tested classifier
+  (`oracle-automate-server`'s `metrics` module).
+- **Oracle-native metric names:** `sap_rfc_calls_total` → `oracle_rest_calls_total`,
+  `sap_authz_denied_total` → `oracle_authz_denied_total`, `sap_pool_in_use` →
+  `oracle_pool_in_use` (registry, tests, Grafana board).
+- **SLOs + alerts:** `deploy/prometheus/alerts.yaml` (PrometheusRule: error-ratio
+  + P95 recording rules; availability / latency / error-rate / authz-spike
+  alerts with multi-window burn) and `deploy/prometheus/servicemonitor.yaml`.
+- **`docs/SLO.md`** — SLIs, SLO targets + error budgets, security signals.
+- Suite: **210 → 216 tests**. OTLP trace export remains a follow-up.
+
 ### Security — Phase 8: credential / transport hardening
 
 See [`SECURITY.md`](SECURITY.md) for the full posture and secure-deploy checklist.

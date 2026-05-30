@@ -1,0 +1,82 @@
+# Oracle-Automate — SLO alert + recording rules (Prometheus Operator CRD).
+#
+# Apply with the Prometheus Operator (kube-prometheus-stack). Rules act on the
+# series the server now records per tool call (Phase 10): mcp_tool_calls_total,
+# mcp_tool_errors_total, mcp_tool_latency_seconds, oracle_authz_denied_total.
+#
+# SLO targets (see docs/SLO.md):
+#   - Availability  : 99.9% (scrape `up`)
+#   - Latency       : P95 tool latency < 80 ms
+#   - Error rate    : tool error ratio < 1%
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: oracle-automate-slo
+  labels:
+    app.kubernetes.io/name: oracle-automate
+    role: alert-rules
+spec:
+  groups:
+    # ---- Recording rules: precompute the SLIs the dashboards/alerts use -----
+    - name: oracle-automate.sli
+      interval: 30s
+      rules:
+        - record: job:oracle_automate_tool_error_ratio:rate5m
+          expr: |
+            sum(rate(mcp_tool_errors_total[5m]))
+              /
+            clamp_min(sum(rate(mcp_tool_calls_total[5m])), 1)
+        - record: job:oracle_automate_tool_latency_p95_seconds:5m
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum(rate(mcp_tool_latency_seconds_bucket[5m])) by (le)
+            )
+
+    # ---- Alerting rules -----------------------------------------------------
+    - name: oracle-automate.slo
+      rules:
+        - alert: OracleAutomateDown
+          expr: up{job=~"oracle-automate.*"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Oracle-Automate target is down"
+            description: "Prometheus has not scraped {{ $labels.instance }} for 5m (availability SLO 99.9%)."
+
+        - alert: OracleAutomateHighErrorRate
+          expr: job:oracle_automate_tool_error_ratio:rate5m > 0.01
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Tool error ratio above 1% SLO"
+            description: "5m tool error ratio is {{ $value | humanizePercentage }} (SLO < 1%)."
+
+        - alert: OracleAutomateHighErrorRatePage
+          expr: job:oracle_automate_tool_error_ratio:rate5m > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Tool error ratio above 5% (fast burn)"
+            description: "5m tool error ratio is {{ $value | humanizePercentage }} — error budget burning fast."
+
+        - alert: OracleAutomateLatencySLOBreach
+          expr: job:oracle_automate_tool_latency_p95_seconds:5m > 0.08
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "P95 tool latency above the 80 ms SLO"
+            description: "P95 tool latency is {{ $value }}s over 5m (SLO < 0.080s)."
+
+        - alert: OracleAutomateAuthzDenialSpike
+          expr: sum(increase(oracle_authz_denied_total[5m])) > 20
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Spike in read-only-gate denials"
+            description: "{{ $value }} authz denials in 5m — a misconfigured client or a probe against write tools."

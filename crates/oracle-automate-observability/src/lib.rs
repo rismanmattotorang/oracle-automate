@@ -5,7 +5,7 @@
 //!   - **`metrics`**: Prometheus-compatible counter + histogram registry.
 //!     Named per paper §IV-H: `mcp_tool_latency_seconds`,
 //!     `rag_retrieval_latency_seconds`, `kb_index_freshness_seconds`,
-//!     `sap_rfc_calls_total`, `sap_authz_denied_total`.
+//!     `oracle_rest_calls_total`, `oracle_authz_denied_total`.
 //!
 //!   - **`audit`**: Append-only audit log for state-mutating tool
 //!     invocations.  Required for SOX evidence trails over FI postings,

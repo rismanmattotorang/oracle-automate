@@ -343,9 +343,9 @@ async fn main() -> anyhow::Result<()> {
                 .map_err(|e| anyhow::anyhow!("invalid --bind '{}': {e}", cli.bind))?;
             tracing::info!(bind = %bind, "HTTP transport binding");
 
-            // Build the Prometheus metrics registry.  Names follow paper
-            // §IV-H (mcp_tool_latency_seconds, rag_retrieval_latency_seconds,
-            // sap_rfc_calls_total, sap_authz_denied_total).
+            // Build the Prometheus metrics registry.  Tool calls are recorded
+            // per dispatch (see the wrapped closure below) so /metrics carries
+            // real series for the SLO dashboards + alerts in deploy/.
             let metrics = Arc::new(MetricsRegistry::new());
             metrics.register(
                 "mcp_tool_latency_seconds",
@@ -373,19 +373,19 @@ async fn main() -> anyhow::Result<()> {
                 "Total chunks currently indexed",
             );
             metrics.register(
-                "sap_pool_in_use",
+                "oracle_pool_in_use",
                 MetricKind::Gauge,
-                "SAP connection pool slots currently in use",
+                "Oracle connection pool slots currently in use",
             );
             metrics.register(
-                "sap_authz_denied_total",
+                "oracle_authz_denied_total",
                 MetricKind::Counter,
-                "Calls denied by the read-only safety gate",
+                "Tool calls denied by the read-only safety gate, by tool",
             );
             metrics.register(
-                "sap_rfc_calls_total",
+                "oracle_rest_calls_total",
                 MetricKind::Counter,
-                "REST operation calls dispatched to SAP, grouped by function and outcome",
+                "Oracle Fusion REST operation calls dispatched, grouped by function and outcome",
             );
 
             let metrics_for_render = Arc::clone(&metrics);
@@ -393,6 +393,7 @@ async fn main() -> anyhow::Result<()> {
                 Arc::new(move || metrics_for_render.render());
 
             let dispatch_server = server.clone();
+            let metrics_for_dispatch = Arc::clone(&metrics);
             let handle = HttpServerTransport::serve(
                 HttpServerConfig {
                     bind,
@@ -402,7 +403,23 @@ async fn main() -> anyhow::Result<()> {
                 },
                 move |msg| {
                     let server = dispatch_server.clone();
-                    async move { server.dispatch_message(msg).await }
+                    let metrics = Arc::clone(&metrics_for_dispatch);
+                    async move {
+                        // Record per-tool calls/latency/errors so the SLO
+                        // dashboards + alerts have real data (Phase 10).
+                        let tool = oracle_automate_server_lib::metrics::tool_name(&msg);
+                        let started = std::time::Instant::now();
+                        let resp = server.dispatch_message(msg).await;
+                        if let Some(tool) = tool {
+                            oracle_automate_server_lib::metrics::record(
+                                &metrics,
+                                &tool,
+                                started.elapsed().as_secs_f64(),
+                                &resp,
+                            );
+                        }
+                        resp
+                    }
                 },
             )
             .await?;

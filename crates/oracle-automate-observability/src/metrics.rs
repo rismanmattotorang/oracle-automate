@@ -323,26 +323,26 @@ mod tests {
     fn counter_increments_and_renders() {
         let r = MetricsRegistry::new();
         r.register(
-            "sap_rfc_calls_total",
+            "oracle_rest_calls_total",
             MetricKind::Counter,
             "Total REST operation calls",
         );
         r.inc_counter(
-            "sap_rfc_calls_total",
+            "oracle_rest_calls_total",
             &[("function", "BAPI_MATERIAL_GET_DETAIL")],
         );
         r.inc_counter(
-            "sap_rfc_calls_total",
+            "oracle_rest_calls_total",
             &[("function", "BAPI_MATERIAL_GET_DETAIL")],
         );
         r.inc_counter(
-            "sap_rfc_calls_total",
+            "oracle_rest_calls_total",
             &[("function", "a BI Publisher extract")],
         );
         let out = r.render();
-        assert!(out.contains("# TYPE sap_rfc_calls_total counter"));
-        assert!(out.contains("sap_rfc_calls_total{function=\"BAPI_MATERIAL_GET_DETAIL\"} 2"));
-        assert!(out.contains("sap_rfc_calls_total{function=\"a BI Publisher extract\"} 1"));
+        assert!(out.contains("# TYPE oracle_rest_calls_total counter"));
+        assert!(out.contains("oracle_rest_calls_total{function=\"BAPI_MATERIAL_GET_DETAIL\"} 2"));
+        assert!(out.contains("oracle_rest_calls_total{function=\"a BI Publisher extract\"} 1"));
     }
 
     #[test]
@@ -383,12 +383,12 @@ mod tests {
     #[test]
     fn gauge_replaces_value() {
         let r = MetricsRegistry::new();
-        r.register("sap_pool_in_use", MetricKind::Gauge, "Pool slots in use");
-        r.set_gauge("sap_pool_in_use", &[], 5.0);
-        r.set_gauge("sap_pool_in_use", &[], 3.0);
+        r.register("oracle_pool_in_use", MetricKind::Gauge, "Pool slots in use");
+        r.set_gauge("oracle_pool_in_use", &[], 5.0);
+        r.set_gauge("oracle_pool_in_use", &[], 3.0);
         let out = r.render();
-        assert!(out.contains("sap_pool_in_use 3"));
-        assert!(!out.contains("sap_pool_in_use 5"));
+        assert!(out.contains("oracle_pool_in_use 3"));
+        assert!(!out.contains("oracle_pool_in_use 5"));
     }
 
     #[test]

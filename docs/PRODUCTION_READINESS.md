@@ -276,11 +276,37 @@ write-enabled run against a real pod. Full posture + checklist in
 - **Gate:** ✅ 210 offline tests; `SECURITY.md` + secure-deploy checklist
   published; no behaviour change to the default path.
 
+### Phase 10 — Observability & SLOs ✅ DONE
+**Goal:** real, alertable telemetry — not metrics that are registered but never
+recorded. Definitions in [`SLO.md`](SLO.md).
+
+**Shipped:**
+- **Closed the core gap:** the Prometheus registry was registered but *never
+  recorded into* (the dispatch path didn't touch it), so `/metrics` emitted only
+  `HELP`/`TYPE` lines. The HTTP dispatch closure now records per-tool
+  `mcp_tool_calls_total`, `mcp_tool_errors_total`, `mcp_tool_latency_seconds`,
+  and `oracle_authz_denied_total` — via a unit-tested classifier
+  (`server_lib::metrics`).
+- **Oracle-native metric names:** renamed the stale `sap_*` metrics
+  (`sap_rfc_calls_total` → `oracle_rest_calls_total`, `sap_authz_denied_total` →
+  `oracle_authz_denied_total`, `sap_pool_in_use` → `oracle_pool_in_use`) across
+  registry, tests, and the Grafana board.
+- **SLOs + alerts:** `deploy/prometheus/alerts.yaml` (PrometheusRule) — recording
+  rules for the error-ratio + P95 SLIs, and alerts for availability (`up`),
+  P95 > 80 ms, error ratio > 1% (warn) / > 5% (page, fast burn), and authz-denial
+  spikes. `deploy/prometheus/servicemonitor.yaml` scrapes `/metrics`.
+- **`docs/SLO.md`:** SLIs, SLO targets + error budgets, multi-window burn,
+  security signals, and what is not yet an SLI.
+- **Skills:** `code-review`; dashboard refresh.
+- **Gate:** ✅ `/metrics` carries real per-tool series (unit-tested); 216 tests;
+  YAML validated.
+- **Follow-up:** an OpenTelemetry (OTLP) trace exporter on the existing
+  `tracing` spans is the remaining observability item.
+
 > **Remaining phases to production** (tracked in the project plan): **7** live
 > dev-pod validation (🔒 needs an Oracle pod + IDCS app), **9** perf/resilience
-> tuning, **10** observability/SLOs, **11** real retrieval quality (needs an
-> embedding endpoint), **12** CD/release plumbing. Phases 10 and 12 are
-> unblocked and can proceed now.
+> tuning, **11** real retrieval quality (needs an embedding endpoint), **12**
+> CD/release plumbing. Phase 12 is unblocked and can proceed now.
 
 ---
 

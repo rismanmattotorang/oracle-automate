@@ -74,7 +74,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
       "targets": [
-        { "refId": "A", "expr": "sum(rate(sap_rfc_calls_total[5m]))", "legendFormat": "rfc/s" }
+        { "refId": "A", "expr": "sum(rate(oracle_rest_calls_total[5m]))", "legendFormat": "rfc/s" }
       ]
     },
     {
@@ -85,7 +85,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
-        { "refId": "A", "expr": "sum(rate(sap_authz_denied_total[5m]))", "legendFormat": "denied/s" }
+        { "refId": "A", "expr": "sum(rate(oracle_authz_denied_total[5m]))", "legendFormat": "denied/s" }
       ]
     },
     {
@@ -96,7 +96,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
-        { "refId": "A", "expr": "sap_pool_in_use", "legendFormat": "in use" }
+        { "refId": "A", "expr": "oracle_pool_in_use", "legendFormat": "in use" }
       ]
     }
   ]
