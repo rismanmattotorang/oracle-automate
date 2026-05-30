@@ -1,6 +1,6 @@
 //! Agentic skill library.
 //!
-//! Convergent pattern from `SAP/mdk-mcp-server` (AGENTS.md), `fr0ster/mcp-abap-adt`
+//! Convergent pattern from `a reference guardrails design` (AGENTS.md), `a reference exposure-policy design`
 //! (handler dedup / role-based filtering), and the `marianfoo/sap-ai-mcp-servers`
 //! catalogue (CAP Agentic Engineered Skills, ARC-1 SAP Skills, RAP Skills):
 //!

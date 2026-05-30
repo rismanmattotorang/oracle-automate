@@ -36,7 +36,7 @@ pub struct AuditEntry {
     pub actor: Option<String>,
     /// MCP tool name (e.g. "oracle.workflow.create_purchase_order").
     pub tool: String,
-    /// SAP system identity (SID + client) at call time.
+    /// ERP environment identity (SID + client) at call time.
     pub erp_system: Option<String>,
     /// Tool arguments — REDACTED to keep secrets / PII out of the log.
     /// The redactor strips known sensitive keys (`password`, `token`,

@@ -1,7 +1,7 @@
 //! Live Oracle Fusion Cloud ERP transport over REST/JSON.
 //!
 //! Oracle Fusion is REST/JSON-homogeneous, so a single client replaces the
-//! two heterogeneous SAP live clients (SOAP RFC + Business-Hub OData) the
+//! two heterogeneous SAP live clients (SOAP + OData) the
 //! original platform shipped:
 //!
 //! - [`HttpFusionClient`] implements [`ErpClient`] against the Fusion REST

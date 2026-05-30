@@ -173,9 +173,9 @@ mod tests {
             "expected 2..=12 communities, got {}", result.communities.len());
 
         // The FI cluster (program + class + interface + concept + journal
-        // BAPI + Help page) should not all be in 6 different communities.
-        let fi_nodes = ["abap:ZFIN_POST_JE", "abap:ZCL_FIN_POSTER",
-                        "rfc:BAPI_ACC_DOCUMENT_POST", "concept:journal_entry",
+        // REST operation + Help page) should not all be in 6 different communities.
+        let fi_nodes = ["integration:KLB_GL_JOURNAL_IMPORT",
+                        "rest:journalEntries.post", "concept:journal_entry",
                         "concept:period_close", "help:FI/period-close"];
         let comms: std::collections::HashSet<u32> = fi_nodes.iter()
             .filter_map(|n| result.membership.get(*n).copied())

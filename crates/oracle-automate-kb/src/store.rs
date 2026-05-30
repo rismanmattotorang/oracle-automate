@@ -235,7 +235,7 @@ impl InMemoryKb {
 
     /// BM25 sparse retrieval with classical (k1=1.5, b=0.75) tuning.
     /// Paper §VII-C / VII-D: tuned for the SAP corpus where exact-match
-    /// retrieval of transaction codes and ABAP identifiers matters as much
+    /// retrieval of transaction codes and OIC/custom-code identifiers matters as much
     /// as semantic similarity.
     async fn bm25_search(&self, query: &SearchQuery) -> Result<Vec<SearchHit>, StoreError> {
         const K1: f32 = 1.5;

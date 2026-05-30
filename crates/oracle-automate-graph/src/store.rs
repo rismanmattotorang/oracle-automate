@@ -1,6 +1,6 @@
-//! In-memory graph store seeded with realistic cross-domain SAP fixtures.
+//! In-memory graph store seeded with realistic cross-domain Oracle Fusion fixtures.
 //!
-//! The same fixtures the RFC + ADT + KB mocks expose, but stitched into
+//! The same fixtures the REST operation + ADT + KB mocks expose, but stitched into
 //! one graph so multi-hop traversal demos are meaningful offline.
 //!
 //! Example dependency chain (encoded below):
@@ -11,13 +11,13 @@
 //!               ↓includes
 //!           `ZFIN_TOP`, `ZFIN_F01`
 //!       ↓calls
-//!     `BAPI_ACC_DOCUMENT_POST` (RFC)
+//!     `BAPI_ACC_DOCUMENT_POST` (REST operation)
 //!       ↓reads_table
 //!     `T001`, `T001B`
 //!       ↓describes
 //!     `Concept: period_close`
 //!       ←contained_in← `BPMN: Order-to-Cash`
-//!       ←depends_on← `LeanIX: S/4HANA Finance`
+//!       ←depends_on← `LeanIX: Oracle Fusion Cloud ERP Finance`
 
 use crate::entity::{Edge, EdgeKind, Entity, EntityKind, NodeId};
 use serde::{Deserialize, Serialize};
@@ -43,7 +43,7 @@ pub struct GraphStats {
 impl InMemoryGraph {
     pub fn new() -> Self { Self::default() }
 
-    /// Seed with the cross-domain SAP fixture set.  Idempotent.
+    /// Seed with the cross-domain Oracle fixture set.  Idempotent.
     pub fn with_demo_corpus() -> Self {
         let mut g = Self::new();
         g.seed();
@@ -124,131 +124,125 @@ impl InMemoryGraph {
             });
         };
 
-        // ABAP objects
-        add(self, "abap:ZFIN_POST_JE", EntityKind::AbapObject, "ZFIN_POST_JE",
-            "ABAP report that posts FI journal entries via BAPI_ACC_DOCUMENT_POST.",
-            Some("abap-obj://ZFIN/ZFIN_POST_JE"), &["module:FI", "package:ZFIN", "kind:program"]);
-        add(self, "abap:ZCL_FIN_POSTER", EntityKind::AbapObject, "ZCL_FIN_POSTER",
-            "Helper class implementing ZIF_FIN_POSTABLE.",
-            Some("abap-obj://ZFIN/ZCL_FIN_POSTER"), &["module:FI", "package:ZFIN", "kind:class"]);
-        add(self, "abap:ZIF_FIN_POSTABLE", EntityKind::AbapObject, "ZIF_FIN_POSTABLE",
-            "FI posting contract interface.",
-            Some("abap-obj://ZFIN/ZIF_FIN_POSTABLE"), &["module:FI", "package:ZFIN", "kind:interface"]);
-        add(self, "abap:ZFIN_TOP", EntityKind::AbapObject, "ZFIN_TOP",
-            "Global data definitions for ZFIN programs.",
-            Some("abap-obj://ZFIN/ZFIN_TOP"), &["module:FI", "package:ZFIN", "kind:include"]);
-        add(self, "abap:ZFIN_F01", EntityKind::AbapObject, "ZFIN_F01",
-            "Form routines for FI posting.",
-            Some("abap-obj://ZFIN/ZFIN_F01"), &["module:FI", "package:ZFIN", "kind:include"]);
-        add(self, "abap:ZMM_GRN_CHECK", EntityKind::AbapObject, "ZMM_GRN_CHECK",
-            "Goods receipt reconciliation.",
-            Some("abap-obj://ZMM/ZMM_GRN_CHECK"), &["module:MM", "package:ZMM", "kind:program"]);
+        // OIC integrations / custom-code artifacts
+        add(self, "integration:KLB_GL_JOURNAL_IMPORT", EntityKind::Integration, "KLB_GL_JOURNAL_IMPORT",
+            "OIC integration that posts GL journals via FBDI (journalEntries / importBulkData).",
+            Some("oic-int://KLB/KLB_GL_JOURNAL_IMPORT"), &["module:FIN", "project:KLB_FINANCE_INTEGRATIONS", "kind:integration"]);
+        add(self, "integration:KLB_PO_RECEIPT_SYNC", EntityKind::Integration, "KLB_PO_RECEIPT_SYNC",
+            "OIC integration that syncs warehouse receipts to Fusion Receiving.",
+            Some("oic-int://KLB/KLB_PO_RECEIPT_SYNC"), &["module:SCM", "project:KLB_FINANCE_INTEGRATIONS", "kind:integration"]);
+        add(self, "integration:KLB_INVOICE_HOLD_RULE", EntityKind::Integration, "KLB_INVOICE_HOLD_RULE",
+            "Application Composer Groovy rule that holds high-value AP invoices.",
+            Some("oic-int://KLB/KLB_INVOICE_HOLD_RULE"), &["module:FIN", "kind:groovy_script"]);
+        add(self, "integration:KLB_FUSION_ERP_REST", EntityKind::Integration, "KLB_FUSION_ERP_REST",
+            "OIC connection to Oracle Fusion Cloud ERP REST.",
+            Some("oic-int://KLB/KLB_FUSION_ERP_REST"), &["kind:connection"]);
+        add(self, "integration:KLB_COMPANY_XREF", EntityKind::Integration, "KLB_COMPANY_XREF",
+            "DVM lookup: legacy company code -> Fusion ledger.",
+            Some("oic-int://KLB/KLB_COMPANY_XREF"), &["kind:lookup"]);
 
-        // RFCs
-        add(self, "rfc:BAPI_ACC_DOCUMENT_POST", EntityKind::Rfc, "BAPI_ACC_DOCUMENT_POST",
-            "Post an accounting document (FI journal entry).",
-            Some("sap-rfc://BAPI_ACC_DOCUMENT_POST"), &["module:FI", "group:FBAS"]);
-        add(self, "rfc:BAPI_GOODSMVT_CREATE", EntityKind::Rfc, "BAPI_GOODSMVT_CREATE",
-            "Post a goods movement (MM).",
-            Some("sap-rfc://BAPI_GOODSMVT_CREATE"), &["module:MM"]);
-        add(self, "rfc:BAPI_MATERIAL_GET_DETAIL", EntityKind::Rfc, "BAPI_MATERIAL_GET_DETAIL",
-            "Read material master detail.",
-            Some("sap-rfc://BAPI_MATERIAL_GET_DETAIL"), &["module:MM", "group:MGV3"]);
-        add(self, "rfc:BAPI_SALESORDER_CREATEFROMDAT2", EntityKind::Rfc, "BAPI_SALESORDER_CREATEFROMDAT2",
-            "Create a sales order.",
-            Some("sap-rfc://BAPI_SALESORDER_CREATEFROMDAT2"), &["module:SD"]);
+        // Oracle Fusion REST operations
+        add(self, "rest:journalEntries.post", EntityKind::RestOperation, "fusion.gl.journalEntries.post",
+            "Create and post a GL journal entry via Fusion REST.",
+            Some("oracle-rest://fusion.gl.journalEntries.post"), &["module:FIN"]);
+        add(self, "rest:receivingReceiptRequests.post", EntityKind::RestOperation, "fusion.inv.receivingReceiptRequests.post",
+            "Create a receiving receipt (goods receipt against a PO).",
+            Some("oracle-rest://fusion.inv.receivingReceiptRequests.post"), &["module:SCM"]);
+        add(self, "rest:itemsV2.get", EntityKind::RestOperation, "fusion.scm.itemsV2.get",
+            "Read Product Hub item master detail.",
+            Some("oracle-rest://fusion.scm.itemsV2.get"), &["module:SCM"]);
+        add(self, "rest:salesOrdersForOrderHub.post", EntityKind::RestOperation, "fusion.doo.salesOrdersForOrderHub.post",
+            "Import a sales order into Order Management.",
+            Some("oracle-rest://fusion.doo.salesOrdersForOrderHub.post"), &["module:SCM"]);
 
-        // Tables
-        add(self, "tab:T001", EntityKind::Table, "T001",
-            "Company codes.", Some("sap-table://T001/structure"), &["module:FI"]);
-        add(self, "tab:T001B", EntityKind::Table, "T001B",
-            "Posting periods.", Some("sap-table://T001B/structure"), &["module:FI"]);
-        add(self, "tab:MARA", EntityKind::Table, "MARA",
-            "General material data.", Some("sap-table://MARA/structure"), &["module:MM"]);
-        add(self, "tab:VBAK", EntityKind::Table, "VBAK",
-            "Sales document header.", Some("sap-table://VBAK/structure"), &["module:SD"]);
-        add(self, "tab:BSEG", EntityKind::Table, "BSEG",
-            "Accounting document segment.", Some("sap-table://BSEG/structure"), &["module:FI"]);
-        add(self, "tab:FAGLFLEXA", EntityKind::Table, "FAGLFLEXA",
-            "Actual line items of general ledger.", Some("sap-table://FAGLFLEXA/structure"), &["module:FI"]);
+        // Oracle data objects
+        add(self, "obj:GL_LEDGERS", EntityKind::DataObject, "GL_LEDGERS",
+            "General Ledger ledgers.", Some("oracle-object://GL_LEDGERS/structure"), &["module:FIN"]);
+        add(self, "obj:GL_PERIOD_STATUSES", EntityKind::DataObject, "GL_PERIOD_STATUSES",
+            "Accounting period open/close status.", Some("oracle-object://GL_PERIOD_STATUSES/structure"), &["module:FIN"]);
+        add(self, "obj:EGP_SYSTEM_ITEMS_B", EntityKind::DataObject, "EGP_SYSTEM_ITEMS_B",
+            "Product Hub item master.", Some("oracle-object://EGP_SYSTEM_ITEMS_B/structure"), &["module:SCM"]);
+        add(self, "obj:DOO_HEADERS_ALL", EntityKind::DataObject, "DOO_HEADERS_ALL",
+            "Order Management order header.", Some("oracle-object://DOO_HEADERS_ALL/structure"), &["module:SCM"]);
+        add(self, "obj:GL_JE_LINES", EntityKind::DataObject, "GL_JE_LINES",
+            "GL journal entry lines (accounting backbone).", Some("oracle-object://GL_JE_LINES/structure"), &["module:FIN"]);
+        add(self, "obj:XLA_AE_LINES", EntityKind::DataObject, "XLA_AE_LINES",
+            "Subledger Accounting lines.", Some("oracle-object://XLA_AE_LINES/structure"), &["module:FIN"]);
 
-        // BPMN processes
-        add(self, "bpmn:P2P-001", EntityKind::BpmnProcess, "Procure-to-Pay (P2P)",
-            "Purchase requisition through invoice verification.",
-            Some("bpmn-proc://core/P2P-001"), &["process:p2p"]);
-        add(self, "bpmn:O2C-002", EntityKind::BpmnProcess, "Order-to-Cash (O2C)",
-            "Sales order through cash application.",
-            Some("bpmn-proc://core/O2C-002"), &["process:o2c"]);
+        // Process models
+        add(self, "proc:P2P-001", EntityKind::ProcessModel, "Procure-to-Pay (P2P)",
+            "Requisition through receiving, invoice match, and payment.",
+            Some("process://core/P2P-001"), &["process:p2p"]);
+        add(self, "proc:O2C-002", EntityKind::ProcessModel, "Order-to-Cash (O2C)",
+            "Order capture through fulfillment, billing, and receipt.",
+            Some("process://core/O2C-002"), &["process:o2c"]);
 
-        // LeanIX apps
-        add(self, "leanix:FS-12001", EntityKind::LeanixApp, "S/4HANA Finance",
-            "Finance application running general ledger, AP, AR.",
-            Some("leanix-fs://FS-12001"), &["lifecycle:active"]);
-        add(self, "leanix:FS-08823", EntityKind::LeanixApp, "Legacy Billing Engine",
-            "Phase-out billing engine.", Some("leanix-fs://FS-08823"), &["lifecycle:phase_out"]);
+        // Application-catalog entries
+        add(self, "appcat:FS-12001", EntityKind::AppCatalogEntry, "Oracle Financials Cloud",
+            "Financials application: general ledger, payables, receivables.",
+            Some("appcat://FS-12001"), &["lifecycle:active"]);
+        add(self, "appcat:FS-08823", EntityKind::AppCatalogEntry, "Legacy Billing Engine",
+            "Phase-out billing engine (replaced by Oracle Receivables).",
+            Some("appcat://FS-08823"), &["lifecycle:phase_out"]);
 
-        // Help pages
-        add(self, "help:FI/period-close", EntityKind::HelpPage, "Period-End Close in SAP FI",
-            "Procedure for FI period-end close.", Some("sap-help://FI/period-close"), &["module:FI"]);
-        add(self, "help:MM/goods-movement", EntityKind::HelpPage, "Goods Movement Posting",
-            "Procedure for MM goods movements.", Some("sap-help://MM/goods-movement"), &["module:MM"]);
+        // Oracle Help Center pages
+        add(self, "help:GL/period-close", EntityKind::HelpPage, "Period-End Close in Oracle General Ledger",
+            "Procedure for GL period-end close.", Some("oracle-help://GL/period-close"), &["module:FIN"]);
+        add(self, "help:INV/receiving", EntityKind::HelpPage, "Receiving Receipts",
+            "Procedure for receiving receipts.", Some("oracle-help://INV/receiving"), &["module:SCM"]);
 
         // Concepts (cross-domain hubs)
         add(self, "concept:period_close", EntityKind::Concept, "Period Close",
-            "FI period-end close: open/close posting periods, foreign currency revaluation, reconciliation.",
-            None, &["module:FI"]);
-        add(self, "concept:goods_movement", EntityKind::Concept, "Goods Movement",
-            "Posting goods receipts, issues, and transfer postings against material master.",
-            None, &["module:MM"]);
+            "GL period-end close: close subledgers, transfer XLA to GL, revalue, close period.",
+            None, &["module:FIN"]);
+        add(self, "concept:receiving", EntityKind::Concept, "Receiving",
+            "Receiving goods against a purchase order; creates accrual accounting events.",
+            None, &["module:SCM"]);
         add(self, "concept:journal_entry", EntityKind::Concept, "Journal Entry",
-            "Accounting document posting that creates FI documents.",
-            None, &["module:FI"]);
+            "Accounting entry that posts to GL_JE_LINES (and, from a subledger, XLA_AE_LINES).",
+            None, &["module:FIN"]);
 
         // Edges
         let edges: Vec<(&str, &str, EdgeKind, f32)> = vec![
-            // ABAP class implements interface
-            ("abap:ZCL_FIN_POSTER", "abap:ZIF_FIN_POSTABLE", EdgeKind::Implements, 1.0),
-            // Program uses class
-            ("abap:ZFIN_POST_JE", "abap:ZCL_FIN_POSTER", EdgeKind::Calls, 1.0),
-            // Program includes data + form
-            ("abap:ZFIN_POST_JE", "abap:ZFIN_TOP", EdgeKind::Includes, 1.0),
-            ("abap:ZFIN_POST_JE", "abap:ZFIN_F01", EdgeKind::Includes, 1.0),
-            // Class + program call RFC
-            ("abap:ZCL_FIN_POSTER", "rfc:BAPI_ACC_DOCUMENT_POST", EdgeKind::Calls, 2.0),
-            ("abap:ZFIN_POST_JE",   "rfc:BAPI_ACC_DOCUMENT_POST", EdgeKind::Calls, 1.0),
-            ("abap:ZMM_GRN_CHECK",  "rfc:BAPI_GOODSMVT_CREATE",   EdgeKind::Calls, 1.0),
-            // RFC reads tables
-            ("rfc:BAPI_ACC_DOCUMENT_POST", "tab:T001",     EdgeKind::ReadsTable, 1.0),
-            ("rfc:BAPI_ACC_DOCUMENT_POST", "tab:T001B",    EdgeKind::ReadsTable, 1.0),
-            ("rfc:BAPI_ACC_DOCUMENT_POST", "tab:BSEG",     EdgeKind::WritesTable, 1.0),
-            ("rfc:BAPI_ACC_DOCUMENT_POST", "tab:FAGLFLEXA",EdgeKind::WritesTable, 1.0),
-            ("rfc:BAPI_GOODSMVT_CREATE",   "tab:MARA",     EdgeKind::ReadsTable, 1.0),
-            ("rfc:BAPI_SALESORDER_CREATEFROMDAT2", "tab:VBAK", EdgeKind::WritesTable, 1.0),
-            // BPMN depends on RFCs
-            ("bpmn:P2P-001", "rfc:BAPI_GOODSMVT_CREATE",        EdgeKind::DependsOn, 1.0),
-            ("bpmn:P2P-001", "rfc:BAPI_ACC_DOCUMENT_POST",      EdgeKind::DependsOn, 1.0),
-            ("bpmn:O2C-002", "rfc:BAPI_SALESORDER_CREATEFROMDAT2", EdgeKind::DependsOn, 1.0),
-            ("bpmn:O2C-002", "rfc:BAPI_ACC_DOCUMENT_POST",      EdgeKind::DependsOn, 1.0),
-            // LeanIX apps depend on tables
-            ("leanix:FS-12001", "tab:BSEG",     EdgeKind::DependsOn, 1.0),
-            ("leanix:FS-12001", "tab:FAGLFLEXA",EdgeKind::DependsOn, 1.0),
-            ("leanix:FS-12001", "tab:T001",     EdgeKind::DependsOn, 1.0),
-            ("leanix:FS-08823", "tab:VBAK",     EdgeKind::DependsOn, 1.0),
-            // Concepts describe entities (the cross-domain hubs)
-            ("concept:period_close",   "help:FI/period-close",   EdgeKind::Describes, 2.0),
-            ("concept:period_close",   "tab:T001B",              EdgeKind::Describes, 2.0),
-            ("concept:period_close",   "tab:FAGLFLEXA",          EdgeKind::Describes, 1.5),
-            ("concept:period_close",   "leanix:FS-12001",        EdgeKind::Describes, 1.0),
-            ("concept:journal_entry",  "rfc:BAPI_ACC_DOCUMENT_POST", EdgeKind::Describes, 2.0),
-            ("concept:journal_entry",  "tab:BSEG",               EdgeKind::Describes, 1.5),
-            ("concept:journal_entry",  "abap:ZFIN_POST_JE",      EdgeKind::Describes, 1.5),
-            ("concept:goods_movement", "help:MM/goods-movement", EdgeKind::Describes, 2.0),
-            ("concept:goods_movement", "rfc:BAPI_GOODSMVT_CREATE", EdgeKind::Describes, 2.0),
-            ("concept:goods_movement", "abap:ZMM_GRN_CHECK",     EdgeKind::Describes, 1.0),
-            // Help pages reference tables / RFCs
-            ("help:FI/period-close",   "tab:T001B",                  EdgeKind::References, 1.0),
-            ("help:FI/period-close",   "tab:FAGLFLEXA",              EdgeKind::References, 1.0),
-            ("help:MM/goods-movement", "rfc:BAPI_GOODSMVT_CREATE",   EdgeKind::References, 1.0),
+            // Integrations invoke REST operations + use connection/lookup
+            ("integration:KLB_GL_JOURNAL_IMPORT", "rest:journalEntries.post", EdgeKind::Calls, 2.0),
+            ("integration:KLB_GL_JOURNAL_IMPORT", "integration:KLB_FUSION_ERP_REST", EdgeKind::Calls, 1.0),
+            ("integration:KLB_GL_JOURNAL_IMPORT", "integration:KLB_COMPANY_XREF", EdgeKind::References, 1.0),
+            ("integration:KLB_PO_RECEIPT_SYNC", "rest:receivingReceiptRequests.post", EdgeKind::Calls, 1.0),
+            ("integration:KLB_PO_RECEIPT_SYNC", "integration:KLB_FUSION_ERP_REST", EdgeKind::Calls, 1.0),
+            // REST operations read / write data objects
+            ("rest:journalEntries.post", "obj:GL_LEDGERS",          EdgeKind::ReadsTable, 1.0),
+            ("rest:journalEntries.post", "obj:GL_PERIOD_STATUSES",  EdgeKind::ReadsTable, 1.0),
+            ("rest:journalEntries.post", "obj:GL_JE_LINES",         EdgeKind::WritesTable, 1.0),
+            ("rest:journalEntries.post", "obj:XLA_AE_LINES",        EdgeKind::WritesTable, 1.0),
+            ("rest:itemsV2.get",         "obj:EGP_SYSTEM_ITEMS_B",  EdgeKind::ReadsTable, 1.0),
+            ("rest:salesOrdersForOrderHub.post", "obj:DOO_HEADERS_ALL", EdgeKind::WritesTable, 1.0),
+            ("rest:receivingReceiptRequests.post", "obj:XLA_AE_LINES", EdgeKind::WritesTable, 1.0),
+            // Process models depend on REST operations
+            ("proc:P2P-001", "rest:receivingReceiptRequests.post", EdgeKind::DependsOn, 1.0),
+            ("proc:P2P-001", "rest:journalEntries.post",           EdgeKind::DependsOn, 1.0),
+            ("proc:O2C-002", "rest:salesOrdersForOrderHub.post",   EdgeKind::DependsOn, 1.0),
+            ("proc:O2C-002", "rest:journalEntries.post",           EdgeKind::DependsOn, 1.0),
+            // App-catalog entries depend on data objects
+            ("appcat:FS-12001", "obj:GL_JE_LINES",  EdgeKind::DependsOn, 1.0),
+            ("appcat:FS-12001", "obj:XLA_AE_LINES", EdgeKind::DependsOn, 1.0),
+            ("appcat:FS-12001", "obj:GL_LEDGERS",   EdgeKind::DependsOn, 1.0),
+            ("appcat:FS-08823", "obj:DOO_HEADERS_ALL", EdgeKind::DependsOn, 1.0),
+            // Concepts describe entities (cross-domain hubs)
+            ("concept:period_close",  "help:GL/period-close",   EdgeKind::Describes, 2.0),
+            ("concept:period_close",  "obj:GL_PERIOD_STATUSES", EdgeKind::Describes, 2.0),
+            ("concept:period_close",  "obj:GL_JE_LINES",        EdgeKind::Describes, 1.5),
+            ("concept:period_close",  "appcat:FS-12001",        EdgeKind::Describes, 1.0),
+            ("concept:journal_entry", "rest:journalEntries.post", EdgeKind::Describes, 2.0),
+            ("concept:journal_entry", "obj:GL_JE_LINES",        EdgeKind::Describes, 1.5),
+            ("concept:journal_entry", "integration:KLB_GL_JOURNAL_IMPORT", EdgeKind::Describes, 1.5),
+            ("concept:receiving",     "help:INV/receiving",     EdgeKind::Describes, 2.0),
+            ("concept:receiving",     "rest:receivingReceiptRequests.post", EdgeKind::Describes, 2.0),
+            ("concept:receiving",     "integration:KLB_PO_RECEIPT_SYNC", EdgeKind::Describes, 1.0),
+            // Help pages reference data objects / operations
+            ("help:GL/period-close",  "obj:GL_PERIOD_STATUSES", EdgeKind::References, 1.0),
+            ("help:GL/period-close",  "obj:GL_JE_LINES",        EdgeKind::References, 1.0),
+            ("help:INV/receiving",    "rest:receivingReceiptRequests.post", EdgeKind::References, 1.0),
         ];
         let mut seen: HashSet<(NodeId, NodeId, EdgeKind)> = HashSet::new();
         for (from, to, kind, weight) in edges {
@@ -273,15 +267,15 @@ mod tests {
         assert!(stats.node_count >= 20, "expected >= 20 nodes, got {}", stats.node_count);
         assert!(stats.edge_count >= 25, "expected >= 25 edges, got {}", stats.edge_count);
         // The period_close concept should reach LeanIX FS-12001 in two hops:
-        // concept:period_close → tab:FAGLFLEXA ← leanix:FS-12001
-        assert!(g.outbound("concept:period_close").iter().any(|(n, _, _)| n == "tab:FAGLFLEXA"));
-        assert!(g.inbound("tab:FAGLFLEXA").iter().any(|(n, _, _)| n == "leanix:FS-12001"));
+        // concept:period_close → obj:GL_JE_LINES ← appcat:FS-12001
+        assert!(g.outbound("concept:period_close").iter().any(|(n, _, _)| n == "obj:GL_JE_LINES"));
+        assert!(g.inbound("obj:GL_JE_LINES").iter().any(|(n, _, _)| n == "appcat:FS-12001"));
     }
 
     #[test]
     fn find_seeds_locates_relevant_entities() {
         let g = InMemoryGraph::with_demo_corpus();
-        let seeds = g.find_seeds("period close FAGLFLEXA", 5);
-        assert!(seeds.iter().any(|s| s == "concept:period_close" || s == "tab:FAGLFLEXA" || s == "help:FI/period-close"));
+        let seeds = g.find_seeds("period close GL_JE_LINES", 5);
+        assert!(seeds.iter().any(|s| s == "concept:period_close" || s == "obj:GL_JE_LINES" || s == "help:GL/period-close"));
     }
 }

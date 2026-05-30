@@ -42,7 +42,7 @@ fn note(severity: ErpSeverity, text: &str) -> ErpMessage {
     }
 }
 
-/// Issue `BAPI_TRANSACTION_ROLLBACK`, returning whether it was *confirmed*
+/// Issue `the EBS rollback op`, returning whether it was *confirmed*
 /// and any messages (including a synthetic warning when it couldn't be
 /// confirmed, so a `rolled_back: true` is never reported on faith).
 async fn rollback(client: &dyn ErpClient) -> (bool, Vec<ErpMessage>) {
@@ -67,22 +67,22 @@ pub struct WriteOutcome {
     pub function: String,
     /// Whether the LUW was committed (true) — i.e. the change is persisted.
     pub committed: bool,
-    /// Whether a rollback was issued (because the BAPI or the commit failed).
+    /// Whether a rollback was issued (because the REST operation or the commit failed).
     pub rolled_back: bool,
-    /// Combined BAPIRET2 messages from the BAPI and the commit.
+    /// Combined FND return stack messages from the REST operation and the commit.
     pub messages: Vec<ErpMessage>,
-    /// The raw BAPI result (export/tables), for the caller to mine for the
+    /// The raw REST operation result (export/tables), for the caller to mine for the
     /// resulting document number etc.
     pub result: Value,
 }
 
-/// True if any message indicates the BAPI failed (so we must NOT commit).
+/// True if any message indicates the REST operation failed (so we must NOT commit).
 /// Unknown severities count as failures — fail-closed (see `erp_result`).
 pub fn has_failure(messages: &[ErpMessage]) -> bool {
     messages.iter().any(ErpMessage::is_failure)
 }
 
-/// Execute a write BAPI and finish its LUW with commit-or-rollback.
+/// Execute a write REST operation and finish its LUW with commit-or-rollback.
 ///
 /// `read_only_mode` mirrors the server's safety flag; when true this refuses
 /// to run at all.  The underlying `call_operation` still applies the client's own
@@ -101,7 +101,7 @@ pub async fn execute_write_bapi(
     if request.function == COMMIT_FN || request.function == ROLLBACK_FN {
         return Err(ErpError::InvalidParameter {
             name: "function".into(),
-            reason: "commit/rollback are issued automatically; call the business BAPI instead"
+            reason: "commit/rollback are issued automatically; call the business REST operation instead"
                 .into(),
         });
     }
@@ -116,16 +116,16 @@ pub async fn execute_write_bapi(
         return Ok(WriteOutcome { function, committed: false, rolled_back, messages, result });
     }
 
-    // FAIL-CLOSED: if the BAPI returned no parseable BAPIRET2 at all, we have
+    // FAIL-CLOSED: if the REST operation returned no parseable FND return stack at all, we have
     // no positive confirmation of success — do NOT commit on faith.  Roll
-    // back and report the outcome as unconfirmed (a BAPI that genuinely
+    // back and report the outcome as unconfirmed (a REST operation that genuinely
     // returns zero rows on success is rare; the safe default for a write
     // gate is to refuse to persist an unverified change).
     if messages.is_empty() {
         let (rolled_back, rb_msgs) = rollback(client).await;
         let mut out = vec![note(
             ErpSeverity::Warning,
-            "BAPI returned no BAPIRET2; outcome unconfirmed — not committed",
+            "REST operation returned no FND return stack; outcome unconfirmed — not committed",
         )];
         out.extend(rb_msgs);
         return Ok(WriteOutcome { function, committed: false, rolled_back, messages: out, result });
@@ -220,7 +220,7 @@ mod tests {
 
     #[tokio::test]
     async fn empty_bapiret2_is_fail_closed_not_committed() {
-        // The mock returns no BAPIRET2, which is an *unconfirmed* outcome —
+        // The mock returns no FND return stack, which is an *unconfirmed* outcome —
         // the gate must NOT commit it.
         let client = MockErpClient::new(2, json!({"client": "100"}));
         let req = ErpCallRequest {
@@ -234,7 +234,7 @@ mod tests {
         assert!(outcome.messages.iter().any(|m| m.text.contains("unconfirmed")));
     }
 
-    // A scripted client that returns a canned BAPIRET2 for the business BAPI
+    // A scripted client that returns a canned FND return stack for the business REST operation
     // and a clean success for commit/rollback, so the commit/rollback
     // decision can be exercised deterministically.
     struct ScriptedClient {

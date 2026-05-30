@@ -198,7 +198,7 @@ fn graph_workload_queries() -> Vec<String> {
         "objects that touch goods movement".into(),
         "what does the O2C process call".into(),
         "from ZMM_GRN_CHECK to material master".into(),
-        "S/4HANA Finance dependencies".into(),
+        "Oracle Fusion Cloud ERP Finance dependencies".into(),
     ]
 }
 
@@ -216,7 +216,7 @@ fn workload_queries() -> Vec<String> {
         "BAPI_ACC_DOCUMENT_POST journal entry".into(),
         "FAGLFLEXA BSEG reconciliation".into(),
         "material master MARA MTART".into(),
-        "ATC quality scan ABAP test cockpit".into(),
+        "ATC quality scan OIC/custom-code test cockpit".into(),
         "what is the difference between FB60 and FB70".into(),
         "MIGO movement types 122 return delivery".into(),
         "general ledger account determination posting".into(),

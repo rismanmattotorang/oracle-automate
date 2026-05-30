@@ -307,7 +307,7 @@ pub struct GetPromptResult {
 // Logging (server utilities — logging)
 // ----------------------------------------------------------------------------
 
-/// RFC 5424 severity levels.  The MCP spec uses these names verbatim.
+/// REST operation 5424 severity levels.  The MCP spec uses these names verbatim.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {

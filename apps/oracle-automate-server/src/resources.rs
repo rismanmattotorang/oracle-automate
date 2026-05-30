@@ -83,7 +83,7 @@ fn make_cache_stats(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
         resource: Resource {
             uri: "oracle-cache://stats".into(),
             name: "REST operation-metadata cache stats".into(),
-            description: Some("Live hit/miss counters for the REST operation-metadata cache (thupalo/sap-rfc-mcp-server pattern). JSON.".into()),
+            description: Some("Live hit/miss counters for the REST operation-metadata cache (a reference REST-metadata-cache design pattern). JSON.".into()),
             mime_type: Some("application/json".into()),
         },
         handler: Arc::new(H(Arc::clone(ctx))),
@@ -204,7 +204,7 @@ fn make_rfc_meta(ctx: &Arc<ServerContext>, function: &str) -> ResourceDescriptor
     ResourceDescriptor {
         resource: Resource {
             uri: format!("oracle-rest://{function}"),
-            name: format!("RFC metadata: {function}"),
+            name: format!("REST operation metadata: {function}"),
             description: Some(format!("Parameter signature and read-only flag for {function}.")),
             mime_type: Some("application/json".into()),
         },

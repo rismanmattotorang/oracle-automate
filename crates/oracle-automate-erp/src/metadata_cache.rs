@@ -1,6 +1,6 @@
-//! In-memory TTL cache for RFC metadata — `thupalo/sap-rfc-mcp-server` pattern.
+//! In-memory TTL cache for REST operation metadata — `a reference REST-metadata-cache design` pattern.
 //!
-//! `thupalo/sap-rfc-mcp-server` reports ~1–5 ms cached metadata reads vs
+//! `a reference REST-metadata-cache design` reports ~1–5 ms cached metadata reads vs
 //! ~200–500 ms direct calls.  For Oracle-Automate the same pattern is a
 //! decorator over any [`ErpClient`]: it intercepts `operation_metadata` and
 //! `bulk_operation_metadata`, serves hits from a key-`(function, language)`

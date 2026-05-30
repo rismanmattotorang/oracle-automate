@@ -275,14 +275,14 @@ mod tests {
     #[test]
     fn counter_increments_and_renders() {
         let r = MetricsRegistry::new();
-        r.register("sap_rfc_calls_total", MetricKind::Counter, "Total RFC calls");
+        r.register("sap_rfc_calls_total", MetricKind::Counter, "Total REST operation calls");
         r.inc_counter("sap_rfc_calls_total", &[("function", "BAPI_MATERIAL_GET_DETAIL")]);
         r.inc_counter("sap_rfc_calls_total", &[("function", "BAPI_MATERIAL_GET_DETAIL")]);
-        r.inc_counter("sap_rfc_calls_total", &[("function", "RFC_READ_TABLE")]);
+        r.inc_counter("sap_rfc_calls_total", &[("function", "a BI Publisher extract")]);
         let out = r.render();
         assert!(out.contains("# TYPE sap_rfc_calls_total counter"));
         assert!(out.contains("sap_rfc_calls_total{function=\"BAPI_MATERIAL_GET_DETAIL\"} 2"));
-        assert!(out.contains("sap_rfc_calls_total{function=\"RFC_READ_TABLE\"} 1"));
+        assert!(out.contains("sap_rfc_calls_total{function=\"a BI Publisher extract\"} 1"));
     }
 
     #[test]

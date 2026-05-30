@@ -45,7 +45,7 @@ use context::ServerContext;
 #[derive(Parser, Clone)]
 #[command(
     name = "oracle-automate-server",
-    about = "Oracle-Automate MCP server with RAG + RFC tools, resources, and prompts.",
+    about = "Oracle-Automate MCP server with RAG + REST operation tools, resources, and prompts.",
     version,
 )]
 struct Cli {
@@ -70,7 +70,7 @@ struct Cli {
 
     /// ADT destination *label* for the offline MockOicClient (cosmetic;
     /// shows up in the `oic-connection://info` resource).  Ignored when
-    /// `--destination` selects a live SAP system.
+    /// `--destination` selects a live Oracle pod.
     #[arg(long)]
     adt_destination: Option<String>,
 
@@ -85,7 +85,7 @@ struct Cli {
 
     /// Transport: "stdio" (default) or "http".  HTTP mode binds to
     /// --bind and accepts JSON-RPC POSTs at /mcp plus SSE at /mcp/events
-    /// (paper §IV-C; convergent pattern from fr0ster/mcp-abap-adt).
+    /// (paper §IV-C; convergent pattern from a reference exposure-policy design).
     #[arg(long, default_value = "stdio")]
     transport: String,
 
@@ -105,7 +105,7 @@ struct Cli {
     #[arg(long = "allowed-origin", num_args = 1)]
     allowed_origins: Vec<String>,
 
-    /// TTL in seconds for the RFC metadata cache (thupalo/sap-rfc-mcp-server
+    /// TTL in seconds for the REST metadata cache (a reference REST-metadata-cache design
     /// pattern).  `0` disables caching — every `oracle.rest.metadata` and
     /// `oracle.rest.bulk_metadata` call falls through to the backend.
     /// Default 300 (5 minutes) matches the inter-transport-import horizon
@@ -185,7 +185,7 @@ async fn main() -> anyhow::Result<()> {
     let metadata_cache = MetadataCache::new(inner_sap_client.clone(), cache_ttl);
     tracing::info!(
         cache_ttl_secs = cli.metadata_cache_ttl_secs,
-        "RFC metadata cache active (thupalo pattern)"
+        "REST metadata cache active (metadata-cache pattern)"
     );
 
     // ERP backend: a live Oracle Fusion REST transport when
@@ -328,7 +328,7 @@ async fn main() -> anyhow::Result<()> {
             metrics.register("sap_authz_denied_total", MetricKind::Counter,
                 "Calls denied by the read-only safety gate");
             metrics.register("sap_rfc_calls_total", MetricKind::Counter,
-                "RFC calls dispatched to SAP, grouped by function and outcome");
+                "REST operation calls dispatched to SAP, grouped by function and outcome");
 
             let metrics_for_render = Arc::clone(&metrics);
             let render: mcp_transport::http::MetricsRenderFn = Arc::new(move || {
@@ -375,11 +375,11 @@ fn build_server(ctx: Arc<ServerContext>, agents_md: &Option<String>, read_only: 
     // Existing RAG tools (Phase 1 + 1A) — all read-only.
     for desc in tools::rag_tools(&ctx) { builder = builder.tool(desc); }
 
-    // RFC + table tools (Phase 2).
+    // REST operation + table tools (Phase 2).
     for desc in tools::sap_tools(&ctx) { builder = builder.tool(desc); }
 
     // ADT tools (Phase 2 finalisation — informed by mario-andreschak +
-    // fr0ster/mcp-abap-adt).
+    // a reference exposure-policy design).
     for desc in tools::adt_tools(&ctx) { builder = builder.tool(desc); }
 
     // Graph tools (Phase 5A — GraphRAG + HippoRAG + RAPTOR).
@@ -405,9 +405,9 @@ fn build_instructions(agents_md: &Option<String>, read_only: bool) -> String {
     s.push_str(
         "Oracle-Automate MCP server (Phase 2 + ADT). Tool groups:\n\
          - RAG search: integration.search, bpmn.find_process, eam.search_apps, oracle.help.search, oracle.docs.search.\n\
-         - RFC + tables: oracle.system.info, oracle.system.health, oracle.system.cache_stats, oracle.system.cache_invalidate, oracle.rest.search, oracle.rest.metadata, oracle.rest.bulk_metadata, oracle.rest.call, oracle.object.read, oracle.object.structure.\n\
-         - ABAP ADT (read-only): oracle.oic.get_integration, oracle.oic.get_groovy_script, oracle.oic.get_ess_job, oracle.oic.get_connection, oracle.oic.get_lookup, oracle.oic.get_project_contents, oracle.oic.get_bip_report, oracle.oic.where_used, oracle.oic.search, oracle.oic.preview_data.\n\
-         - ABAP ADT (write): oracle.oic.activate (hidden in read-only mode).\n\
+         - REST operation + tables: oracle.system.info, oracle.system.health, oracle.system.cache_stats, oracle.system.cache_invalidate, oracle.rest.search, oracle.rest.metadata, oracle.rest.bulk_metadata, oracle.rest.call, oracle.object.read, oracle.object.structure.\n\
+         - OIC/custom-code ADT (read-only): oracle.oic.get_integration, oracle.oic.get_groovy_script, oracle.oic.get_ess_job, oracle.oic.get_connection, oracle.oic.get_lookup, oracle.oic.get_project_contents, oracle.oic.get_bip_report, oracle.oic.where_used, oracle.oic.search, oracle.oic.preview_data.\n\
+         - OIC/custom-code ADT (write): oracle.oic.activate (hidden in read-only mode).\n\
          Resources: oracle-erp://info, oracle-rest://{name}, oracle-object://{name}/structure, oic-connection://info, oracle-cache://stats, agents://guardrails.\n\
          Prompts: oracle.review-rest-call, oracle.sandbox-impact-analysis, oracle.review-where-used.\n",
     );

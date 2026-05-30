@@ -36,10 +36,10 @@ pub trait OicClient: Send + Sync {
     async fn search(&self, request: OicSearchRequest) -> OicResult<Vec<OicSearchHit>>;
     async fn where_used(&self, request: WhereUsedRequest) -> OicResult<Vec<WhereUsedHit>>;
 
-    /// Read table contents through the ADT Data Preview API.  On SAP BTP
+    /// Read table contents through the ADT Data Preview API.  On some Fusion pods
     /// this is blocked at the backend; the call returns
-    /// `OicError::DataPreviewBlocked` so the agent can fall back to RFC
-    /// (`sap.table.read`).
+    /// `OicError::DataPreviewBlocked` so the agent can fall back to REST operation
+    /// (`oracle.object.read`).
     async fn preview_data(&self, table: &str, max_rows: usize) -> OicResult<Vec<TableRow>>;
 
     // --- Write (gated by `ctx.read_only`) ---------------------------------

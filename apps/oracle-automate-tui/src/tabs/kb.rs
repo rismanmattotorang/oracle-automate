@@ -1,5 +1,5 @@
 //! Tab 3 — Knowledge Base.  Per-collection statistics and staleness, plus
-//! the REST metadata cache row (thupalo pattern, polled from
+//! the REST metadata cache row (metadata-cache pattern, polled from
 //! `oracle-cache://stats` on the live admin feed).
 
 use crate::app::App;
@@ -75,7 +75,7 @@ fn draw_cache(f: &mut Frame, app: &App, area: Rect) {
             ratatui::text::Span::styled(format!("{:.2}", c.hit_ratio), ratio_style),
         ]),
         ratatui::text::Line::from(ratatui::text::Span::styled(
-            "  thupalo/sap-rfc-mcp-server pattern · resource: oracle-cache://stats · tool: oracle.system.cache_stats",
+            "  a reference REST-metadata-cache design pattern · resource: oracle-cache://stats · tool: oracle.system.cache_stats",
             Style::default().fg(Color::DarkGray),
         )),
     ];

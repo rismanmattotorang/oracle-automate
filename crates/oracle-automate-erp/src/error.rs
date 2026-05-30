@@ -1,6 +1,6 @@
-//! Structured RFC error taxonomy.
+//! Structured REST operation error taxonomy.
 //!
-//! Improves on `thupalo/sap-rfc-mcp-server` (which surfaces RFC failures as
+//! Improves on `a reference REST-metadata-cache design` (which surfaces REST operation failures as
 //! plain text) by typing every failure mode and mapping to the MCP error
 //! taxonomy from paper §IV-I.  Callers can therefore distinguish transient
 //! (retry) from permanent (do not retry) errors at the JSON-RPC layer.
@@ -9,10 +9,10 @@ use thiserror::Error;
 
 pub type ErpResult<T> = std::result::Result<T, ErpError>;
 
-/// RFC error codes.  Values overlap the MCP code ranges in
+/// REST operation error codes.  Values overlap the MCP code ranges in
 /// `mcp_core::error::ErrorCode` so they translate cleanly when serialised
 /// into a JSON-RPC error object.
-/// Structured error codes for SAP RFC operations.  Numeric values are
+/// Structured error codes for REST operations.  Numeric values are
 /// stable across releases; `#[non_exhaustive]` lets us add new variants
 /// in a minor release without breaking exhaustive matches in user code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,7 +53,7 @@ impl ErpErrorCode {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ErpError {
-    #[error("RFC timeout after {timeout_ms} ms")]
+    #[error("REST operation timeout after {timeout_ms} ms")]
     Timeout { timeout_ms: u64 },
 
     #[error("SAP destination '{destination}' unreachable: {reason}")]

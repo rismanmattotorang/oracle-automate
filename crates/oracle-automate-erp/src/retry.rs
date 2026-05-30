@@ -1,7 +1,7 @@
 //! Retry + circuit breaker primitives.
 //!
-//! Insight from the reference projects: `sap-rfc-mcp-server` has no
-//! retry/circuit logic and surfaces every RFC blip to the agent — agents
+//! Insight from the reference projects: `a reference retry design` has no
+//! retry/circuit logic and surfaces every REST operation blip to the agent — agents
 //! then waste tokens reasoning about transient SAP unavailability instead
 //! of business logic.  We bake retry classification into the trait surface:
 //! `ErpError::is_transient()` decides whether `retry_with_backoff` retries.

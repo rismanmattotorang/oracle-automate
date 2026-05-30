@@ -1,7 +1,7 @@
 //! Request and response types shared by every Oracle artifact backend.
 //!
 //! Port note: these model Oracle Fusion / OIC development artifacts (the
-//! analog of the SAP ABAP/ADT object surface). The `ErpClient`-style trait
+//! analog of the SAP OIC/custom-code/ADT object surface). The `ErpClient`-style trait
 //! method names (`get_integration`, `get_groovy_script`, …) are renamed alongside the
 //! server tool namespace in P5; here the *artifact taxonomy* and the
 //! *fixtures* are Oracle.
@@ -12,7 +12,7 @@ pub const MAX_TABLE_ROWS: usize = 1000;
 
 /// Kinds of Oracle development / configuration artifact this surface serves.
 ///
-/// The Oracle analog of the SAP ABAP object taxonomy: instead of programs,
+/// The Oracle analog of the SAP OIC/custom-code object taxonomy: instead of programs,
 /// classes and CDS views, Oracle custom logic lives in OIC integrations,
 /// Application Composer Groovy, BI Publisher, value sets and sandboxes.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]

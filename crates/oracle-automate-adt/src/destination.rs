@@ -1,9 +1,9 @@
 //! Destination model.
 //!
-//! Inspired by fr0ster/mcp-abap-adt's destination-first auth model:
+//! Inspired by a reference exposure-policy design's destination-first auth model:
 //! a destination is a named bundle of (base URL, client, auth method,
 //! credentials).  Destinations live as TOML files under
-//! `~/.config/oracle-automate/destinations/<name>.toml`, mirroring SAP BTP
+//! `~/.config/oracle-automate/destinations/<name>.toml`, mirroring the
 //! Destination service semantics.
 //!
 //! This module ships the type + a synchronous in-memory builder.  Loading
@@ -11,7 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// One destination = one SAP system endpoint.
+/// One destination = one Oracle Fusion / OIC endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OicDestination {
     /// Logical name.  Optional in a TOML file — the lookup key used to
@@ -21,7 +21,7 @@ pub struct OicDestination {
     pub name: String,
     /// e.g. `https://kalbe.fa.ocs.oraclecloud.com`
     pub base_url: String,
-    /// SAP client number, e.g. `100`.
+    /// data-scope (ledger/BU), e.g. `100`.
     pub client: String,
     /// Default ADT language, e.g. `EN`.
     #[serde(default = "default_language")]
@@ -34,12 +34,12 @@ fn default_language() -> String { "EN".into() }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OicAuth {
-    /// HTTP Basic auth.  Used by both `mario-andreschak/mcp-abap-adt` and
-    /// the fallback path in `fr0ster/mcp-abap-adt`.
+    /// HTTP Basic auth.  Used by both `a reference artifact-retrieval design` and
+    /// the fallback path in `a reference exposure-policy design`.
     Basic { user: String, password: String },
-    /// Bearer token (JWT, XSUAA, etc.).
+    /// Bearer token (JWT, IDCS/IAM, etc.).
     Bearer { token: String },
-    /// OAuth2 / IDCS confidential-app key file (Oracle analog of an XSUAA service key). The path
+    /// OAuth2 / IDCS confidential-app key file (Oracle analog of an IDCS/IAM service key). The path
     /// is loaded lazily by the HTTP client.
     ServiceKey { path: String },
     /// Mutual TLS via PEM files (on-premise only per fr0ster's note).

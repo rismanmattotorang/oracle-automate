@@ -1,6 +1,6 @@
 //! Minimal robots.txt parser + per-host cache.
 //!
-//! Implements the subset of RFC 9309 that real crawlers actually rely on:
+//! Implements the subset of REST operation 9309 that real crawlers actually rely on:
 //!   - `User-agent:` group selection with the most-specific match winning.
 //!   - `Allow:` / `Disallow:` rules, longest-prefix-wins semantics.
 //!   - `Crawl-delay:` for the token-bucket rate limiter in `rate_limit.rs`.
@@ -99,7 +99,7 @@ impl RobotsTxt {
             (None, None) => Decision::Allowed,
             (Some(_), None) => Decision::Allowed,
             (None, Some(_)) => Decision::Disallowed,
-            // RFC 9309 §2.2.2: longest-prefix wins; tie → Allow.
+            // REST operation 9309 §2.2.2: longest-prefix wins; tie → Allow.
             (Some(a), Some(d)) if a >= d => Decision::Allowed,
             (Some(_), Some(_)) => Decision::Disallowed,
         }
@@ -184,7 +184,7 @@ Crawl-delay: 0.5
     fn specific_agent_group_overrides_wildcard() {
         let r = RobotsTxt::parse(SAMPLE);
         // oracle-automate's group disallows /admin/, doesn't disallow /private/.
-        // RFC 9309: once the more-specific group is selected, the * group
+        // REST operation 9309: once the more-specific group is selected, the * group
         // is ignored entirely.
         assert_eq!(r.is_allowed("oracle-automate", "/private/foo"), Decision::Allowed);
         assert_eq!(r.is_allowed("oracle-automate", "/admin/x"), Decision::Disallowed);

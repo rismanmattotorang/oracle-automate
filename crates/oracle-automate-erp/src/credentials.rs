@@ -1,6 +1,6 @@
 //! Layered credential provider.
 //!
-//! Mirrors the priority chain from `thupalo/sap-rfc-mcp-server`
+//! Mirrors the priority chain from `a reference REST-metadata-cache design`
 //! (env → keyring → encrypted file → .env), but the chain itself is the
 //! configurable artefact — callers compose any number of providers in any
 //! order, and the first one that yields credentials wins.

@@ -3,11 +3,11 @@
 //! The trait is the central abstraction the MCP server depends on.  Two
 //! concrete backends are envisioned:
 //!   - `MockErpClient` — ships now; deterministic in-memory fixtures so the
-//!     full MCP tool surface (system info / RFC search / RFC metadata / RFC
+//!     full MCP tool surface (system info / REST operation search / REST operation metadata / REST operation
 //!     call / table read / table structure / bulk metadata) is callable
 //!     offline and in CI.  This is what makes Phase 2 demonstrable without
-//!     a live SAP system.
-//!   - `NetweaverErpClient` (Phase 2 finalisation): wraps a real RFC SDK
+//!     a live Oracle pod.
+//!   - `NetweaverErpClient` (Phase 2 finalisation): wraps a real REST operation SDK
 //!     binding behind the same trait.  Adoption needs no MCP server change.
 //!
 //! Pattern note: every method takes `&self` and returns a `ErpResult`.
@@ -51,7 +51,7 @@ pub enum ErpParamDirection { Import, Export, Changing, Tables }
 pub struct ErpParameter {
     pub name: String,
     pub direction: ErpParamDirection,
-    /// ABAP type token (e.g. `CHAR(10)`, `MATNR`, `STRUCT(BAPIMATHEAD)`).
+    /// OIC/custom-code type token (e.g. `CHAR(10)`, `MATNR`, `STRUCT(BAPIMATHEAD)`).
     #[serde(rename = "type")]
     pub type_token: String,
     #[serde(default)]
@@ -100,7 +100,7 @@ pub struct ErpOperationMeta {
 ///
 /// Oracle Fusion secures REST/SOAP endpoints with *function security
 /// privileges* aggregated into duty roles, which roll up into job and
-/// data roles.  This is the Oracle analog of an SAP `S_RFC` entry.
+/// data roles.  This is an Oracle RBAC privilege grant.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequiredPrivilege {
     /// Privilege code, e.g. `GL_RUN_JOURNAL_IMPORT_PRIV`.
@@ -169,7 +169,7 @@ pub struct BulkMetadata {
 pub struct TableField {
     pub name: String,
     pub data_element: String,
-    /// ABAP-side type (e.g. `CHAR`, `NUMC`, `DEC`, `DATS`).
+    /// OIC/custom-code-side type (e.g. `CHAR`, `NUMC`, `DEC`, `DATS`).
     #[serde(rename = "type")]
     pub type_token: String,
     pub length: u32,
@@ -190,8 +190,8 @@ pub struct TableStructure {
     /// `&NC&` ("not classified").  Empty string for views.
     #[serde(default)]
     pub authorization_group: String,
-    /// S/4HANA storage note.  Empty for tables that are unchanged
-    /// between ECC and S/4HANA; populated for compatibility views.
+    /// Oracle Fusion Cloud ERP storage note.  Empty for tables that are unchanged
+    /// between ECC and Oracle Fusion Cloud ERP; populated for compatibility views.
     #[serde(default)]
     pub storage_note: Option<String>,
 }
@@ -252,11 +252,11 @@ pub struct PoolStatus { pub cap: usize, pub available: usize }
 // MockErpClient — offline reference implementation
 // ===========================================================================
 
-/// Mock client backed by realistic SAP-shaped fixtures.
+/// Mock client backed by realistic Oracle-shaped fixtures.
 ///
 /// The fixture set is intentionally small but covers FI, MM, SD, and HR
 /// canon: ATC-relevant BAPIs, common tables, expected error shapes.  Lets
-/// the MCP server be exercised end-to-end without an SAP system.
+/// the MCP server be exercised end-to-end without a live Oracle pod.
 pub struct MockErpClient {
     pool: ConnectionPool,
     functions: HashMap<String, ErpOperationMeta>,
@@ -384,11 +384,11 @@ impl ErpClient for MockErpClient {
             }
         }
 
-        // Mock execution: echo + synthetic export.  Real backends invoke the RFC.
-        debug!(function = %request.function, "mock RFC executed");
+        // Mock execution: echo + synthetic export.  Real backends invoke the REST operation.
+        debug!(function = %request.function, "mock REST operation executed");
         Ok(serde_json::json!({
             "function": request.function,
-            "executed_on": "mock.sap.example",
+            "executed_on": "mock.fa.oraclecloud.com",
             "inputs": args,
             "outputs": mock_outputs(meta, &args),
         }))
@@ -428,13 +428,13 @@ impl ErpClient for MockErpClient {
 
         let mut conditions = parse_conditions(&request.where_conditions)?;
 
-        // SAP queries are always client-scoped.  If the caller didn't
-        // specify a MANDT / RCLNT clause and the table has one, restrict
+        // queries are scoped by ledger/BU.  If the caller didn't
+        // specify a the ledger/BU scope / RCLNT clause and the table has one, restrict
         // to the connection's client number so cross-client leaks are
         // impossible by construction.  This matches the behaviour of
-        // SE16/SM30 and the standard RFC_READ_TABLE convention.
+        // SE16/SM30 and the standard a BI Publisher extract convention.
         let client_field = table.structure.fields.first()
-            .filter(|f| (f.name == "MANDT" || f.name == "RCLNT") && f.type_token == "CLNT")
+            .filter(|f| (f.name == "the ledger/BU scope" || f.name == "RCLNT") && f.type_token == "CLNT")
             .map(|f| f.name.clone());
         if let Some(field) = client_field.as_deref() {
             let has_client_filter = conditions.iter()
@@ -554,11 +554,11 @@ fn sql_like(haystack: &str, pattern: &str) -> bool {
 // ===========================================================================
 
 // ---------------------------------------------------------------------------
-// SAP signature constants — sourced from SAP API Hub / DDIC.
-// Every write BAPI carries `commit_required: true` because the standard SAP
+// SAP signature constants — sourced from the Oracle REST API catalog / DDIC.
+// Every write REST operation carries `commit_required: true` because the standard SAP
 // convention is that BAPIs do NOT commit on their own; the caller must
-// follow up with BAPI_TRANSACTION_COMMIT to persist (paper §VII-F note;
-// confirmed in SAP Help SE37 documentation).
+// follow up with the EBS commit op to persist (paper §VII-F note;
+// confirmed in Oracle Help documentation).
 // ---------------------------------------------------------------------------
 
 fn p_imp(name: &str, ty: &str, opt: bool, desc: &str) -> ErpParameter {
@@ -744,10 +744,10 @@ fn seed_functions() -> Vec<ErpOperationMeta> {
             authorization: vec![RequiredPrivilege::manage("FND_MANAGE_SANDBOX_PRIV", "Application Implementation Consultant")],
             erp_note: Some("Publishing is irreversible against the mainline. Cross-pod promotion uses FSM Configuration Packages (export → import). Guard PROD publishes with a re-typed confirmation.".into()),
         },
-        // ---- BI Publisher: tabular extract (RFC_READ_TABLE analog) -------
+        // ---- BI Publisher: tabular extract (a BI Publisher extract analog) -------
         ErpOperationMeta {
             function: "fusion.bip.runReport".into(),
-            description: "Run a BI Publisher report to extract tabular data (the RFC_READ_TABLE analog). Prefer OTBI for ad-hoc analytics.".into(),
+            description: "Run a BI Publisher report to extract tabular data (the a BI Publisher extract analog). Prefer OTBI for ad-hoc analytics.".into(),
             function_group: "BI Publisher".into(),
             package: Some("XDO".into()),
             parameters: vec![
@@ -902,7 +902,7 @@ fn seed_tables() -> Vec<MockTable> {
                 row(&[("LEDGER_ID","300100001"),("APPLICATION_ID","101"),("PERIOD_NAME","APR-26"),("CLOSING_STATUS","O"),("PERIOD_YEAR","2026"),("PERIOD_NUM","4"),("START_DATE","2026-04-01"),("END_DATE","2026-04-30")]),
             ],
         },
-        // ---- GL_JE_LINES — GL journal lines (BSEG/ACDOCA GL leg) --------
+        // ---- GL_JE_LINES — GL journal lines (BSEG/GL_JE_LINES GL leg) --------
         MockTable {
             structure: TableStructure {
                 table: "GL_JE_LINES".into(),
@@ -922,7 +922,7 @@ fn seed_tables() -> Vec<MockTable> {
                     tf("CURRENCY_CODE", "VARCHAR2", "VARCHAR2", 15, "Transaction currency"),
                 ],
                 authorization_group: "GL_JOURNAL_DATA".into(),
-                storage_note: Some("The GL leg of Oracle's accounting backbone (the closest analog to the SAP ACDOCA Universal Journal). Oracle has NO single universal journal: GL_JE_LINES holds GL detail while subledger detail lives in XLA_AE_LINES and balances in GL_BALANCES.".into()),
+                storage_note: Some("The GL leg of Oracle's accounting backbone (the closest analog to the SAP GL_JE_LINES Universal Journal). Oracle has NO single universal journal: GL_JE_LINES holds GL detail while subledger detail lives in XLA_AE_LINES and balances in GL_BALANCES.".into()),
             },
             rows: vec![
                 row(&[("JE_HEADER_ID","700100123"),("JE_LINE_NUM","1"),("LEDGER_ID","300100001"),("CODE_COMBINATION_ID","12345"),("PERIOD_NAME","MAR-26"),("EFFECTIVE_DATE","2026-03-15"),("ENTERED_DR","22500000"),("ENTERED_CR","0"),("ACCOUNTED_DR","22500000"),("ACCOUNTED_CR","0"),("CURRENCY_CODE","IDR")]),
@@ -1026,7 +1026,7 @@ mod tests {
     /// Every write operation must surface the FND standard return contract
     /// (`X_RETURN_STATUS` + the `X_MSG_DATA` FND_MSG_PUB stack) so agents
     /// can inspect business-side messages — the Oracle analog of the SAP
-    /// "every write BAPI returns BAPIRET2" rule.
+    /// "every write REST operation returns FND return stack" rule.
     #[test]
     fn every_write_op_returns_standard_result() {
         for f in seed_functions() {
@@ -1076,7 +1076,7 @@ mod tests {
         }
     }
 
-    /// Oracle is not client-first like SAP (no MANDT/RCLNT). Instead every
+    /// Oracle is not client-first like SAP (no the ledger/BU scope/RCLNT). Instead every
     /// business object is keyed by an Oracle surrogate/scoping id ending in
     /// `_ID`. This replaces the SAP "client as first key" invariant.
     #[test]
@@ -1108,7 +1108,7 @@ mod tests {
     }
 
     /// GL_JE_LINES is the accounting backbone, and the fixture must record
-    /// that Oracle has no single universal journal (unlike SAP ACDOCA).
+    /// that Oracle has no single universal journal (unlike SAP GL_JE_LINES).
     #[test]
     fn gl_je_lines_is_present_as_accounting_backbone() {
         let t = seed_tables().into_iter()

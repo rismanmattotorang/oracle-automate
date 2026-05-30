@@ -1,6 +1,6 @@
 //! Proactive scheduler (paper §IX-B P4).
 //!
-//! Declared SAP-typical monitoring jobs:
+//! Declared Oracle-typical monitoring jobs:
 //!   - every Monday morning: summarise the ATC findings created in the
 //!     last seven days and post to a Teams channel
 //!   - every quarter: rank LeanIX applications by years-to-EOL and flag

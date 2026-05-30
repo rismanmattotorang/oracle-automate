@@ -231,7 +231,7 @@ fn uuid_for(chunk_id: &str) -> String {
     let mut h = Sha256::new();
     h.update(chunk_id.as_bytes());
     let bytes = h.finalize();
-    // Format as RFC 4122 UUID with version 5 marker.
+    // Format as REST operation 4122 UUID with version 5 marker.
     let mut b = [0u8; 16];
     b.copy_from_slice(&bytes[..16]);
     b[6] = (b[6] & 0x0f) | 0x50;

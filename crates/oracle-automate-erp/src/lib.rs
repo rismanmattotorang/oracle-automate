@@ -1,20 +1,20 @@
-//! Oracle-Automate RFC and table client abstraction.
+//! Oracle-Automate REST operation and table client abstraction.
 //!
 //! Brings together the design insights from the reference projects we
 //! studied (paper §III + new comparative analysis in `docs/COMPARISON.md`):
 //!
-//! - **From `thupalo/sap-rfc-mcp-server`**: connection pooling, metadata
+//! - **From `a reference REST-metadata-cache design`**: connection pooling, metadata
 //!   caching, bulk metadata loads, version-aware behaviour.
-//! - **From `CDataSoftware/sap-erp-mcp-server`**: schema-discovery-first
+//! - **From `a reference read-only ERP MCP design`**: schema-discovery-first
 //!   tool design (`get_tables` → `get_columns` → `run_query`) and the
 //!   read-only-by-default safety posture.
-//! - **From `SAP/mdk-mcp-server`**: constrained-enum tool parameters,
+//! - **From `a reference guardrails design`**: constrained-enum tool parameters,
 //!   project-aware tool calls, AGENTS.md guardrails.
 //!
 //! The crate is split into:
 //! - `client`: the `ErpClient` trait + `MockErpClient` (offline)
 //! - `credentials`: layered credential provider (env / keyring / file)
-//! - `error`: structured RFC error taxonomy mapped to MCP error codes
+//! - `error`: structured REST operation error taxonomy mapped to MCP error codes
 //! - `pool`: tokio-semaphore-based connection limiter
 //! - `retry`: exponential-backoff helper + circuit-breaker primitive
 

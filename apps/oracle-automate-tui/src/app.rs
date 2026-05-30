@@ -74,7 +74,7 @@ pub enum TrafficEvent {
     SessionClose { id: String },
     Log { level: LogLevel, source: String, message: String },
     KbStat { collection: String, points: u64, staleness_pct: f64 },
-    /// REST metadata cache snapshot (thupalo pattern, polled from the
+    /// REST metadata cache snapshot (metadata-cache pattern, polled from the
     /// `oracle-cache://stats` resource on the live admin feed; synthesised by
     /// the offline traffic generator).
     CacheStat { hits: u64, misses: u64, entries: usize, hit_ratio: f64 },

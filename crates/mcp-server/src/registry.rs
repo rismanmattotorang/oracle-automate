@@ -34,7 +34,7 @@ where
     }
 }
 
-/// Tool exposure group — pattern adopted from `fr0ster/mcp-abap-adt`'s
+/// Tool exposure group — pattern adopted from `a reference exposure-policy design`'s
 /// `IReadOnlyDedupStrategy`.  Lets operators run the same server binary
 /// in a strict read-only mode (group = `ReadOnly`), enable write tools
 /// (`Writes`), or expose everything (`All`).  Defaults to `ReadOnly` for
@@ -43,7 +43,7 @@ where
 pub enum ToolExposure {
     /// Safe to expose in read-only deployments.
     ReadOnly,
-    /// Mutates SAP state.
+    /// Mutates ERP state.
     Writes,
 }
 
@@ -76,7 +76,7 @@ impl ToolDescriptor {
         }
     }
 
-    /// Builder-style mutator: mark this tool as writing to SAP state.
+    /// Builder-style mutator: mark this tool as writing to ERP state.
     pub fn with_writes(mut self) -> Self {
         self.exposure = ToolExposure::Writes;
         self

@@ -1,13 +1,13 @@
-//! BAPIRET2 parser.
+//! FND return stack parser.
 //!
-//! Every standard SAP BAPI returns at least one row of `BAPIRET2`
+//! Every Oracle write operations return an FND-style result (X_RETURN_STATUS + X_MSG_DATA)
 //! (mostly via a `TABLES RETURN` parameter; some via a single
 //! `EXPORTING RETURN`).  Agents that just look at the JSON-RPC error
 //! object miss the structured business-side messages SAP emits.
 //!
-//! This helper turns the raw BAPIRET2 rows into a typed list that
+//! This helper turns the raw FND return stack rows into a typed list that
 //! tools can surface in their CallToolResult.  The shape matches the
-//! DDIC structure documented in transaction SE11 (BAPIRET2):
+//! DDIC structure documented in transaction SE11 (FND return stack):
 //!
 //! - `TYPE`        CHAR 1  — severity (S/E/W/I/A)
 //! - `ID`          CHAR 20 — message class
@@ -27,13 +27,13 @@ use serde::{Deserialize, Serialize};
 pub enum ErpSeverity {
     /// `S` — success.
     Success,
-    /// `E` — error: the BAPI did NOT complete its work.
+    /// `E` — error: the REST operation did NOT complete its work.
     Error,
     /// `W` — warning.
     Warning,
     /// `I` — info.
     Info,
-    /// `A` — abort: the BAPI aborted unrecoverably.
+    /// `A` — abort: the REST operation aborted unrecoverably.
     Abort,
     /// Anything else (forward-compat with future SAP extensions).
     Unknown(char),
@@ -51,8 +51,8 @@ impl ErpSeverity {
         }
     }
 
-    /// Whether this severity indicates the BAPI failed (the caller
-    /// should NOT proceed to BAPI_TRANSACTION_COMMIT).
+    /// Whether this severity indicates the REST operation failed (the caller
+    /// should NOT proceed to the EBS commit op).
     pub fn is_failure(self) -> bool {
         matches!(self, Self::Error | Self::Abort | Self::Unknown(_))
     }
@@ -74,14 +74,14 @@ impl ErpMessage {
     pub fn is_failure(&self) -> bool { self.severity.is_failure() }
 }
 
-/// Parse a JSON value into BAPIRET2 messages.  Accepts:
-///   - a single object with the standard BAPIRET2 keys
+/// Parse a JSON value into FND return stack messages.  Accepts:
+///   - a single object with the standard FND return stack keys
 ///   - an array of such objects (the common `TABLES RETURN` shape)
 ///   - an `outputs.RETURN` slot (the standard `mock_outputs` shape)
 ///
-/// Returns an empty list if no recognised BAPIRET2 shape is found.
+/// Returns an empty list if no recognised FND return stack shape is found.
 pub fn parse_erp_messages(value: &serde_json::Value) -> Vec<ErpMessage> {
-    // Walk the value looking for BAPIRET2-shaped entries.  This
+    // Walk the value looking for FND return stack-shaped entries.  This
     // tolerates the various wrapping styles SAP / our mock outputs
     // emit (e.g. {"outputs":{"RETURN":[...]}}).
     let candidates = collect_candidates(value);
@@ -98,7 +98,7 @@ fn walk<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a serde_json::Value>, dept
     if depth > 8 { return; }
     match v {
         serde_json::Value::Object(map) => {
-            // Heuristic: looks like a BAPIRET2 row if it has both TYPE
+            // Heuristic: looks like a FND return stack row if it has both TYPE
             // and (MESSAGE or NUMBER).
             let has_type = map.contains_key("TYPE") || map.contains_key("type");
             let has_msg = map.contains_key("MESSAGE") || map.contains_key("message");

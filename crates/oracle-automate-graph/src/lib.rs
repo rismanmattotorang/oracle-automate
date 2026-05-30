@@ -3,7 +3,7 @@
 //! Implements the substrate that paper §VII-F (GraphRAG), §VII-G
 //! (HippoRAG), and §VII-E (RAPTOR) all sit on top of:
 //!
-//!   - Typed entities spanning ABAP / RFC / table / BPMN / LeanIX / Help
+//!   - Typed entities spanning integration / REST op / data object / process / app-catalog / Help
 //!   - Typed edges (calls, implements, reads_table, references, etc.)
 //!   - **Louvain-style community detection** for GraphRAG (paper §VII-F)
 //!   - **Personalised PageRank** for HippoRAG multi-hop traversal

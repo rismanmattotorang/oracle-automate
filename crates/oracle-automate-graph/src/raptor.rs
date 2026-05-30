@@ -106,8 +106,8 @@ mod tests {
         let cs = detect_communities(&g);
         let tree = build_raptor_tree(&g, &cs);
         assert_eq!(tree.levels.len(), 3);
-        // L2 should include a "FI" module roll-up.
+        // L2 should include a "FIN" module roll-up.
         let l2 = &tree.levels[2];
-        assert!(l2.nodes.iter().any(|n| n.id == "module:FI"));
+        assert!(l2.nodes.iter().any(|n| n.id == "module:FIN"));
     }
 }

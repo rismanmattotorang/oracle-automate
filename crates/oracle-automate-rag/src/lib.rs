@@ -19,7 +19,7 @@ pub use graph_layer::{
 };
 
 // `RetrievalDiagnostics` is exposed from this crate so the MCP server
-// can include it in `sap.docs.search` responses.
+// can include it in `oracle.docs.search` responses.
 
 use oracle_automate_kb::{Domain, KnowledgeStore, SearchHit, SearchQuery};
 use serde::{Deserialize, Serialize};

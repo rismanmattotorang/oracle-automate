@@ -1,7 +1,7 @@
 //! Integration test for the transactional write path + audit wiring.
 //!
 //! Drives an in-process server over `tokio::io::duplex`.  In write mode a
-//! `oracle.rest.call` with `commit=true` runs the BAPI then auto
+//! `oracle.rest.call` with `commit=true` runs the REST operation then auto
 //! commit-or-rollback, recording an audit entry inline.  This test exercises
 //! that path end-to-end (the audit `record(...)` is awaited before the tool
 //! returns, so a passing call proves the audit wiring runs without panic).
@@ -63,7 +63,7 @@ async fn commit_write_runs_transactional_path_and_audit() {
     assert!(!result.is_error, "write call errored: {result:?}");
     let text = text_of(&result);
     let v: serde_json::Value = serde_json::from_str(&text).expect("json result");
-    // The mock returns no BAPIRET2, so the fail-closed path must report the
+    // The mock returns no FND return stack, so the fail-closed path must report the
     // write as not committed (and rolled back) rather than committing on faith.
     assert_eq!(v["committed"], serde_json::json!(false), "got: {v}");
     assert!(v.get("rolled_back").is_some(), "expected rolled_back field; got: {v}");

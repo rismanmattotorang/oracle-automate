@@ -3,7 +3,7 @@
 //! Implements the 2025-06-18 "Streaming HTTP" transport: a single endpoint
 //! that accepts JSON-RPC requests over POST and optionally sends back
 //! server-initiated messages via SSE (`GET /mcp/events`).  This matches
-//! the transport flexibility shown by `fr0ster/mcp-abap-adt` (stdio + HTTP
+//! the transport flexibility shown by `a reference exposure-policy design` (stdio + HTTP
 //! + SSE) and unblocks remote deployments of the Oracle-Automate server.
 //!
 //! Phase 1 improvement: callers wrap the existing `Server` in a
@@ -297,7 +297,7 @@ mod tests {
 
     #[test]
     fn allowlist_is_case_sensitive_exact_match() {
-        // Per RFC 6454 origins are case-sensitive after the scheme.  We
+        // Per REST operation 6454 origins are case-sensitive after the scheme.  We
         // do exact-string match — operators get the behaviour they
         // configured, not silent case folding.
         let allowed = vec!["http://Localhost:3000".into()];

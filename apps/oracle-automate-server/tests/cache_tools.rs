@@ -1,4 +1,4 @@
-//! Integration test for the RFC metadata cache wiring.
+//! Integration test for the REST metadata cache wiring.
 //!
 //! Drives an in-process server over `tokio::io::duplex` — no subprocess,
 //! no embedding seed cost. Verifies:

@@ -176,7 +176,7 @@ pub async fn elicit(message: &str, requested_schema: Value) -> ElicitationResult
     }
 }
 
-/// Helper: build a `requested_schema` for the typical SAP confirmation
+/// Helper: build a `requested_schema` for the typical ERP confirmation
 /// flow — a single object with a small set of typed properties.
 pub fn object_schema(properties: serde_json::Map<String, Value>, required: Vec<String>) -> Value {
     serde_json::json!({

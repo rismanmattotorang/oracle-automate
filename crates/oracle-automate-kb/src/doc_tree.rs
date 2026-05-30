@@ -366,7 +366,7 @@ fn parse_atx_line(line: &str, _line_start: usize) -> Option<ParsedAtx> {
     Some(ParsedAtx { depth, title })
 }
 
-/// Plain-text section markers used in extracted SAP Help pages and ABAP
+/// Plain-text section markers used in extracted SAP Help pages and OIC/custom-code
 /// source comments.  We accept:
 ///   - `SECTION: <Title>` at the start of a line.
 ///   - Numbered headings of the form `1.`, `1.1.`, `1.1.1.` — depth is the

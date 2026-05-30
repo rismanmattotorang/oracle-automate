@@ -5,7 +5,7 @@
 //! SAP access) stays green.  This mirrors the gated SAP Business Hub sandbox
 //! test in `crates/oracle-automate-rfc/src/odata.rs`.
 //!
-//! ## Running it against a dev S/4HANA system
+//! ## Running it against a dev Oracle Fusion Cloud ERP system
 //!
 //! 1. Create `./.oracle-automate/destinations/<name>.toml` — see
 //!    `deploy/oracle-automate-destination.example.toml` for the schema.
@@ -44,7 +44,7 @@ async fn live_adt_get_class_smoke() {
 
     let client = HttpOicClient::new(dest).expect("HttpOicClient init");
 
-    // A class that exists on essentially every ABAP stack.
+    // A class that exists on essentially every OIC/custom-code stack.
     let class = std::env::var("ORACLE_AUTOMATE_TEST_CLASS")
         .unwrap_or_else(|_| "CL_ABAP_CHAR_UTILITIES".to_string());
 
@@ -55,7 +55,7 @@ async fn live_adt_get_class_smoke() {
 
     assert!(
         !src.source.is_empty(),
-        "expected non-empty ABAP source for {class}"
+        "expected non-empty OIC/custom-code source for {class}"
     );
     eprintln!(
         "live_adt OK: fetched {} from destination '{}' ({} bytes of source)",

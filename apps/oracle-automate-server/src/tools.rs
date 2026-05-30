@@ -4,7 +4,7 @@
 //!   - `rag_tools` — the four RAG tools introduced in Phase 1 (abap, bpmn,
 //!     eam, sap.help).
 //!   - `sap_tools` — the eight SAP tools added in Phase 2 (system info,
-//!     RFC search/metadata/bulk/call, table read/structure, docs.search).
+//!     REST operation search/metadata/bulk/call, table read/structure, docs.search).
 //!
 //! Every tool uses the shared `ServerContext` so they share one
 //! `ErpClient`, one `RagEngine`, and one `EmbeddingClient`.
@@ -98,7 +98,7 @@ fn tool_kb_navigate(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     });
     ToolDescriptor::new(
         "oracle.kb.navigate",
-        Some("Walk the hierarchical document tree (OpenKB + PageIndex pattern) section by section. Pass a document_id and an optional dotted path (e.g. '1.2.1') and depth to bound the returned subtree. Use this for long SAP Help pages / ABAP source files when similarity-blind retrieval would miss the right section.".into()),
+        Some("Walk the hierarchical document tree (OpenKB + PageIndex pattern) section by section. Pass a document_id and an optional dotted path (e.g. '1.2.1') and depth to bound the returned subtree. Use this for long SAP Help pages / OIC/custom-code source files when similarity-blind retrieval would miss the right section.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -322,7 +322,7 @@ fn tool_bp_get(ctx: &Arc<ServerContext>) -> ToolDescriptor {
 }
 
 // --- oracle.system.cache_stats ------------------------------------------------
-// Convergent with thupalo/sap-rfc-mcp-server `get_metadata_cache_stats`.
+// Convergent with a reference REST-metadata-cache design `get_metadata_cache_stats`.
 // Returns hits/misses/entries/evictions/hit_ratio for the REST operation-metadata cache.
 
 fn tool_system_cache_stats(ctx: &Arc<ServerContext>) -> ToolDescriptor {
@@ -351,7 +351,7 @@ fn tool_system_cache_stats(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     });
     ToolDescriptor::new(
         "oracle.system.cache_stats",
-        Some("Read REST operation-metadata cache statistics (thupalo/sap-rfc-mcp-server pattern). Returns hits, misses, entries, evictions, and hit_ratio. Always read-only — touches local cache state only, never SAP.".into()),
+        Some("Read REST operation-metadata cache statistics (a reference REST-metadata-cache design pattern). Returns hits, misses, entries, evictions, and hit_ratio. Always read-only — touches local cache state only, never SAP.".into()),
         ToolInputSchema::from_value(serde_json::json!({"type": "object", "additionalProperties": false})),
         Arc::new(handler),
     )
@@ -359,7 +359,7 @@ fn tool_system_cache_stats(ctx: &Arc<ServerContext>) -> ToolDescriptor {
 
 // --- oracle.system.cache_invalidate -------------------------------------------
 // Operator escape hatch for the case where an upstream transport import has
-// changed an RFC signature and the cached metadata is now stale.  Read-only
+// changed an REST operation signature and the cached metadata is now stale.  Read-only
 // from the SAP-state perspective (we never write to SAP), but it does mutate
 // the local cache, so the description is explicit.
 
@@ -440,11 +440,11 @@ fn tool_bapi_parse_return(_ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 "messages": msgs,
                 "any_failure": any_failure,
                 "guidance": if any_failure {
-                    "At least one message has severity E (error) or A (abort). DO NOT call BAPI_TRANSACTION_COMMIT. Call BAPI_TRANSACTION_ROLLBACK if you've already started writes."
+                    "At least one message has severity E (error) or A (abort). DO NOT call the EBS commit op. Call the EBS rollback op if you've already started writes."
                 } else if msgs.is_empty() {
-                    "No BAPIRET2 messages found in the supplied value. Either pass the full BAPI result or rerun the BAPI to capture the RETURN table."
+                    "No FND return stack messages found in the supplied value. Either pass the full REST operation result or rerun the REST operation to capture the RETURN table."
                 } else {
-                    "All BAPIRET2 messages are non-failure (S/W/I). Safe to call BAPI_TRANSACTION_COMMIT."
+                    "All FND return stack messages are non-failure (S/W/I). Safe to call the EBS commit op."
                 }
             });
             render_json("oracle.rest.parse_result", &summary)
@@ -452,12 +452,12 @@ fn tool_bapi_parse_return(_ctx: &Arc<ServerContext>) -> ToolDescriptor {
     });
     ToolDescriptor::new(
         "oracle.rest.parse_result",
-        Some("Parse a BAPIRET2 array (the standard SAP return contract) and surface structured messages. Returns severity, message class, number, text, and a guidance string that tells the agent whether it's safe to commit.".into()),
+        Some("Parse a FND return stack array (the standard SAP return contract) and surface structured messages. Returns severity, message class, number, text, and a guidance string that tells the agent whether it's safe to commit.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
                 "value": {
-                    "description": "The full JSON result from a oracle.rest.call invocation, or a bare BAPIRET2 array.",
+                    "description": "The full JSON result from a oracle.rest.call invocation, or a bare FND return stack array.",
                 }
             },
             "required": ["value"],
@@ -511,7 +511,7 @@ fn tool_rfc_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     });
     ToolDescriptor::new(
         "oracle.rest.search",
-        Some("Search the RFC catalogue by keyword. Returns ranked function names with descriptions and read-only flag.".into()),
+        Some("Search the REST operation catalogue by keyword. Returns ranked function names with descriptions and read-only flag.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -548,11 +548,11 @@ fn tool_rfc_metadata(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     });
     ToolDescriptor::new(
         "oracle.rest.metadata",
-        Some("Get full parameter signature, function group, and read-only flag for an RFC function.".into()),
+        Some("Get full parameter signature, function group, and read-only flag for an REST operation function.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
-                "function": {"type": "string", "description": "RFC function name (e.g. BAPI_MATERIAL_GET_DETAIL)"},
+                "function": {"type": "string", "description": "REST operation function name (e.g. BAPI_MATERIAL_GET_DETAIL)"},
                 "language": {"type": "string", "default": "EN", "minLength": 1, "maxLength": 2}
             },
             "required": ["function"],
@@ -618,8 +618,8 @@ fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.call: invalid arguments: {e}"))),
             };
             if commit {
-                // Transactional write: call the BAPI, then auto
-                // commit-or-rollback based on its BAPIRET2 (gated by
+                // Transactional write: call the REST operation, then auto
+                // commit-or-rollback based on its FND return stack (gated by
                 // --enable-writes).  Every attempt is audited.
                 let started = Instant::now();
                 return match execute_write_bapi(ctx.erp_client.as_ref(), request, ctx.read_only).await {
@@ -659,11 +659,11 @@ fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     });
     ToolDescriptor::new(
         "oracle.rest.call",
-        Some("Execute an RFC function by name with a parameters object. Read-only mode (default) blocks any RFC not declared safe. Set commit=true to run it as a transactional write: the BAPI is followed by BAPI_TRANSACTION_COMMIT on success or BAPI_TRANSACTION_ROLLBACK on a BAPIRET2 error (requires --enable-writes). Errors carry structured codes (RFC_TIMEOUT, RFC_AUTH_FAILED, etc.).".into()),
+        Some("Execute an REST operation function by name with a parameters object. Read-only mode (default) blocks any REST operation not declared safe. Set commit=true to run it as a transactional write: the REST operation is followed by the EBS commit op on success or the EBS rollback op on a FND return stack error (requires --enable-writes). Errors carry structured codes (RFC_TIMEOUT, RFC_AUTH_FAILED, etc.).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
-                "function": {"type": "string", "description": "RFC function name"},
+                "function": {"type": "string", "description": "REST operation function name"},
                 "parameters": {"type": "object", "description": "Function parameter object"},
                 "timeout_ms": {"type": "integer", "minimum": 100, "maximum": 600000, "default": 30000},
                 "require_read_only_safe": {"type": "boolean", "default": true},
@@ -791,7 +791,7 @@ fn tool_docs_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     });
     ToolDescriptor::new(
         "oracle.docs.search",
-        Some("Semantic search across the unified SAP knowledge base (Help Portal + ABAP + BPMN + LeanIX). Use this instead of guessing which domain holds the answer.".into()),
+        Some("Semantic search across the unified SAP knowledge base (Help Portal + OIC/custom-code + BPMN + LeanIX). Use this instead of guessing which domain holds the answer.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -832,7 +832,7 @@ struct NameArgs { name: String }
 fn name_schema() -> ToolInputSchema {
     ToolInputSchema::from_value(serde_json::json!({
         "type": "object",
-        "properties": {"name": {"type": "string", "description": "ABAP object name"}},
+        "properties": {"name": {"type": "string", "description": "OIC/custom-code object name"}},
         "required": ["name"],
         "additionalProperties": false,
     }))
@@ -854,7 +854,7 @@ fn adt_get_program(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new("oracle.oic.get_integration",
-        Some("Retrieve ABAP program source by name via ADT REST. Returns source, line count, active flag.".into()),
+        Some("Retrieve OIC/custom-code program source by name via ADT REST. Returns source, line count, active flag.".into()),
         name_schema(), Arc::new(handler))
 }
 
@@ -874,7 +874,7 @@ fn adt_get_class(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new("oracle.oic.get_groovy_script",
-        Some("Retrieve ABAP class source via ADT.".into()),
+        Some("Retrieve OIC/custom-code class source via ADT.".into()),
         name_schema(), Arc::new(handler))
 }
 
@@ -894,7 +894,7 @@ fn adt_get_interface(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new("oracle.oic.get_connection",
-        Some("Retrieve ABAP interface source via ADT.".into()),
+        Some("Retrieve OIC/custom-code interface source via ADT.".into()),
         name_schema(), Arc::new(handler))
 }
 
@@ -914,7 +914,7 @@ fn adt_get_include(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new("oracle.oic.get_lookup",
-        Some("Retrieve ABAP include source via ADT.".into()),
+        Some("Retrieve OIC/custom-code include source via ADT.".into()),
         name_schema(), Arc::new(handler))
 }
 
@@ -937,7 +937,7 @@ fn adt_get_function_module(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new("oracle.oic.get_ess_job",
-        Some("Retrieve ABAP function module source. Requires both function group and module name (the ADT URL nests them).".into()),
+        Some("Retrieve OIC/custom-code function module source. Requires both function group and module name (the ADT URL nests them).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -969,7 +969,7 @@ fn adt_get_package_contents(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new("oracle.oic.get_project_contents",
-        Some("List the objects under an ABAP package (programs, classes, interfaces, CDS views, ...).".into()),
+        Some("List the objects under an OIC/custom-code package (programs, classes, interfaces, CDS views, ...).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {"package": {"type": "string"}},
@@ -1027,7 +1027,7 @@ fn adt_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new("oracle.oic.search",
-        Some("Live ABAP object search via ADT (different from integration.search which queries the RAG-indexed corpus). Constrained kind enum.".into()),
+        Some("Live OIC/custom-code object search via ADT (different from integration.search which queries the RAG-indexed corpus). Constrained kind enum.".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -1066,7 +1066,7 @@ fn adt_where_used(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new("oracle.oic.where_used",
-        Some("Impact analysis: list places that use a given ABAP object. Returns object name, kind, location, and usage type (implements / call / include / etc.).".into()),
+        Some("Impact analysis: list places that use a given OIC/custom-code object. Returns object name, kind, location, and usage type (implements / call / include / etc.).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -1104,7 +1104,7 @@ fn adt_get_table_contents(ctx: &Arc<ServerContext>) -> ToolDescriptor {
         }
     });
     ToolDescriptor::new("oracle.oic.preview_data",
-        Some("Table data via the ADT Data Preview API. Some tables are blocked on SAP BTP backends — error code DataPreviewBlocked tells the agent to fall back to oracle.object.read (RFC).".into()),
+        Some("Table data via the ADT Data Preview API. Some tables are blocked on SAP BTP backends — error code DataPreviewBlocked tells the agent to fall back to oracle.object.read (REST operation).".into()),
         ToolInputSchema::from_value(serde_json::json!({
             "type": "object",
             "properties": {
@@ -1388,7 +1388,7 @@ fn workflow_create_purchase_order(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                     let content = elicit.content.unwrap_or_else(|| serde_json::json!({}));
                     record_write_audit(&ctx, "oracle.workflow.create_purchase_order", &audit_args, AuditOutcome::ok("purchase order confirmed (mock)"), started).await;
                     Ok(CallToolResult::text(format!(
-                        "Purchase order confirmed (mock execution; no real BAPI fired):\n\n{}\n\nNext step (when enable-writes): oracle.rest.call BAPI_PO_CREATE1.",
+                        "Purchase order confirmed (mock execution; no real REST operation fired):\n\n{}\n\nNext step (when enable-writes): oracle.rest.call BAPI_PO_CREATE1.",
                         serde_json::to_string_pretty(&content).unwrap_or_default(),
                     )))
                 }

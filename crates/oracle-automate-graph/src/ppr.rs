@@ -181,13 +181,13 @@ mod tests {
     fn ppr_promotes_cross_domain_neighbours() {
         let g = InMemoryGraph::with_demo_corpus();
         let cfg = PprConfig::default();
-        let r = multi_hop_search(&g, "period close FAGLFLEXA", 3, &cfg, 8);
+        let r = multi_hop_search(&g, "period close GL_JE_LINES", 3, &cfg, 8);
         let ids: Vec<&str> = r.ranked.iter().map(|h| h.id.as_str()).collect();
         // PPR should surface the period_close concept and FAGLFLEXA table.
-        assert!(ids.iter().any(|id| *id == "concept:period_close" || *id == "tab:FAGLFLEXA"));
-        // It should also reach S/4HANA Finance (LeanIX) via FAGLFLEXA.
-        assert!(ids.iter().any(|id| *id == "leanix:FS-12001"),
-            "PPR should cross from period_close → FAGLFLEXA → LeanIX FS-12001; got {ids:?}");
+        assert!(ids.iter().any(|id| *id == "concept:period_close" || *id == "obj:GL_JE_LINES"));
+        // It should also reach Oracle Financials Cloud (app catalog) via GL_JE_LINES.
+        assert!(ids.iter().any(|id| *id == "appcat:FS-12001"),
+            "PPR should cross from period_close → GL_JE_LINES → appcat FS-12001; got {ids:?}");
     }
 
     #[test]

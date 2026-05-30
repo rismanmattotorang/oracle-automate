@@ -8,7 +8,7 @@
 //!   2. `HelpPortalCrawler` — orchestrator that walks a directory or an
 //!      HTTP root, calls the parser, and yields `Document`s.
 //!
-//! Real production crawling against help.sap.com requires user agent +
+//! Real production crawling against docs.oracle.com requires user agent +
 //! rate-limit + ETag handling; the trait surface accommodates all three but
 //! Phase 1A ships only the local-filesystem driver so CI / offline test runs
 //! work without network access.
@@ -105,7 +105,7 @@ fn pick_meta(doc: &Html, name: &str) -> Option<String> {
 
 pub struct HelpPortalCrawler {
     /// Domain assigned to all documents produced by this crawler.  Defaults
-    /// to `SapHelp` but is configurable so the same parser can drive ABAP
+    /// to `SapHelp` but is configurable so the same parser can drive OIC/custom-code
     /// HTML dumps or Signavio exports.
     pub domain: Domain,
 }

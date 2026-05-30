@@ -29,6 +29,6 @@ pub struct ServerContext {
     /// Append-only audit log for state-mutating tool calls (SOX / GDPR
     /// evidence).  Arguments are redacted by `AuditLog::record`.
     pub audit: Arc<AuditLog>,
-    /// SAP system identity (host/client) recorded on each audit entry.
+    /// ERP environment identity (host/client) recorded on each audit entry.
     pub erp_system: Option<String>,
 }

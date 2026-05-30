@@ -1,8 +1,8 @@
 //! Typed entities and edges.
 //!
-//! The cross-domain SAP knowledge graph has six entity families and a
+//! The cross-domain Oracle Fusion knowledge graph has six entity families and a
 //! small, fixed set of edge kinds.  Both are versioned via `#[non_exhaustive]`
-//! so new SAP domains (Datasphere, CPI, etc.) can extend without breaking
+//! so new Oracle domains (HCM, EPM, etc.) can extend without breaking
 //! consumers — paper §VII-F notes this stability requirement.
 
 use serde::{Deserialize, Serialize};
@@ -12,19 +12,19 @@ pub type NodeId = String;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum EntityKind {
-    /// ABAP class, interface, program, include, function module/group.
-    AbapObject,
-    /// SAP table (DDIC).
-    Table,
-    /// SAP table column / data element.
+    /// OIC integration / Application Composer Groovy / custom-code artifact.
+    Integration,
+    /// Oracle data object (table / view / REST resource backing object).
+    DataObject,
+    /// Object attribute / column.
     Field,
-    /// RFC / BAPI function.
-    Rfc,
-    /// Signavio BPMN process.
-    BpmnProcess,
-    /// LeanIX application fact sheet.
-    LeanixApp,
-    /// Help Portal page or section.
+    /// Oracle Fusion REST operation.
+    RestOperation,
+    /// Process model (Oracle Process Automation / BPMN).
+    ProcessModel,
+    /// Application-catalog / portfolio fact sheet.
+    AppCatalogEntry,
+    /// Oracle Help Center page or section.
     HelpPage,
     /// Business concept (e.g. "period close", "goods movement").  These
     /// are the nodes that let GraphRAG community summaries cross domains.
@@ -39,10 +39,10 @@ pub struct Entity {
     /// Short description, used for community summaries.
     #[serde(default)]
     pub description: Option<String>,
-    /// Native URI for citation (sap-help://, abap-obj://, sap-rfc://, etc.).
+    /// Native URI for citation (oracle-help://, oic-int://, oracle-rest://, etc.).
     #[serde(default)]
     pub uri: Option<String>,
-    /// Arbitrary string-valued tags ("domain:FI", "package:ZFIN", ...).
+    /// Arbitrary string-valued tags ("module:FIN", "project:KLB_FINANCE_INTEGRATIONS", ...).
     #[serde(default)]
     pub tags: Vec<String>,
 }
@@ -50,9 +50,9 @@ pub struct Entity {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum EdgeKind {
-    /// ABAP object A calls / invokes B.
+    /// OIC/custom-code object A calls / invokes B.
     Calls,
-    /// ABAP class implements interface.
+    /// OIC/custom-code class implements interface.
     Implements,
     /// Program includes another program / include file.
     Includes,
@@ -64,7 +64,7 @@ pub enum EdgeKind {
     References,
     /// Entity is contained in a parent (program in package, field in table).
     ContainedIn,
-    /// Entity depends on another (BPMN step depends on RFC, app depends on table).
+    /// Entity depends on another (BPMN step depends on REST operation, app depends on table).
     DependsOn,
     /// Concept describes / categorises an entity.
     Describes,

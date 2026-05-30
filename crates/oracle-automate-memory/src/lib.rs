@@ -175,7 +175,7 @@ impl EpisodicMemory {
 
 /// Read-cost gradient ordering: working → episodic → procedural → semantic.
 /// The semantic tier is accessed through the RAG engine; agents call it
-/// directly via the `sap.docs.search` MCP tool, so MemoryManager doesn't
+/// directly via the `oracle.docs.search` MCP tool, so MemoryManager doesn't
 /// own it — it just signals to the caller that semantic comes last.
 pub struct MemoryManager {
     pub working: WorkingMemory,

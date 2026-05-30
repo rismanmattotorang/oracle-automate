@@ -1,15 +1,15 @@
-//! Oracle-Automate ABAP Development Tools (ADT) client.
+//! Oracle-Automate OIC/custom-code Development Tools (ADT) client.
 //!
-//! Brings the design ideas from `mario-andreschak/mcp-abap-adt` (clean
+//! Brings the design ideas from `a reference artifact-retrieval design` (clean
 //! object-type-specific read-only tools over the ADT REST API) and
-//! `fr0ster/mcp-abap-adt` (CRUD breadth, RAP-first, multi-transport,
+//! `a reference exposure-policy design` (CRUD breadth, RAP-first, multi-transport,
 //! destination model, "AI pairing, not vibing" safety stance) into a
 //! Rust trait-based architecture that matches the rest of Oracle-Automate.
 //!
 //! The crate is split into:
 //!   - `types`    — request/response shapes shared by every backend
 //!   - `client`   — the `OicClient` async trait
-//!   - `mock`     — offline `MockOicClient` with realistic ABAP fixtures
+//!   - `mock`     — offline `MockOicClient` with realistic OIC/custom-code fixtures
 //!   - `error`    — structured `OicError` taxonomy mapped to MCP codes
 //!   - `destination` — destination model (name, base URL, auth method)
 //!   - `http` (feature `http`) — `HttpOicClient` against live Oracle OIC / Fusion REST
