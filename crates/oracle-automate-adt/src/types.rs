@@ -2,7 +2,7 @@
 //!
 //! Port note: these model Oracle Fusion / OIC development artifacts (the
 //! analog of the SAP ABAP/ADT object surface). The `ErpClient`-style trait
-//! method names (`get_program`, `get_class`, …) are renamed alongside the
+//! method names (`get_integration`, `get_groovy_script`, …) are renamed alongside the
 //! server tool namespace in P5; here the *artifact taxonomy* and the
 //! *fixtures* are Oracle.
 
@@ -152,7 +152,7 @@ pub struct PackageContents {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AdtSearchRequest {
+pub struct OicSearchRequest {
     pub query: String,
     #[serde(default)]
     pub kind: Option<OracleArtifactKind>,
@@ -165,7 +165,7 @@ fn default_max_results() -> usize {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AdtSearchHit {
+pub struct OicSearchHit {
     pub name: String,
     pub kind: OracleArtifactKind,
     pub description: Option<String>,

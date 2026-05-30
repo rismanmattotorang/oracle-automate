@@ -37,7 +37,7 @@ pub struct AuditEntry {
     /// MCP tool name (e.g. "oracle.workflow.create_purchase_order").
     pub tool: String,
     /// SAP system identity (SID + client) at call time.
-    pub sap_system: Option<String>,
+    pub erp_system: Option<String>,
     /// Tool arguments — REDACTED to keep secrets / PII out of the log.
     /// The redactor strips known sensitive keys (`password`, `token`,
     /// `secret`, anything ending in `_pwd` / `_pass`).
@@ -205,7 +205,7 @@ mod tests {
             tenant: Some("T1".into()),
             actor: Some("user@acme.example".into()),
             tool: "oracle.workflow.create_purchase_order".into(),
-            sap_system: Some("S4H/100".into()),
+            erp_system: Some("KALBE-FA-DEV/LIVE".into()),
             arguments_redacted: serde_json::json!({ "vendor": "V-100", "password": "x" }),
             outcome: AuditOutcome::ok("po created"),
             duration_ms: 42,
@@ -227,7 +227,7 @@ mod tests {
             at_ms: AuditLog::now_ms(),
             session_id: None, tenant: None, actor: None,
             tool: "oracle.rest.call".into(),
-            sap_system: None,
+            erp_system: None,
             arguments_redacted: serde_json::json!({}),
             outcome: AuditOutcome::declined("user declined elicitation"),
             duration_ms: 1,

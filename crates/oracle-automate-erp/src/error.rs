@@ -7,7 +7,7 @@
 
 use thiserror::Error;
 
-pub type RfcResult<T> = std::result::Result<T, RfcError>;
+pub type ErpResult<T> = std::result::Result<T, ErpError>;
 
 /// RFC error codes.  Values overlap the MCP code ranges in
 /// `mcp_core::error::ErrorCode` so they translate cleanly when serialised
@@ -17,7 +17,7 @@ pub type RfcResult<T> = std::result::Result<T, RfcError>;
 /// in a minor release without breaking exhaustive matches in user code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum RfcErrorCode {
+pub enum ErpErrorCode {
     // Transient (-32100..-32199): retryable
     Timeout = -32110,
     DestinationDown = -32120,
@@ -40,7 +40,7 @@ pub enum RfcErrorCode {
     StaleMetadata = -32320,
 }
 
-impl RfcErrorCode {
+impl ErpErrorCode {
     pub fn as_i32(self) -> i32 { self as i32 }
 
     /// Whether the caller should retry after backoff.
@@ -52,7 +52,7 @@ impl RfcErrorCode {
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
-pub enum RfcError {
+pub enum ErpError {
     #[error("RFC timeout after {timeout_ms} ms")]
     Timeout { timeout_ms: u64 },
 
@@ -90,23 +90,23 @@ pub enum RfcError {
     Internal(String),
 }
 
-impl RfcError {
-    pub fn code(&self) -> RfcErrorCode {
+impl ErpError {
+    pub fn code(&self) -> ErpErrorCode {
         match self {
-            RfcError::Timeout { .. } => RfcErrorCode::Timeout,
-            RfcError::DestinationDown { .. } => RfcErrorCode::DestinationDown,
-            RfcError::PoolExhausted { .. } => RfcErrorCode::PoolExhausted,
-            RfcError::CircuitOpen { .. } => RfcErrorCode::CircuitOpen,
-            RfcError::AuthFailed(_) => RfcErrorCode::AuthFailed,
-            RfcError::NotFound(_) => RfcErrorCode::NotFound,
-            RfcError::TableBufferOverflow { .. } => RfcErrorCode::TableBufferOverflow,
-            RfcError::InvalidParameter { .. } => RfcErrorCode::InvalidParameter,
-            RfcError::PermissionDenied(_) => RfcErrorCode::PermissionDenied,
-            RfcError::SchemaViolation(_) => RfcErrorCode::SchemaViolation,
-            RfcError::PartialBulk(_) => RfcErrorCode::PartialBulk,
+            ErpError::Timeout { .. } => ErpErrorCode::Timeout,
+            ErpError::DestinationDown { .. } => ErpErrorCode::DestinationDown,
+            ErpError::PoolExhausted { .. } => ErpErrorCode::PoolExhausted,
+            ErpError::CircuitOpen { .. } => ErpErrorCode::CircuitOpen,
+            ErpError::AuthFailed(_) => ErpErrorCode::AuthFailed,
+            ErpError::NotFound(_) => ErpErrorCode::NotFound,
+            ErpError::TableBufferOverflow { .. } => ErpErrorCode::TableBufferOverflow,
+            ErpError::InvalidParameter { .. } => ErpErrorCode::InvalidParameter,
+            ErpError::PermissionDenied(_) => ErpErrorCode::PermissionDenied,
+            ErpError::SchemaViolation(_) => ErpErrorCode::SchemaViolation,
+            ErpError::PartialBulk(_) => ErpErrorCode::PartialBulk,
             // Internal errors are programming bugs, not transient SAP
             // outages — they must NOT be retried (Phase 7 code review).
-            RfcError::Internal(_) => RfcErrorCode::Internal,
+            ErpError::Internal(_) => ErpErrorCode::Internal,
         }
     }
 
@@ -120,18 +120,18 @@ mod tests {
     #[test]
     fn transient_classification_only_matches_transient_range() {
         for c in [
-            RfcErrorCode::Timeout, RfcErrorCode::DestinationDown,
-            RfcErrorCode::PoolExhausted, RfcErrorCode::CircuitOpen,
-            RfcErrorCode::UpstreamRateLimit,
+            ErpErrorCode::Timeout, ErpErrorCode::DestinationDown,
+            ErpErrorCode::PoolExhausted, ErpErrorCode::CircuitOpen,
+            ErpErrorCode::UpstreamRateLimit,
         ] {
             assert!(c.is_transient(), "{c:?} should be transient");
         }
         for c in [
-            RfcErrorCode::AuthFailed, RfcErrorCode::NotFound,
-            RfcErrorCode::TableBufferOverflow, RfcErrorCode::InvalidParameter,
-            RfcErrorCode::PermissionDenied, RfcErrorCode::SchemaViolation,
-            RfcErrorCode::Internal,
-            RfcErrorCode::PartialBulk, RfcErrorCode::StaleMetadata,
+            ErpErrorCode::AuthFailed, ErpErrorCode::NotFound,
+            ErpErrorCode::TableBufferOverflow, ErpErrorCode::InvalidParameter,
+            ErpErrorCode::PermissionDenied, ErpErrorCode::SchemaViolation,
+            ErpErrorCode::Internal,
+            ErpErrorCode::PartialBulk, ErpErrorCode::StaleMetadata,
         ] {
             assert!(!c.is_transient(), "{c:?} should NOT be transient");
         }
@@ -142,8 +142,8 @@ mod tests {
         // Regression for the Phase 7 review finding: previously
         // Internal mapped to Timeout, which caused retry_with_backoff
         // to spin on programming bugs.
-        let e = RfcError::Internal("bug".into());
+        let e = ErpError::Internal("bug".into());
         assert!(!e.is_transient());
-        assert_eq!(e.code() as i32, RfcErrorCode::Internal as i32);
+        assert_eq!(e.code() as i32, ErpErrorCode::Internal as i32);
     }
 }

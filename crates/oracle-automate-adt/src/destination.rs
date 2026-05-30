@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 
 /// One destination = one SAP system endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AdtDestination {
+pub struct OicDestination {
     /// Logical name.  Optional in a TOML file — the lookup key used to
-    /// select the file always wins (see [`AdtDestination::load`]), so the
+    /// select the file always wins (see [`OicDestination::load`]), so the
     /// on-disk label can't silently drift from the name it's loaded under.
     #[serde(default)]
     pub name: String,
@@ -26,14 +26,14 @@ pub struct AdtDestination {
     /// Default ADT language, e.g. `EN`.
     #[serde(default = "default_language")]
     pub language: String,
-    pub auth: AdtAuth,
+    pub auth: OicAuth,
 }
 
 fn default_language() -> String { "EN".into() }
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum AdtAuth {
+pub enum OicAuth {
     /// HTTP Basic auth.  Used by both `mario-andreschak/mcp-abap-adt` and
     /// the fallback path in `fr0ster/mcp-abap-adt`.
     Basic { user: String, password: String },
@@ -48,14 +48,14 @@ pub enum AdtAuth {
     Mock,
 }
 
-impl AdtDestination {
+impl OicDestination {
     pub fn mock(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             base_url: "https://mock.fa.oraclecloud.com".into(),
             client: "100".into(),
             language: "EN".into(),
-            auth: AdtAuth::Mock,
+            auth: OicAuth::Mock,
         }
     }
 
@@ -73,7 +73,7 @@ impl AdtDestination {
 
 #[cfg(all(test, feature = "http"))]
 mod loader_tests {
-    use super::{AdtAuth, AdtDestination};
+    use super::{OicAuth, OicDestination};
     use std::io::Write;
 
     fn temp_toml(body: &str) -> std::path::PathBuf {
@@ -107,7 +107,7 @@ mod loader_tests {
             password = "s3cret"
         "#,
         );
-        let dest = AdtDestination::load_from_path(&path, "dev-fusion").unwrap();
+        let dest = OicDestination::load_from_path(&path, "dev-fusion").unwrap();
         std::fs::remove_file(&path).ok();
 
         // The lookup key wins over the on-disk label.
@@ -115,7 +115,7 @@ mod loader_tests {
         assert_eq!(dest.base_url, "https://kalbe-dev.fa.ocs.oraclecloud.com");
         assert_eq!(dest.client, "100");
         match &dest.auth {
-            AdtAuth::Basic { user, password } => {
+            OicAuth::Basic { user, password } => {
                 assert_eq!(user, "TECHUSER");
                 assert_eq!(password, "s3cret");
             }
@@ -135,7 +135,7 @@ mod loader_tests {
             token = "jwt-abc"
         "#,
         );
-        let dest = AdtDestination::load_from_path(&path, "dev-fusion").unwrap();
+        let dest = OicDestination::load_from_path(&path, "dev-fusion").unwrap();
         std::fs::remove_file(&path).ok();
         assert_eq!(dest.name, "dev-fusion");
         assert_eq!(dest.language, "EN"); // serde default
@@ -155,7 +155,7 @@ mod loader_tests {
             password = "do-not-leak"
         "#,
         );
-        let dest = AdtDestination::load_from_path(&path, "dev-fusion").unwrap();
+        let dest = OicDestination::load_from_path(&path, "dev-fusion").unwrap();
         std::fs::remove_file(&path).ok();
         let redacted = dest.redacted().to_string();
         assert!(!redacted.contains("do-not-leak"), "password leaked: {redacted}");
@@ -166,7 +166,7 @@ mod loader_tests {
     #[test]
     fn search_paths_order_with_dir_override() {
         // Pure builder — no env mutation, fully deterministic.
-        let paths = AdtDestination::build_search_paths(
+        let paths = OicDestination::build_search_paths(
             "dev-fusion",
             Some("/etc/oracle-dest"),
             Some(std::path::PathBuf::from("/home/u/.config")),
@@ -178,47 +178,47 @@ mod loader_tests {
 
     #[test]
     fn search_paths_without_override_start_project_local() {
-        let paths = AdtDestination::build_search_paths("dev-fusion", None, None);
+        let paths = OicDestination::build_search_paths("dev-fusion", None, None);
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0], std::path::PathBuf::from("./.oracle-automate/destinations/dev-fusion.toml"));
     }
 }
 
-fn auth_type_label(a: &AdtAuth) -> &'static str {
+fn auth_type_label(a: &OicAuth) -> &'static str {
     match a {
-        AdtAuth::Basic { .. } => "basic",
-        AdtAuth::Bearer { .. } => "bearer",
-        AdtAuth::ServiceKey { .. } => "service_key",
-        AdtAuth::Certificate { .. } => "certificate",
-        AdtAuth::Mock => "mock",
+        OicAuth::Basic { .. } => "basic",
+        OicAuth::Bearer { .. } => "bearer",
+        OicAuth::ServiceKey { .. } => "service_key",
+        OicAuth::Certificate { .. } => "certificate",
+        OicAuth::Mock => "mock",
     }
 }
 
-impl AdtAuth {
+impl OicAuth {
     /// Secret-free label for logs / diagnostics.
     pub fn label(&self) -> &'static str {
         auth_type_label(self)
     }
 }
 
-// Manual Debug so a stray `{:?}` (on AdtAuth or the AdtDestination that
+// Manual Debug so a stray `{:?}` (on OicAuth or the OicDestination that
 // contains it) can never leak a password / bearer token / key path.
-impl std::fmt::Debug for AdtAuth {
+impl std::fmt::Debug for OicAuth {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AdtAuth::{}", self.label())
+        write!(f, "OicAuth::{}", self.label())
     }
 }
 
 /// Disk loading for named destinations.  Lives behind the `http` feature
 /// because it depends on `toml`; the type itself is always available so
-/// the offline `MockAdtClient` path needs no feature.
+/// the offline `MockOicClient` path needs no feature.
 #[cfg(feature = "http")]
 mod loader {
-    use super::AdtDestination;
-    use crate::error::{AdtError, AdtResult};
+    use super::OicDestination;
+    use crate::error::{OicError, OicResult};
     use std::path::{Path, PathBuf};
 
-    impl AdtDestination {
+    impl OicDestination {
         /// Candidate paths for a named destination, highest priority first:
         ///
         /// 1. `$ORACLE_AUTOMATE_DESTINATION_DIR/<name>.toml`
@@ -258,16 +258,16 @@ mod loader {
 
         /// Parse a destination from a specific TOML file.  The supplied
         /// `name` always overrides any `name` field in the file.
-        pub fn load_from_path(path: &Path, name: &str) -> AdtResult<Self> {
+        pub fn load_from_path(path: &Path, name: &str) -> OicResult<Self> {
             let raw = std::fs::read_to_string(path).map_err(|e| {
-                AdtError::Internal(format!("read destination {}: {e}", path.display()))
+                OicError::Internal(format!("read destination {}: {e}", path.display()))
             })?;
             // SECURITY: never interpolate the `toml` error's Display — it
             // echoes the offending source line verbatim, which for a syntax
             // error on a `password`/`token` line would leak the secret into
             // stderr/logs.  Report location-free, detail-free.
-            let mut dest: AdtDestination = toml::from_str(&raw).map_err(|_e| {
-                AdtError::Internal(format!(
+            let mut dest: OicDestination = toml::from_str(&raw).map_err(|_e| {
+                OicError::Internal(format!(
                     "destination {} is not valid TOML (syntax error; \
                      detail withheld to avoid logging credential lines)",
                     path.display()
@@ -302,13 +302,13 @@ mod loader {
 
         /// Load a destination by name from the first file found on the
         /// search path.  Errors with `NotFound` if no file matches.
-        pub fn load(name: &str) -> AdtResult<Self> {
+        pub fn load(name: &str) -> OicResult<Self> {
             for path in Self::config_search_paths(name) {
                 if path.is_file() {
                     return Self::load_from_path(&path, name);
                 }
             }
-            Err(AdtError::NotFound {
+            Err(OicError::NotFound {
                 kind: "Destination".into(),
                 name: name.into(),
             })

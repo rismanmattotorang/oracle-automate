@@ -11,11 +11,11 @@
 //!   - Where-used links wired between the above so impact analysis is
 //!     meaningful in demos.
 
-use crate::client::{AdtCallContext, AdtClient};
-use crate::destination::AdtDestination;
-use crate::error::{AdtError, AdtResult};
+use crate::client::{OicCallContext, OicClient};
+use crate::destination::OicDestination;
+use crate::error::{OicError, OicResult};
 use crate::types::{
-    ActivationOutcome, ActivationRequest, AdtSearchHit, AdtSearchRequest, CdsView, OracleArtifactKind,
+    ActivationOutcome, ActivationRequest, OicSearchHit, OicSearchRequest, CdsView, OracleArtifactKind,
     PackageContents, PackageMember, ProgramSource, TableRow, WhereUsedHit, WhereUsedRequest,
     MAX_TABLE_ROWS,
 };
@@ -23,8 +23,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub struct MockAdtClient {
-    destination: AdtDestination,
+pub struct MockOicClient {
+    destination: OicDestination,
     programs: HashMap<String, ProgramSource>,
     classes: HashMap<String, ProgramSource>,
     interfaces: HashMap<String, ProgramSource>,
@@ -36,8 +36,8 @@ pub struct MockAdtClient {
     tables: HashMap<String, Vec<TableRow>>,
 }
 
-impl MockAdtClient {
-    pub fn new(destination: AdtDestination) -> Arc<Self> {
+impl MockOicClient {
+    pub fn new(destination: OicDestination) -> Arc<Self> {
         let mut s = Self {
             destination,
             programs: HashMap::new(),
@@ -174,47 +174,47 @@ fn row(pairs: &[(&str, &str)]) -> TableRow {
 }
 
 #[async_trait]
-impl AdtClient for MockAdtClient {
-    fn destination(&self) -> &AdtDestination {
+impl OicClient for MockOicClient {
+    fn destination(&self) -> &OicDestination {
         &self.destination
     }
 
-    async fn get_program(&self, name: &str) -> AdtResult<ProgramSource> {
+    async fn get_integration(&self, name: &str) -> OicResult<ProgramSource> {
         get_object(&self.programs, name, OracleArtifactKind::Integration)
     }
-    async fn get_class(&self, name: &str) -> AdtResult<ProgramSource> {
+    async fn get_groovy_script(&self, name: &str) -> OicResult<ProgramSource> {
         get_object(&self.classes, name, OracleArtifactKind::GroovyScript)
     }
-    async fn get_interface(&self, name: &str) -> AdtResult<ProgramSource> {
+    async fn get_connection(&self, name: &str) -> OicResult<ProgramSource> {
         get_object(&self.interfaces, name, OracleArtifactKind::Connection)
     }
-    async fn get_include(&self, name: &str) -> AdtResult<ProgramSource> {
+    async fn get_lookup(&self, name: &str) -> OicResult<ProgramSource> {
         get_object(&self.includes, name, OracleArtifactKind::Lookup)
     }
-    async fn get_function_module(&self, group: &str, name: &str) -> AdtResult<ProgramSource> {
+    async fn get_ess_job(&self, group: &str, name: &str) -> OicResult<ProgramSource> {
         self.function_modules
             .get(&(group.to_uppercase(), name.to_string()))
             .cloned()
-            .ok_or_else(|| AdtError::NotFound { kind: "EssJob".into(), name: format!("{group}/{name}") })
+            .ok_or_else(|| OicError::NotFound { kind: "EssJob".into(), name: format!("{group}/{name}") })
     }
-    async fn get_package_contents(&self, package: &str) -> AdtResult<PackageContents> {
+    async fn get_project_contents(&self, package: &str) -> OicResult<PackageContents> {
         self.packages.get(&package.to_uppercase()).cloned()
-            .ok_or_else(|| AdtError::NotFound { kind: "Project".into(), name: package.into() })
+            .ok_or_else(|| OicError::NotFound { kind: "Project".into(), name: package.into() })
     }
-    async fn get_cds_view(&self, name: &str) -> AdtResult<CdsView> {
+    async fn get_bip_report(&self, name: &str) -> OicResult<CdsView> {
         self.cds_views.get(&name.to_uppercase()).cloned()
-            .ok_or_else(|| AdtError::NotFound { kind: "BipReport".into(), name: name.into() })
+            .ok_or_else(|| OicError::NotFound { kind: "BipReport".into(), name: name.into() })
     }
 
-    async fn search(&self, request: AdtSearchRequest) -> AdtResult<Vec<AdtSearchHit>> {
+    async fn search(&self, request: OicSearchRequest) -> OicResult<Vec<OicSearchHit>> {
         let q = request.query.to_lowercase();
         let terms: Vec<&str> = q.split_whitespace().collect();
-        let mut hits: Vec<AdtSearchHit> = Vec::new();
+        let mut hits: Vec<OicSearchHit> = Vec::new();
 
         let kind_match = |k: OracleArtifactKind| request.kind.map(|wanted| wanted == k).unwrap_or(true);
         let mut push = |name: &str, kind: OracleArtifactKind, desc: Option<&str>, pkg: Option<&str>, score: usize| {
             if kind_match(kind) && score > 0 {
-                hits.push(AdtSearchHit {
+                hits.push(OicSearchHit {
                     name: name.into(),
                     kind,
                     description: desc.map(String::from),
@@ -254,35 +254,35 @@ impl AdtClient for MockAdtClient {
         Ok(hits)
     }
 
-    async fn where_used(&self, request: WhereUsedRequest) -> AdtResult<Vec<WhereUsedHit>> {
+    async fn where_used(&self, request: WhereUsedRequest) -> OicResult<Vec<WhereUsedHit>> {
         Ok(self.where_used
             .get(&(request.name.to_uppercase(), request.kind))
             .cloned()
             .unwrap_or_default())
     }
 
-    async fn get_table_contents(&self, table: &str, max_rows: usize) -> AdtResult<Vec<TableRow>> {
+    async fn preview_data(&self, table: &str, max_rows: usize) -> OicResult<Vec<TableRow>> {
         if max_rows == 0 || max_rows > MAX_TABLE_ROWS {
-            return Err(AdtError::InvalidObjectName(format!("max_rows must be in 1..={MAX_TABLE_ROWS}, got {max_rows}")));
+            return Err(OicError::InvalidObjectName(format!("max_rows must be in 1..={MAX_TABLE_ROWS}, got {max_rows}")));
         }
         // Some Fusion objects can't be read through the REST/describe surface
         // (subledger detail, large fact tables). Surface the block so the
         // agent falls back to a BI Publisher extract.
         if table.eq_ignore_ascii_case("XLA_AE_LINES") {
-            return Err(AdtError::DataPreviewBlocked(format!(
+            return Err(OicError::DataPreviewBlocked(format!(
                 "object {table} is not exposed for direct preview; fall back to a BI Publisher extract (oracle.bip.runReport)",
             )));
         }
         let rows = self.tables.get(&table.to_uppercase()).cloned()
-            .ok_or_else(|| AdtError::NotFound { kind: "BipDataModel".into(), name: table.into() })?;
+            .ok_or_else(|| OicError::NotFound { kind: "BipDataModel".into(), name: table.into() })?;
         let mut out = rows;
         out.truncate(max_rows);
         Ok(out)
     }
 
-    async fn activate(&self, request: ActivationRequest, ctx: AdtCallContext) -> AdtResult<ActivationOutcome> {
+    async fn activate(&self, request: ActivationRequest, ctx: OicCallContext) -> OicResult<ActivationOutcome> {
         if ctx.read_only {
-            return Err(AdtError::PermissionDenied(format!(
+            return Err(OicError::PermissionDenied(format!(
                 "activate({} {}) blocked: read-only mode",
                 request.kind.label(), request.name,
             )));
@@ -302,23 +302,23 @@ fn get_object(
     map: &HashMap<String, ProgramSource>,
     name: &str,
     kind: OracleArtifactKind,
-) -> AdtResult<ProgramSource> {
+) -> OicResult<ProgramSource> {
     map.get(&name.to_uppercase()).cloned()
-        .ok_or_else(|| AdtError::NotFound { kind: kind.label().into(), name: name.into() })
+        .ok_or_else(|| OicError::NotFound { kind: kind.label().into(), name: name.into() })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn client() -> Arc<MockAdtClient> {
-        MockAdtClient::new(AdtDestination::mock("dev"))
+    fn client() -> Arc<MockOicClient> {
+        MockOicClient::new(OicDestination::mock("dev"))
     }
 
     #[tokio::test]
     async fn get_program_returns_source() {
         let c = client();
-        let p = c.get_program("klb_gl_journal_import").await.unwrap();
+        let p = c.get_integration("klb_gl_journal_import").await.unwrap();
         assert_eq!(p.name, "KLB_GL_JOURNAL_IMPORT");
         assert!(p.source.contains("importBulkData"));
         assert!(p.line_count > 0);
@@ -327,7 +327,7 @@ mod tests {
     #[tokio::test]
     async fn search_filters_by_kind() {
         let c = client();
-        let hits = c.search(AdtSearchRequest {
+        let hits = c.search(OicSearchRequest {
             query: "invoice hold".into(),
             kind: Some(OracleArtifactKind::GroovyScript),
             max_results: 20,
@@ -353,8 +353,8 @@ mod tests {
     #[tokio::test]
     async fn data_preview_block_is_surfaced() {
         let c = client();
-        let err = c.get_table_contents("XLA_AE_LINES", 10).await.unwrap_err();
-        assert!(matches!(err, AdtError::DataPreviewBlocked(_)));
+        let err = c.preview_data("XLA_AE_LINES", 10).await.unwrap_err();
+        assert!(matches!(err, OicError::DataPreviewBlocked(_)));
     }
 
     #[tokio::test]
@@ -362,9 +362,9 @@ mod tests {
         let c = client();
         let err = c.activate(
             ActivationRequest { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration },
-            AdtCallContext { read_only: true },
+            OicCallContext { read_only: true },
         ).await.unwrap_err();
-        assert!(matches!(err, AdtError::PermissionDenied(_)));
+        assert!(matches!(err, OicError::PermissionDenied(_)));
     }
 
     #[tokio::test]
@@ -372,7 +372,7 @@ mod tests {
         let c = client();
         let outcome = c.activate(
             ActivationRequest { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration },
-            AdtCallContext { read_only: false },
+            OicCallContext { read_only: false },
         ).await.unwrap();
         assert!(outcome.activated);
     }
@@ -380,7 +380,7 @@ mod tests {
     #[tokio::test]
     async fn package_contents_includes_seeded_objects() {
         let c = client();
-        let pkg = c.get_package_contents("KLB_FINANCE_INTEGRATIONS").await.unwrap();
+        let pkg = c.get_project_contents("KLB_FINANCE_INTEGRATIONS").await.unwrap();
         assert!(pkg.members.iter().any(|m| m.name == "KLB_FUSION_ERP_REST"));
         assert!(pkg.members.iter().any(|m| m.name == "KLB_GL_JOURNAL_EXTRACT"));
     }
@@ -388,7 +388,7 @@ mod tests {
     #[tokio::test]
     async fn function_module_lookup_uses_group_namespace() {
         let c = client();
-        let fm = c.get_function_module("GL", "JournalImportLauncher").await.unwrap();
+        let fm = c.get_ess_job("GL", "JournalImportLauncher").await.unwrap();
         assert_eq!(fm.name, "JournalImportLauncher");
         assert!(fm.source.contains("JournalImportLauncher"));
     }

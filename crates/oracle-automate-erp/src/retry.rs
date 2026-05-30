@@ -4,9 +4,9 @@
 //! retry/circuit logic and surfaces every RFC blip to the agent — agents
 //! then waste tokens reasoning about transient SAP unavailability instead
 //! of business logic.  We bake retry classification into the trait surface:
-//! `RfcError::is_transient()` decides whether `retry_with_backoff` retries.
+//! `ErpError::is_transient()` decides whether `retry_with_backoff` retries.
 
-use crate::error::{RfcError, RfcResult};
+use crate::error::{ErpError, ErpResult};
 use std::future::Future;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -33,10 +33,10 @@ impl Default for BackoffPolicy {
 
 /// Retry an async fallible call, with exponential backoff on transient
 /// errors only.  Permanent errors short-circuit.
-pub async fn retry_with_backoff<F, Fut, T>(policy: &BackoffPolicy, mut f: F) -> RfcResult<T>
+pub async fn retry_with_backoff<F, Fut, T>(policy: &BackoffPolicy, mut f: F) -> ErpResult<T>
 where
     F: FnMut() -> Fut,
-    Fut: Future<Output = RfcResult<T>>,
+    Fut: Future<Output = ErpResult<T>>,
 {
     let mut delay = policy.initial;
     let mut attempt = 0u32;
@@ -115,10 +115,10 @@ impl CircuitBreaker {
     }
 
     /// Execute a call through the breaker.
-    pub async fn call<F, Fut, T>(&self, f: F) -> RfcResult<T>
+    pub async fn call<F, Fut, T>(&self, f: F) -> ErpResult<T>
     where
         F: FnOnce() -> Fut,
-        Fut: Future<Output = RfcResult<T>>,
+        Fut: Future<Output = ErpResult<T>>,
     {
         let snapshot = self.tick();
         if snapshot.state == CircuitState::Open {
@@ -126,7 +126,7 @@ impl CircuitBreaker {
                 .opened_at
                 .map(|t| self.open_duration.saturating_sub(t.elapsed()))
                 .unwrap_or(self.open_duration);
-            return Err(RfcError::CircuitOpen { retry_after_ms: remaining.as_millis() as u64 });
+            return Err(ErpError::CircuitOpen { retry_after_ms: remaining.as_millis() as u64 });
         }
 
         let result = f().await;
@@ -169,11 +169,11 @@ mod tests {
             max_delay: Duration::from_millis(1),
         };
         let a = Arc::clone(&attempts);
-        let result: RfcResult<&'static str> = retry_with_backoff(&policy, move || {
+        let result: ErpResult<&'static str> = retry_with_backoff(&policy, move || {
             let a = Arc::clone(&a);
             async move {
                 let n = a.fetch_add(1, Ordering::SeqCst);
-                if n < 2 { Err(RfcError::Timeout { timeout_ms: 10 }) }
+                if n < 2 { Err(ErpError::Timeout { timeout_ms: 10 }) }
                 else { Ok("ok") }
             }
         })
@@ -186,11 +186,11 @@ mod tests {
     async fn does_not_retry_permanent_errors() {
         let attempts = Arc::new(AtomicU32::new(0));
         let a = Arc::clone(&attempts);
-        let result: RfcResult<()> = retry_with_backoff(&BackoffPolicy::default(), move || {
+        let result: ErpResult<()> = retry_with_backoff(&BackoffPolicy::default(), move || {
             let a = Arc::clone(&a);
             async move {
                 a.fetch_add(1, Ordering::SeqCst);
-                Err(RfcError::NotFound("Z_NOPE".into()))
+                Err(ErpError::NotFound("Z_NOPE".into()))
             }
         })
         .await;
@@ -203,7 +203,7 @@ mod tests {
         let cb = CircuitBreaker::new(2, Duration::from_millis(50));
         for _ in 0..2 {
             let _ = cb.call(|| async {
-                Err::<(), _>(RfcError::DestinationDown {
+                Err::<(), _>(ErpError::DestinationDown {
                     destination: "T01".into(),
                     reason: "down".into(),
                 })
@@ -211,7 +211,7 @@ mod tests {
         }
         assert_eq!(cb.state(), CircuitState::Open);
         // Third call must short-circuit.
-        let r = cb.call(|| async { Ok::<_, RfcError>(()) }).await;
-        assert!(matches!(r, Err(RfcError::CircuitOpen { .. })));
+        let r = cb.call(|| async { Ok::<_, ErpError>(()) }).await;
+        assert!(matches!(r, Err(ErpError::CircuitOpen { .. })));
     }
 }

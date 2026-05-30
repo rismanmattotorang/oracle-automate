@@ -21,7 +21,7 @@ use axum::{
     Json, Router,
 };
 use oracle_automate_adt::{
-    AdtAuth, AdtCallContext, AdtClient, AdtDestination, AdtError, AdtSearchRequest,
+    OicAuth, OicCallContext, OicClient, OicDestination, OicError, OicSearchRequest,
     ActivationRequest, HttpOicClient, OracleArtifactKind, WhereUsedRequest,
 };
 use serde_json::json;
@@ -75,12 +75,12 @@ async fn spawn_mock() -> SocketAddr {
 }
 
 fn client(addr: SocketAddr) -> HttpOicClient {
-    let dest = AdtDestination {
+    let dest = OicDestination {
         name: "test".into(),
         base_url: format!("http://{addr}"),
         client: "LIVE".into(),
         language: "EN".into(),
-        auth: AdtAuth::Basic { user: "u".into(), password: "p".into() },
+        auth: OicAuth::Basic { user: "u".into(), password: "p".into() },
     };
     HttpOicClient::new(dest).unwrap()
 }
@@ -89,7 +89,7 @@ fn client(addr: SocketAddr) -> HttpOicClient {
 async fn get_program_fetches_and_projects_integration() {
     let addr = spawn_mock().await;
     let c = client(addr);
-    let p = c.get_program("KLB_GL_JOURNAL_IMPORT").await.unwrap();
+    let p = c.get_integration("KLB_GL_JOURNAL_IMPORT").await.unwrap();
     assert_eq!(p.name, "KLB_GL_JOURNAL_IMPORT");
     assert_eq!(p.kind, OracleArtifactKind::Integration);
     assert!(p.source.contains("KLB_GL_JOURNAL_IMPORT"));
@@ -101,15 +101,15 @@ async fn get_program_fetches_and_projects_integration() {
 async fn missing_artifact_maps_to_not_found() {
     let addr = spawn_mock().await;
     let c = client(addr);
-    let err = c.get_program("MISSING").await.unwrap_err();
-    assert!(matches!(err, AdtError::NotFound { .. }), "got {err:?}");
+    let err = c.get_integration("MISSING").await.unwrap_err();
+    assert!(matches!(err, OicError::NotFound { .. }), "got {err:?}");
 }
 
 #[tokio::test]
 async fn search_parses_items_and_emits_auth() {
     let addr = spawn_mock().await;
     let c = client(addr);
-    let hits = c.search(AdtSearchRequest {
+    let hits = c.search(OicSearchRequest {
         query: "journal".into(),
         kind: Some(OracleArtifactKind::Integration),
         max_results: 10,
@@ -135,8 +135,8 @@ async fn where_used_parses_connection_usages() {
 async fn table_preview_is_blocked_directs_to_bip() {
     let addr = spawn_mock().await;
     let c = client(addr);
-    let err = c.get_table_contents("XLA_AE_LINES", 10).await.unwrap_err();
-    assert!(matches!(err, AdtError::DataPreviewBlocked(_)), "got {err:?}");
+    let err = c.preview_data("XLA_AE_LINES", 10).await.unwrap_err();
+    assert!(matches!(err, OicError::DataPreviewBlocked(_)), "got {err:?}");
 }
 
 #[tokio::test]
@@ -145,9 +145,9 @@ async fn activate_blocked_in_read_only_mode() {
     let c = client(addr);
     let err = c.activate(
         ActivationRequest { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration },
-        AdtCallContext { read_only: true },
+        OicCallContext { read_only: true },
     ).await.unwrap_err();
-    assert!(matches!(err, AdtError::PermissionDenied(_)), "got {err:?}");
+    assert!(matches!(err, OicError::PermissionDenied(_)), "got {err:?}");
 }
 
 #[tokio::test]
@@ -156,7 +156,7 @@ async fn activate_succeeds_when_writes_enabled() {
     let c = client(addr);
     let outcome = c.activate(
         ActivationRequest { name: "KLB_GL_JOURNAL_IMPORT".into(), kind: OracleArtifactKind::Integration },
-        AdtCallContext { read_only: false },
+        OicCallContext { read_only: false },
     ).await.unwrap();
     assert!(outcome.activated, "messages: {:?}", outcome.messages);
 }

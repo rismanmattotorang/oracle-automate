@@ -125,7 +125,7 @@ fn make_system_info(ctx: &Arc<ServerContext>) -> ResourceDescriptor {
             let uri = uri.to_string();
             let ctx = Arc::clone(&self.0);
             Box::pin(async move {
-                let info = ctx.sap_client.system_info().await
+                let info = ctx.erp_client.system_info().await
                     .map_err(|e| Error::Other(e.to_string()))?;
                 let text = serde_json::to_string_pretty(&info).map_err(Error::Json)?;
                 Ok(ReadResourceResult {
@@ -158,7 +158,7 @@ fn make_table_structure(ctx: &Arc<ServerContext>, table: &str) -> ResourceDescri
             let ctx = Arc::clone(&self.ctx);
             let table = self.table.clone();
             Box::pin(async move {
-                let s = ctx.sap_client.table_structure(&table).await
+                let s = ctx.erp_client.table_structure(&table).await
                     .map_err(|e| Error::Other(e.to_string()))?;
                 let text = serde_json::to_string_pretty(&s).map_err(Error::Json)?;
                 Ok(ReadResourceResult {
@@ -189,7 +189,7 @@ fn make_rfc_meta(ctx: &Arc<ServerContext>, function: &str) -> ResourceDescriptor
             let ctx = Arc::clone(&self.ctx);
             let function = self.function.clone();
             Box::pin(async move {
-                let meta = ctx.sap_client.rfc_metadata(&function, "EN").await
+                let meta = ctx.erp_client.operation_metadata(&function, "EN").await
                     .map_err(|e| Error::Other(e.to_string()))?;
                 let text = serde_json::to_string_pretty(&meta).map_err(Error::Json)?;
                 Ok(ReadResourceResult {

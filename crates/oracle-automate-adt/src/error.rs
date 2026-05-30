@@ -7,14 +7,14 @@
 
 use thiserror::Error;
 
-pub type AdtResult<T> = std::result::Result<T, AdtError>;
+pub type OicResult<T> = std::result::Result<T, OicError>;
 
 /// Structured error codes for SAP ADT operations.  Numeric values are
 /// stable across releases; `#[non_exhaustive]` lets us add new variants
 /// without breaking downstream matches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum AdtErrorCode {
+pub enum OicErrorCode {
     // Transient (-32100..-32199)
     Timeout = -32160,
     DestinationDown = -32161,
@@ -37,7 +37,7 @@ pub enum AdtErrorCode {
     Internal = -32298,
 }
 
-impl AdtErrorCode {
+impl OicErrorCode {
     pub fn as_i32(self) -> i32 { self as i32 }
     pub fn is_transient(self) -> bool {
         let v = self as i32;
@@ -47,7 +47,7 @@ impl AdtErrorCode {
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
-pub enum AdtError {
+pub enum OicError {
     #[error("ADT timeout after {timeout_ms} ms")]
     Timeout { timeout_ms: u64 },
 
@@ -88,24 +88,24 @@ pub enum AdtError {
     Internal(String),
 }
 
-impl AdtError {
-    pub fn code(&self) -> AdtErrorCode {
+impl OicError {
+    pub fn code(&self) -> OicErrorCode {
         match self {
-            AdtError::Timeout { .. } => AdtErrorCode::Timeout,
-            AdtError::DestinationDown { .. } => AdtErrorCode::DestinationDown,
-            AdtError::CsrfRefresh => AdtErrorCode::CsrfRefresh,
-            AdtError::RateLimited { .. } => AdtErrorCode::RateLimited,
-            AdtError::AuthFailed(_) => AdtErrorCode::AuthFailed,
-            AdtError::NotFound { .. } => AdtErrorCode::NotFound,
-            AdtError::Forbidden(_) => AdtErrorCode::Forbidden,
-            AdtError::InvalidObjectName(_) => AdtErrorCode::InvalidObjectName,
-            AdtError::InactiveObject(_) => AdtErrorCode::InactiveObject,
-            AdtError::DataPreviewBlocked(_) => AdtErrorCode::DataPreviewBlocked,
-            AdtError::PermissionDenied(_) => AdtErrorCode::PermissionDenied,
-            AdtError::Locked(_) => AdtErrorCode::Locked,
+            OicError::Timeout { .. } => OicErrorCode::Timeout,
+            OicError::DestinationDown { .. } => OicErrorCode::DestinationDown,
+            OicError::CsrfRefresh => OicErrorCode::CsrfRefresh,
+            OicError::RateLimited { .. } => OicErrorCode::RateLimited,
+            OicError::AuthFailed(_) => OicErrorCode::AuthFailed,
+            OicError::NotFound { .. } => OicErrorCode::NotFound,
+            OicError::Forbidden(_) => OicErrorCode::Forbidden,
+            OicError::InvalidObjectName(_) => OicErrorCode::InvalidObjectName,
+            OicError::InactiveObject(_) => OicErrorCode::InactiveObject,
+            OicError::DataPreviewBlocked(_) => OicErrorCode::DataPreviewBlocked,
+            OicError::PermissionDenied(_) => OicErrorCode::PermissionDenied,
+            OicError::Locked(_) => OicErrorCode::Locked,
             // Internal errors are programmer bugs, not transient — must
             // NOT be retried.  See Phase 7 code-review pass.
-            AdtError::Internal(_) => AdtErrorCode::Internal,
+            OicError::Internal(_) => OicErrorCode::Internal,
         }
     }
 
@@ -118,20 +118,20 @@ mod tests {
 
     #[test]
     fn adt_internal_is_permanent() {
-        let e = AdtError::Internal("bug".into());
+        let e = OicError::Internal("bug".into());
         assert!(!e.is_transient(),
-            "AdtError::Internal must be permanent to prevent retry-loop on programmer bugs");
+            "OicError::Internal must be permanent to prevent retry-loop on programmer bugs");
     }
 
     #[test]
     fn adt_transient_kinds_are_classified_correctly() {
-        for code in [AdtErrorCode::Timeout, AdtErrorCode::DestinationDown,
-                     AdtErrorCode::CsrfRefresh, AdtErrorCode::RateLimited] {
+        for code in [OicErrorCode::Timeout, OicErrorCode::DestinationDown,
+                     OicErrorCode::CsrfRefresh, OicErrorCode::RateLimited] {
             assert!(code.is_transient(), "{code:?} should be transient");
         }
-        for code in [AdtErrorCode::AuthFailed, AdtErrorCode::NotFound,
-                     AdtErrorCode::Forbidden, AdtErrorCode::Internal,
-                     AdtErrorCode::DataPreviewBlocked, AdtErrorCode::Locked] {
+        for code in [OicErrorCode::AuthFailed, OicErrorCode::NotFound,
+                     OicErrorCode::Forbidden, OicErrorCode::Internal,
+                     OicErrorCode::DataPreviewBlocked, OicErrorCode::Locked] {
             assert!(!code.is_transient(), "{code:?} should NOT be transient");
         }
     }

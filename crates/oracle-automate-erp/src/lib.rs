@@ -18,7 +18,7 @@
 //! - `pool`: tokio-semaphore-based connection limiter
 //! - `retry`: exponential-backoff helper + circuit-breaker primitive
 
-pub mod bapiret2;
+pub mod erp_result;
 pub mod client;
 pub mod credentials;
 pub mod error;
@@ -29,21 +29,21 @@ pub mod pool;
 pub mod retry;
 pub mod transaction;
 
-pub use bapiret2::{BapiRet2Message, BapiRet2Severity, parse_bapiret2};
+pub use erp_result::{ErpMessage, ErpSeverity, parse_erp_messages};
 pub use metadata_cache::{CacheStats, MetadataCache};
 #[cfg(feature = "fusion")]
 pub use fusion::{FusionAuth, FusionConfig, FusionPartyClient, HttpFusionClient, Party};
 
 pub use client::{
-    BulkMetadata, MockErpClient, ReadTableRequest, RfcCallRequest, RfcFunctionMeta,
-    RfcFunctionSummary, RfcParameter, RfcParamDirection, RfcSearchResult, ErpClient,
+    BulkMetadata, MockErpClient, ReadTableRequest, ErpCallRequest, ErpOperationMeta,
+    ErpOperationSummary, ErpParameter, ErpParamDirection, ErpSearchResult, ErpClient,
     SystemInfo, TableRow, TableStructure, TableField, MAX_ROWS_HARD_CAP,
 };
 pub use credentials::{
     Credentials, CredentialProvider, CredentialSource, EnvCredentialProvider,
     LayeredCredentialProvider, StaticCredentialProvider,
 };
-pub use error::{RfcError, RfcErrorCode, RfcResult};
+pub use error::{ErpError, ErpErrorCode, ErpResult};
 pub use transaction::{execute_write_bapi, has_failure, WriteOutcome};
 pub use pool::ConnectionPool;
 pub use retry::{retry_with_backoff, BackoffPolicy, CircuitBreaker, CircuitState};

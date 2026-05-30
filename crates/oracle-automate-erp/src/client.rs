@@ -10,11 +10,11 @@
 //!   - `NetweaverErpClient` (Phase 2 finalisation): wraps a real RFC SDK
 //!     binding behind the same trait.  Adoption needs no MCP server change.
 //!
-//! Pattern note: every method takes `&self` and returns a `RfcResult`.
+//! Pattern note: every method takes `&self` and returns a `ErpResult`.
 //! The pool / circuit-breaker / retry helpers wrap calls externally so
 //! individual backends stay simple.
 
-use crate::error::{RfcError, RfcResult};
+use crate::error::{ErpError, ErpResult};
 use crate::pool::ConnectionPool;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -45,12 +45,12 @@ pub struct SystemInfo {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub enum RfcParamDirection { Import, Export, Changing, Tables }
+pub enum ErpParamDirection { Import, Export, Changing, Tables }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RfcParameter {
+pub struct ErpParameter {
     pub name: String,
-    pub direction: RfcParamDirection,
+    pub direction: ErpParamDirection,
     /// ABAP type token (e.g. `CHAR(10)`, `MATNR`, `STRUCT(BAPIMATHEAD)`).
     #[serde(rename = "type")]
     pub type_token: String,
@@ -63,7 +63,7 @@ pub struct RfcParameter {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RfcFunctionMeta {
+pub struct ErpOperationMeta {
     pub function: String,
     pub description: String,
     /// e.g. "FBAS" / "MM" / "SD"
@@ -71,7 +71,7 @@ pub struct RfcFunctionMeta {
     /// Devclass / package, e.g. "ZFIN".
     #[serde(default)]
     pub package: Option<String>,
-    pub parameters: Vec<RfcParameter>,
+    pub parameters: Vec<ErpParameter>,
     #[serde(default)]
     pub deprecated: bool,
     /// Whether the function is safe to call read-only.  Surfaces the
@@ -126,7 +126,7 @@ impl RequiredPrivilege {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RfcFunctionSummary {
+pub struct ErpOperationSummary {
     pub function: String,
     pub description: String,
     pub function_group: String,
@@ -136,13 +136,13 @@ pub struct RfcFunctionSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RfcSearchResult {
+pub struct ErpSearchResult {
     pub query: String,
-    pub hits: Vec<RfcFunctionSummary>,
+    pub hits: Vec<ErpOperationSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RfcCallRequest {
+pub struct ErpCallRequest {
     pub function: String,
     #[serde(default)]
     pub parameters: serde_json::Value,
@@ -160,7 +160,7 @@ fn default_true() -> bool { true }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BulkMetadata {
     pub language: String,
-    pub functions: Vec<RfcFunctionMeta>,
+    pub functions: Vec<ErpOperationMeta>,
     /// Functions that were requested but not found.
     pub missing: Vec<String>,
 }
@@ -225,19 +225,19 @@ pub struct TableRow {
 
 #[async_trait]
 pub trait ErpClient: Send + Sync {
-    async fn system_info(&self) -> RfcResult<SystemInfo>;
+    async fn system_info(&self) -> ErpResult<SystemInfo>;
 
-    async fn search_rfc(&self, query: &str, limit: usize) -> RfcResult<RfcSearchResult>;
+    async fn search_operations(&self, query: &str, limit: usize) -> ErpResult<ErpSearchResult>;
 
-    async fn rfc_metadata(&self, function: &str, language: &str) -> RfcResult<RfcFunctionMeta>;
+    async fn operation_metadata(&self, function: &str, language: &str) -> ErpResult<ErpOperationMeta>;
 
-    async fn bulk_rfc_metadata(&self, functions: &[String], language: &str) -> RfcResult<BulkMetadata>;
+    async fn bulk_operation_metadata(&self, functions: &[String], language: &str) -> ErpResult<BulkMetadata>;
 
-    async fn call_rfc(&self, request: RfcCallRequest, read_only_mode: bool) -> RfcResult<serde_json::Value>;
+    async fn call_operation(&self, request: ErpCallRequest, read_only_mode: bool) -> ErpResult<serde_json::Value>;
 
-    async fn read_table(&self, request: ReadTableRequest) -> RfcResult<Vec<TableRow>>;
+    async fn read_table(&self, request: ReadTableRequest) -> ErpResult<Vec<TableRow>>;
 
-    async fn table_structure(&self, table: &str) -> RfcResult<TableStructure>;
+    async fn table_structure(&self, table: &str) -> ErpResult<TableStructure>;
 
     /// Pool snapshot for the TUI / Prometheus dashboards.
     fn pool_status(&self) -> PoolStatus {
@@ -259,7 +259,7 @@ pub struct PoolStatus { pub cap: usize, pub available: usize }
 /// the MCP server be exercised end-to-end without an SAP system.
 pub struct MockErpClient {
     pool: ConnectionPool,
-    functions: HashMap<String, RfcFunctionMeta>,
+    functions: HashMap<String, ErpOperationMeta>,
     tables: HashMap<String, MockTable>,
     identity: serde_json::Value,
 }
@@ -297,7 +297,7 @@ impl MockErpClient {
 
 #[async_trait]
 impl ErpClient for MockErpClient {
-    async fn system_info(&self) -> RfcResult<SystemInfo> {
+    async fn system_info(&self) -> ErpResult<SystemInfo> {
         let _p = self.pool.acquire().await?;
         Ok(SystemInfo {
             sid: "KALBE-FA-DEV".into(),
@@ -310,17 +310,17 @@ impl ErpClient for MockErpClient {
         })
     }
 
-    async fn search_rfc(&self, query: &str, limit: usize) -> RfcResult<RfcSearchResult> {
+    async fn search_operations(&self, query: &str, limit: usize) -> ErpResult<ErpSearchResult> {
         let _p = self.pool.acquire().await?;
         let q = query.to_lowercase();
         let terms: Vec<&str> = q.split_whitespace().collect();
-        let mut hits: Vec<RfcFunctionSummary> = self.functions.values()
+        let mut hits: Vec<ErpOperationSummary> = self.functions.values()
             .filter_map(|f| {
                 let hay = format!("{} {} {}", f.function.to_lowercase(), f.description.to_lowercase(), f.function_group.to_lowercase());
                 let score: usize = terms.iter().map(|t| hay.matches(t).count()).sum();
                 if score == 0 { None }
                 else {
-                    Some(RfcFunctionSummary {
+                    Some(ErpOperationSummary {
                         function: f.function.clone(),
                         description: f.description.clone(),
                         function_group: f.function_group.clone(),
@@ -332,17 +332,17 @@ impl ErpClient for MockErpClient {
             .collect();
         hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
         hits.truncate(limit.max(1));
-        Ok(RfcSearchResult { query: query.into(), hits })
+        Ok(ErpSearchResult { query: query.into(), hits })
     }
 
-    async fn rfc_metadata(&self, function: &str, _language: &str) -> RfcResult<RfcFunctionMeta> {
+    async fn operation_metadata(&self, function: &str, _language: &str) -> ErpResult<ErpOperationMeta> {
         let _p = self.pool.acquire().await?;
         self.functions.get(function)
             .cloned()
-            .ok_or_else(|| RfcError::NotFound(function.into()))
+            .ok_or_else(|| ErpError::NotFound(function.into()))
     }
 
-    async fn bulk_rfc_metadata(&self, functions: &[String], language: &str) -> RfcResult<BulkMetadata> {
+    async fn bulk_operation_metadata(&self, functions: &[String], language: &str) -> ErpResult<BulkMetadata> {
         let _p = self.pool.acquire().await?;
         let mut out = Vec::new();
         let mut missing = Vec::new();
@@ -355,12 +355,12 @@ impl ErpClient for MockErpClient {
         Ok(BulkMetadata { language: language.into(), functions: out, missing })
     }
 
-    async fn call_rfc(&self, request: RfcCallRequest, read_only_mode: bool) -> RfcResult<serde_json::Value> {
+    async fn call_operation(&self, request: ErpCallRequest, read_only_mode: bool) -> ErpResult<serde_json::Value> {
         let _p = self.pool.acquire().await?;
         let meta = self.functions.get(&request.function)
-            .ok_or_else(|| RfcError::NotFound(request.function.clone()))?;
+            .ok_or_else(|| ErpError::NotFound(request.function.clone()))?;
         if read_only_mode && !meta.read_only {
-            return Err(RfcError::PermissionDenied(format!(
+            return Err(ErpError::PermissionDenied(format!(
                 "function '{}' modifies state; not callable in read-only mode",
                 request.function,
             )));
@@ -370,14 +370,14 @@ impl ErpClient for MockErpClient {
         let args = match &request.parameters {
             serde_json::Value::Object(m) => m.clone(),
             serde_json::Value::Null => serde_json::Map::new(),
-            other => return Err(RfcError::InvalidParameter {
+            other => return Err(ErpError::InvalidParameter {
                 name: "parameters".into(),
                 reason: format!("expected object, got {}", other),
             }),
         };
         for p in &meta.parameters {
-            if p.direction == RfcParamDirection::Import && !p.optional && !args.contains_key(&p.name) {
-                return Err(RfcError::InvalidParameter {
+            if p.direction == ErpParamDirection::Import && !p.optional && !args.contains_key(&p.name) {
+                return Err(ErpError::InvalidParameter {
                     name: p.name.clone(),
                     reason: "required import parameter missing".into(),
                 });
@@ -394,22 +394,22 @@ impl ErpClient for MockErpClient {
         }))
     }
 
-    async fn read_table(&self, request: ReadTableRequest) -> RfcResult<Vec<TableRow>> {
+    async fn read_table(&self, request: ReadTableRequest) -> ErpResult<Vec<TableRow>> {
         let _p = self.pool.acquire().await?;
         if request.max_rows == 0 {
-            return Err(RfcError::InvalidParameter {
+            return Err(ErpError::InvalidParameter {
                 name: "max_rows".into(),
                 reason: "must be >= 1".into(),
             });
         }
         if request.max_rows > MAX_ROWS_HARD_CAP {
-            return Err(RfcError::TableBufferOverflow {
+            return Err(ErpError::TableBufferOverflow {
                 table: request.table.clone(),
                 max_rows: request.max_rows,
             });
         }
         let table = self.tables.get(&request.table)
-            .ok_or_else(|| RfcError::NotFound(request.table.clone()))?;
+            .ok_or_else(|| ErpError::NotFound(request.table.clone()))?;
 
         // Field projection.
         let projection: Vec<String> = if request.fields.is_empty() {
@@ -417,7 +417,7 @@ impl ErpClient for MockErpClient {
         } else {
             for f in &request.fields {
                 if !table.structure.fields.iter().any(|tf| tf.name.eq_ignore_ascii_case(f)) {
-                    return Err(RfcError::InvalidParameter {
+                    return Err(ErpError::InvalidParameter {
                         name: "fields".into(),
                         reason: format!("unknown field '{f}'"),
                     });
@@ -458,11 +458,11 @@ impl ErpClient for MockErpClient {
         Ok(rows)
     }
 
-    async fn table_structure(&self, table: &str) -> RfcResult<TableStructure> {
+    async fn table_structure(&self, table: &str) -> ErpResult<TableStructure> {
         let _p = self.pool.acquire().await?;
         self.tables.get(table)
             .map(|t| t.structure.clone())
-            .ok_or_else(|| RfcError::NotFound(table.into()))
+            .ok_or_else(|| ErpError::NotFound(table.into()))
     }
 
     fn pool_status(&self) -> PoolStatus {
@@ -470,10 +470,10 @@ impl ErpClient for MockErpClient {
     }
 }
 
-fn mock_outputs(meta: &RfcFunctionMeta, _args: &serde_json::Map<String, serde_json::Value>) -> serde_json::Value {
+fn mock_outputs(meta: &ErpOperationMeta, _args: &serde_json::Map<String, serde_json::Value>) -> serde_json::Value {
     let mut out = serde_json::Map::new();
     for p in &meta.parameters {
-        if p.direction == RfcParamDirection::Export {
+        if p.direction == ErpParamDirection::Export {
             out.insert(p.name.clone(), serde_json::Value::String(format!("<mock {}>", p.type_token)));
         }
     }
@@ -481,7 +481,7 @@ fn mock_outputs(meta: &RfcFunctionMeta, _args: &serde_json::Map<String, serde_js
 }
 
 /// Parse "FIELD = 'value'" / "FIELD LIKE 'pattern'" into (field, op, value).
-fn parse_conditions(raw: &[String]) -> RfcResult<Vec<(String, String, String)>> {
+fn parse_conditions(raw: &[String]) -> ErpResult<Vec<(String, String, String)>> {
     let mut out = Vec::new();
     for s in raw {
         let trimmed = s.trim();
@@ -495,7 +495,7 @@ fn parse_conditions(raw: &[String]) -> RfcResult<Vec<(String, String, String)>> 
             let v = trimmed[idx + 1..].trim().trim_matches('\'').to_string();
             (f, "=".into(), v)
         } else {
-            return Err(RfcError::InvalidParameter {
+            return Err(ErpError::InvalidParameter {
                 name: "where_conditions".into(),
                 reason: format!("unsupported clause '{s}' (expected FIELD = 'value' or FIELD LIKE 'pattern')"),
             });
@@ -561,25 +561,25 @@ fn sql_like(haystack: &str, pattern: &str) -> bool {
 // confirmed in SAP Help SE37 documentation).
 // ---------------------------------------------------------------------------
 
-fn p_imp(name: &str, ty: &str, opt: bool, desc: &str) -> RfcParameter {
-    RfcParameter { name: name.into(), direction: RfcParamDirection::Import, type_token: ty.into(), optional: opt, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: None }
+fn p_imp(name: &str, ty: &str, opt: bool, desc: &str) -> ErpParameter {
+    ErpParameter { name: name.into(), direction: ErpParamDirection::Import, type_token: ty.into(), optional: opt, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: None }
 }
-fn p_exp(name: &str, ty: &str, opt: bool, desc: &str) -> RfcParameter {
-    RfcParameter { name: name.into(), direction: RfcParamDirection::Export, type_token: ty.into(), optional: opt, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: None }
+fn p_exp(name: &str, ty: &str, opt: bool, desc: &str) -> ErpParameter {
+    ErpParameter { name: name.into(), direction: ErpParamDirection::Export, type_token: ty.into(), optional: opt, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: None }
 }
-fn p_tab(name: &str, ty: &str, opt: bool, desc: &str) -> RfcParameter {
-    RfcParameter { name: name.into(), direction: RfcParamDirection::Tables, type_token: ty.into(), optional: opt, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: None }
+fn p_tab(name: &str, ty: &str, opt: bool, desc: &str) -> ErpParameter {
+    ErpParameter { name: name.into(), direction: ErpParamDirection::Tables, type_token: ty.into(), optional: opt, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: None }
 }
-fn p_imp_default(name: &str, ty: &str, default: &str, desc: &str) -> RfcParameter {
-    RfcParameter { name: name.into(), direction: RfcParamDirection::Import, type_token: ty.into(), optional: true, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: Some(default.into()) }
+fn p_imp_default(name: &str, ty: &str, default: &str, desc: &str) -> ErpParameter {
+    ErpParameter { name: name.into(), direction: ErpParamDirection::Import, type_token: ty.into(), optional: true, description: if desc.is_empty() { None } else { Some(desc.into()) }, default_value: Some(default.into()) }
 }
 
-fn seed_functions() -> Vec<RfcFunctionMeta> {
+fn seed_functions() -> Vec<ErpOperationMeta> {
     vec![
         // ---- System / diagnostics ----------------------------------------
         // Fusion REST exposes environment identity via the framework
         // `serverInformation` resource (the RFC_SYSTEM_INFO analog).
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.system.serverInformation".into(),
             description: "Retrieve Fusion environment identity (pod, release, server timezone).".into(),
             function_group: "REST Framework".into(),
@@ -594,7 +594,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
         // ---- Product Hub: Item master read -------------------------------
         // GET /fscmRestApi/resources/11.13.18.05/itemsV2 — the
         // BAPI_MATERIAL_GET_DETAIL analog (read item / material master).
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.scm.itemsV2.get".into(),
             description: "Read Product Hub item master detail (item master). Read-only Fusion REST GET.".into(),
             function_group: "Product Management".into(),
@@ -612,7 +612,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
         // ---- Financials/GL: Post journal (synchronous REST) --------------
         // POST /fscmRestApi/resources/.../journalEntries — synchronous,
         // auto-commits per request (no separate commit call).
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.gl.journalEntries.post".into(),
             description: "Create and post a GL journal entry synchronously via Fusion REST.".into(),
             function_group: "Financials/General Ledger".into(),
@@ -633,7 +633,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
         // POST /fscmRestApi/resources/.../erpintegrations (importBulkData)
         // — loads a FBDI zip to GL_INTERFACE then runs the Journal Import
         // ESS job. Two-step: stage to interface, then import (commit-like).
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.erpintegrations.importBulkData.journalImport".into(),
             description: "Bulk-load journals via FBDI (Journal Import). Stages to GL_INTERFACE then submits the Journal Import job.".into(),
             function_group: "ERP Integration Service".into(),
@@ -652,7 +652,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
             erp_note: Some("Two-step bulk write: FBDI document → GL_INTERFACE → Journal Import ESS job. Nothing posts until the import job completes — this is the Oracle analog of the SAP interface/commit two-phase write.".into()),
         },
         // ---- Procurement: Create purchase order --------------------------
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.po.purchaseOrders.post".into(),
             description: "Create a purchase order via Fusion REST (synchronous).".into(),
             function_group: "Procurement".into(),
@@ -670,7 +670,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
             erp_note: Some("Synchronous REST; auto-commits. Charge-account distributions are validated against open GL periods (GL_PERIOD_STATUSES) before approval.".into()),
         },
         // ---- Order Management: Order import ------------------------------
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.doo.salesOrdersForOrderHub.post".into(),
             description: "Import a sales order into Order Management (Order Hub).".into(),
             function_group: "Order Management".into(),
@@ -687,7 +687,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
             erp_note: Some("Sold-to is a TCA party (BUYING_PARTY_ID) — the Oracle analog of the SAP sold-to Business Partner.".into()),
         },
         // ---- Inventory: Receiving (goods receipt) ------------------------
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.inv.receivingReceiptRequests.post".into(),
             description: "Create a receiving receipt (goods receipt against a PO).".into(),
             function_group: "Inventory Management".into(),
@@ -706,7 +706,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
         // ---- Suppliers: Master change ------------------------------------
         // PATCH /fscmRestApi/resources/.../suppliers — the customer/vendor
         // master change analog (TCA-backed).
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.poz.suppliers.patch".into(),
             description: "Update supplier master data (TCA party + supplier profile).".into(),
             function_group: "Procurement".into(),
@@ -727,7 +727,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
         // The SAP transport-release analog. Publishing a sandbox merges its
         // metadata to the mainline; promotion to PROD is high-stakes and
         // guarded by a re-typed confirmation in the workflow layer.
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.fnd.sandbox.publish".into(),
             description: "Publish a configuration sandbox to the mainline (change promotion; the transport-release analog).".into(),
             function_group: "Configuration".into(),
@@ -745,7 +745,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
             erp_note: Some("Publishing is irreversible against the mainline. Cross-pod promotion uses FSM Configuration Packages (export → import). Guard PROD publishes with a re-typed confirmation.".into()),
         },
         // ---- BI Publisher: tabular extract (RFC_READ_TABLE analog) -------
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.bip.runReport".into(),
             description: "Run a BI Publisher report to extract tabular data (the RFC_READ_TABLE analog). Prefer OTBI for ad-hoc analytics.".into(),
             function_group: "BI Publisher".into(),
@@ -761,7 +761,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
             erp_note: Some("BI Publisher is the supported path for bulk tabular extracts from Fusion (no direct table SELECT). Bound the result set; use OTBI subject areas for analytics.".into()),
         },
         // ---- REST describe (DDIF_FIELDINFO_GET analog) -------------------
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "fusion.rest.describe".into(),
             description: "Describe a Fusion REST resource's attributes/types (the DDIF_FIELDINFO_GET analog).".into(),
             function_group: "REST Framework".into(),
@@ -781,7 +781,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
         // ROLLBACK. Fusion REST writes auto-commit per request, so these
         // ops are only used on the on-prem EBS backend (and by the write
         // orchestrator to finalize / cancel a logical unit of work).
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "ebs.fnd.transaction.commit".into(),
             description: "Commit the current EBS database transaction (FND_API p_commit / COMMIT).".into(),
             function_group: "EBS Transaction Control".into(),
@@ -796,7 +796,7 @@ fn seed_functions() -> Vec<RfcFunctionMeta> {
             authorization: vec![RequiredPrivilege::run("FND_COMMIT_TRANSACTION_PRIV", "Application Developer")],
             erp_note: Some("EBS-only. Fusion REST auto-commits per request; this is the on-prem two-phase finalize.".into()),
         },
-        RfcFunctionMeta {
+        ErpOperationMeta {
             function: "ebs.fnd.transaction.rollback".into(),
             description: "Roll back the current EBS database transaction (FND_API ROLLBACK).".into(),
             function_group: "EBS Transaction Control".into(),
@@ -1032,9 +1032,9 @@ mod tests {
         for f in seed_functions() {
             if f.read_only { continue; }
             let has_status = f.parameters.iter().any(|p|
-                p.direction == RfcParamDirection::Export && p.name == "X_RETURN_STATUS");
+                p.direction == ErpParamDirection::Export && p.name == "X_RETURN_STATUS");
             let has_msg = f.parameters.iter().any(|p|
-                p.direction == RfcParamDirection::Tables && p.name == "X_MSG_DATA");
+                p.direction == ErpParamDirection::Tables && p.name == "X_MSG_DATA");
             assert!(has_status && has_msg,
                 "write op {} must declare X_RETURN_STATUS (export) + X_MSG_DATA (tables) \
                  — the FND_MSG_PUB return contract", f.function);
@@ -1151,7 +1151,7 @@ mod tests {
     #[tokio::test]
     async fn rfc_search_ranks_by_match() {
         let c = MockErpClient::new(4, serde_json::json!({}));
-        let r = c.search_rfc("item master", 5).await.unwrap();
+        let r = c.search_operations("item master", 5).await.unwrap();
         assert!(!r.hits.is_empty());
         assert_eq!(r.hits[0].function, "fusion.scm.itemsV2.get");
     }
@@ -1159,27 +1159,27 @@ mod tests {
     #[tokio::test]
     async fn rfc_metadata_required_param_check() {
         let c = MockErpClient::new(4, serde_json::json!({}));
-        let req = RfcCallRequest {
+        let req = ErpCallRequest {
             function: "fusion.scm.itemsV2.get".into(),
             parameters: serde_json::json!({}),
             timeout_ms: 5000,
             require_read_only_safe: true,
         };
-        let err = c.call_rfc(req, true).await.unwrap_err();
-        assert!(matches!(err, RfcError::InvalidParameter { ref name, .. } if name == "ITEM_NUMBER"));
+        let err = c.call_operation(req, true).await.unwrap_err();
+        assert!(matches!(err, ErpError::InvalidParameter { ref name, .. } if name == "ITEM_NUMBER"));
     }
 
     #[tokio::test]
     async fn rfc_call_read_only_mode_blocks_writes() {
         let c = MockErpClient::new(4, serde_json::json!({}));
-        let req = RfcCallRequest {
+        let req = ErpCallRequest {
             function: "fusion.gl.journalEntries.post".into(),
             parameters: serde_json::json!({ "JOURNAL_ENTRY": {} }),
             timeout_ms: 5000,
             require_read_only_safe: true,
         };
-        let err = c.call_rfc(req, true).await.unwrap_err();
-        assert!(matches!(err, RfcError::PermissionDenied(_)));
+        let err = c.call_operation(req, true).await.unwrap_err();
+        assert!(matches!(err, ErpError::PermissionDenied(_)));
     }
 
     #[tokio::test]
@@ -1206,13 +1206,13 @@ mod tests {
             where_conditions: vec![],
             max_rows: 9999,
         }).await.unwrap_err();
-        assert!(matches!(err, RfcError::TableBufferOverflow { .. }));
+        assert!(matches!(err, ErpError::TableBufferOverflow { .. }));
     }
 
     #[tokio::test]
     async fn bulk_metadata_reports_missing() {
         let c = MockErpClient::new(4, serde_json::json!({}));
-        let r = c.bulk_rfc_metadata(
+        let r = c.bulk_operation_metadata(
             &["fusion.system.serverInformation".into(), "DOES_NOT_EXIST".into()],
             "EN",
         ).await.unwrap();

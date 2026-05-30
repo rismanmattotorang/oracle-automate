@@ -10,15 +10,15 @@
 //! and encrypted-file providers will follow in Phase 7 (security hardening)
 //! when the OAuth flow is also finalised.
 
-use crate::error::{RfcError, RfcResult};
+use crate::error::{ErpError, ErpResult};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Credentials {
-    pub ashost: String,
-    pub sysnr: String,
+    pub base_url: String,
+    pub instance: String,
     pub client: String,
     pub user: String,
     /// Stored only for the lifetime of the running process.  Never logged.
@@ -26,7 +26,7 @@ pub struct Credentials {
     pub password: String,
     pub language: String,
     #[serde(default)]
-    pub saprouter: Option<String>,
+    pub proxy_url: Option<String>,
     /// Where this credential came from (for audit logs).
     pub source: CredentialSource,
 }
@@ -35,12 +35,12 @@ impl Credentials {
     /// Redacted summary safe for logs and the `sap.system.info` resource.
     pub fn redacted(&self) -> serde_json::Value {
         serde_json::json!({
-            "ashost": self.ashost,
-            "sysnr": self.sysnr,
+            "base_url": self.base_url,
+            "instance": self.instance,
             "client": self.client,
             "user": self.user,
             "language": self.language,
-            "saprouter": self.saprouter,
+            "proxy_url": self.proxy_url,
             "source": format!("{:?}", self.source),
             "password": "***",
         })
@@ -61,7 +61,7 @@ pub enum CredentialSource {
 pub trait CredentialProvider: Send + Sync {
     /// Returns `Ok(None)` if this provider has no credentials configured
     /// (so the caller can move to the next in the chain).
-    async fn fetch(&self) -> RfcResult<Option<Credentials>>;
+    async fn fetch(&self) -> ErpResult<Option<Credentials>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,24 +80,24 @@ impl Default for EnvCredentialProvider {
 
 #[async_trait]
 impl CredentialProvider for EnvCredentialProvider {
-    async fn fetch(&self) -> RfcResult<Option<Credentials>> {
-        let needed = ["SAP_ASHOST", "SAP_SYSNR", "SAP_CLIENT", "SAP_USER", "SAP_PASSWD"];
+    async fn fetch(&self) -> ErpResult<Option<Credentials>> {
+        let needed = ["ORACLE_FUSION_BASE_URL", "ORACLE_FUSION_INSTANCE", "ORACLE_FUSION_CLIENT", "ORACLE_FUSION_USER", "ORACLE_FUSION_PASSWORD"];
         let present: Vec<_> = needed.iter().filter(|k| std::env::var(*k).is_ok()).collect();
         if present.is_empty() { return Ok(None); }
         if present.len() < needed.len() {
-            return Err(RfcError::AuthFailed(format!(
+            return Err(ErpError::AuthFailed(format!(
                 "partial SAP env vars: missing {:?}",
                 needed.iter().filter(|k| std::env::var(*k).is_err()).collect::<Vec<_>>(),
             )));
         }
         Ok(Some(Credentials {
-            ashost: std::env::var("SAP_ASHOST").unwrap(),
-            sysnr: std::env::var("SAP_SYSNR").unwrap(),
-            client: std::env::var("SAP_CLIENT").unwrap(),
-            user: std::env::var("SAP_USER").unwrap(),
-            password: std::env::var("SAP_PASSWD").unwrap(),
-            language: std::env::var("SAP_LANG").unwrap_or_else(|_| "EN".to_string()),
-            saprouter: std::env::var("SAP_SAPROUTER").ok(),
+            base_url: std::env::var("ORACLE_FUSION_BASE_URL").unwrap(),
+            instance: std::env::var("ORACLE_FUSION_INSTANCE").unwrap(),
+            client: std::env::var("ORACLE_FUSION_CLIENT").unwrap(),
+            user: std::env::var("ORACLE_FUSION_USER").unwrap(),
+            password: std::env::var("ORACLE_FUSION_PASSWORD").unwrap(),
+            language: std::env::var("ORACLE_FUSION_LANGUAGE").unwrap_or_else(|_| "EN".to_string()),
+            proxy_url: std::env::var("ORACLE_FUSION_PROXY").ok(),
             source: CredentialSource::Env,
         }))
     }
@@ -117,7 +117,7 @@ impl StaticCredentialProvider {
 
 #[async_trait]
 impl CredentialProvider for StaticCredentialProvider {
-    async fn fetch(&self) -> RfcResult<Option<Credentials>> {
+    async fn fetch(&self) -> ErpResult<Option<Credentials>> {
         Ok(Some(self.creds.clone()))
     }
 }
@@ -147,7 +147,7 @@ impl Default for LayeredCredentialProvider {
 
 #[async_trait]
 impl CredentialProvider for LayeredCredentialProvider {
-    async fn fetch(&self) -> RfcResult<Option<Credentials>> {
+    async fn fetch(&self) -> ErpResult<Option<Credentials>> {
         for p in &self.providers {
             match p.fetch().await {
                 Ok(Some(c)) => return Ok(Some(c)),
@@ -166,13 +166,13 @@ mod tests {
     #[tokio::test]
     async fn static_provider_returns_credentials() {
         let p = StaticCredentialProvider::new(Credentials {
-            ashost: "oracle.example".into(),
-            sysnr: "00".into(),
+            base_url: "oracle.example".into(),
+            instance: "00".into(),
             client: "100".into(),
             user: "DEMO".into(),
             password: "x".into(),
             language: "EN".into(),
-            saprouter: None,
+            proxy_url: None,
             source: CredentialSource::Static,
         });
         let creds = p.fetch().await.unwrap().unwrap();
@@ -186,11 +186,11 @@ mod tests {
         let layered = LayeredCredentialProvider::new()
             .add(Arc::new(EnvCredentialProvider::new())) // unset env => None
             .add(Arc::new(StaticCredentialProvider::new(Credentials {
-                ashost: "fallback.sap".into(), sysnr: "01".into(), client: "100".into(),
+                base_url: "fallback.example".into(), instance: "01".into(), client: "100".into(),
                 user: "DEMO".into(), password: "x".into(), language: "EN".into(),
-                saprouter: None, source: CredentialSource::Static,
+                proxy_url: None, source: CredentialSource::Static,
             })));
         let creds = layered.fetch().await.unwrap().unwrap();
-        assert_eq!(creds.ashost, "fallback.sap");
+        assert_eq!(creds.base_url, "fallback.example");
     }
 }

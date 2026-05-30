@@ -8,7 +8,7 @@
 //! bound is hit.  This matches paper §IV-G's per-session concurrency cap
 //! and the `SAP_POOL_SIZE` knob from the Python reference project.
 
-use crate::error::{RfcError, RfcResult};
+use crate::error::{ErpError, ErpResult};
 use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
@@ -28,19 +28,19 @@ impl ConnectionPool {
 
     pub fn available(&self) -> usize { self.sem.available_permits() }
 
-    pub async fn acquire(&self) -> RfcResult<OwnedSemaphorePermit> {
+    pub async fn acquire(&self) -> ErpResult<OwnedSemaphorePermit> {
         Arc::clone(&self.sem)
             .acquire_owned()
             .await
-            .map_err(|_| RfcError::PoolExhausted { cap: self.cap })
+            .map_err(|_| ErpError::PoolExhausted { cap: self.cap })
     }
 
     /// Try to acquire without waiting.  Returns `PoolExhausted` if no slot
     /// is immediately free.
-    pub fn try_acquire(&self) -> RfcResult<OwnedSemaphorePermit> {
+    pub fn try_acquire(&self) -> ErpResult<OwnedSemaphorePermit> {
         Arc::clone(&self.sem)
             .try_acquire_owned()
-            .map_err(|_| RfcError::PoolExhausted { cap: self.cap })
+            .map_err(|_| ErpError::PoolExhausted { cap: self.cap })
     }
 }
 

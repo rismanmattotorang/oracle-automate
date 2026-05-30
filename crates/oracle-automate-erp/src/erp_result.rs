@@ -24,7 +24,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum BapiRet2Severity {
+pub enum ErpSeverity {
     /// `S` — success.
     Success,
     /// `E` — error: the BAPI did NOT complete its work.
@@ -39,7 +39,7 @@ pub enum BapiRet2Severity {
     Unknown(char),
 }
 
-impl BapiRet2Severity {
+impl ErpSeverity {
     pub fn from_char(c: char) -> Self {
         match c.to_ascii_uppercase() {
             'S' => Self::Success,
@@ -59,8 +59,8 @@ impl BapiRet2Severity {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BapiRet2Message {
-    pub severity: BapiRet2Severity,
+pub struct ErpMessage {
+    pub severity: ErpSeverity,
     pub message_class: String,
     pub message_number: String,
     pub text: String,
@@ -70,7 +70,7 @@ pub struct BapiRet2Message {
     pub system: Option<String>,
 }
 
-impl BapiRet2Message {
+impl ErpMessage {
     pub fn is_failure(&self) -> bool { self.severity.is_failure() }
 }
 
@@ -80,7 +80,7 @@ impl BapiRet2Message {
 ///   - an `outputs.RETURN` slot (the standard `mock_outputs` shape)
 ///
 /// Returns an empty list if no recognised BAPIRET2 shape is found.
-pub fn parse_bapiret2(value: &serde_json::Value) -> Vec<BapiRet2Message> {
+pub fn parse_erp_messages(value: &serde_json::Value) -> Vec<ErpMessage> {
     // Walk the value looking for BAPIRET2-shaped entries.  This
     // tolerates the various wrapping styles SAP / our mock outputs
     // emit (e.g. {"outputs":{"RETURN":[...]}}).
@@ -115,14 +115,14 @@ fn walk<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a serde_json::Value>, dept
     }
 }
 
-fn parse_one(v: &serde_json::Value) -> Option<BapiRet2Message> {
+fn parse_one(v: &serde_json::Value) -> Option<ErpMessage> {
     let obj = v.as_object()?;
     let typ = first_str(obj, &["TYPE", "type"]).unwrap_or_default();
-    let sev = typ.chars().next().map(BapiRet2Severity::from_char).unwrap_or(BapiRet2Severity::Unknown(' '));
+    let sev = typ.chars().next().map(ErpSeverity::from_char).unwrap_or(ErpSeverity::Unknown(' '));
     let message_class = first_str(obj, &["ID", "id"]).unwrap_or_default();
     let message_number = first_str(obj, &["NUMBER", "number"]).unwrap_or_default();
     let text = first_str(obj, &["MESSAGE", "message"]).unwrap_or_default();
-    Some(BapiRet2Message {
+    Some(ErpMessage {
         severity: sev,
         message_class,
         message_number,
@@ -154,11 +154,11 @@ mod tests {
             {"TYPE": "E", "ID": "F5", "NUMBER": "806", "MESSAGE": "Posting period is not open"},
             {"TYPE": "S", "ID": "F5", "NUMBER": "099", "MESSAGE": "Document posted"},
         ]);
-        let parsed = parse_bapiret2(&v);
+        let parsed = parse_erp_messages(&v);
         assert_eq!(parsed.len(), 2);
-        assert_eq!(parsed[0].severity, BapiRet2Severity::Error);
+        assert_eq!(parsed[0].severity, ErpSeverity::Error);
         assert!(parsed[0].is_failure());
-        assert_eq!(parsed[1].severity, BapiRet2Severity::Success);
+        assert_eq!(parsed[1].severity, ErpSeverity::Success);
         assert!(!parsed[1].is_failure());
     }
 
@@ -173,7 +173,7 @@ mod tests {
                 "OBJ_KEY": "0100000123"
             }
         });
-        let parsed = parse_bapiret2(&v);
+        let parsed = parse_erp_messages(&v);
         assert_eq!(parsed.len(), 1);
         assert_eq!(parsed[0].text, "Cost centre overridden");
         assert_eq!(parsed[0].message_class, "FB");
@@ -181,18 +181,18 @@ mod tests {
 
     #[test]
     fn empty_value_returns_empty_list() {
-        assert!(parse_bapiret2(&serde_json::Value::Null).is_empty());
-        assert!(parse_bapiret2(&serde_json::json!({"unrelated": 1})).is_empty());
+        assert!(parse_erp_messages(&serde_json::Value::Null).is_empty());
+        assert!(parse_erp_messages(&serde_json::json!({"unrelated": 1})).is_empty());
     }
 
     #[test]
     fn severity_is_failure_classification() {
-        assert!(BapiRet2Severity::Error.is_failure());
-        assert!(BapiRet2Severity::Abort.is_failure());
-        assert!(BapiRet2Severity::Unknown('Z').is_failure(),
+        assert!(ErpSeverity::Error.is_failure());
+        assert!(ErpSeverity::Abort.is_failure());
+        assert!(ErpSeverity::Unknown('Z').is_failure(),
             "Unknown severities must be treated as failures so unrecognised SAP responses don't cause silent commits");
-        assert!(!BapiRet2Severity::Success.is_failure());
-        assert!(!BapiRet2Severity::Warning.is_failure());
-        assert!(!BapiRet2Severity::Info.is_failure());
+        assert!(!ErpSeverity::Success.is_failure());
+        assert!(!ErpSeverity::Warning.is_failure());
+        assert!(!ErpSeverity::Info.is_failure());
     }
 }

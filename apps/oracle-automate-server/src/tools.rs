@@ -13,13 +13,13 @@ use crate::context::ServerContext;
 use mcp_core::{CallToolResult, ToolContent, ToolInputSchema};
 use mcp_server::{registry::ToolFn, ToolDescriptor};
 use oracle_automate_adt::{
-    OracleArtifactKind, AdtCallContext, AdtSearchRequest, ActivationRequest, WhereUsedRequest,
+    OracleArtifactKind, OicCallContext, OicSearchRequest, ActivationRequest, WhereUsedRequest,
 };
 use oracle_automate_kb::Domain;
 use oracle_automate_rag::Query;
 use oracle_automate_observability::{AuditEntry, AuditLog, AuditOutcome};
 use oracle_automate_erp::{
-    execute_write_bapi, ReadTableRequest, RfcCallRequest, RfcError, MAX_ROWS_HARD_CAP,
+    execute_write_bapi, ReadTableRequest, ErpCallRequest, ErpError, MAX_ROWS_HARD_CAP,
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -244,7 +244,7 @@ fn tool_bp_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.party.search: invalid arguments: {e}"))),
             };
-            let hub = match &ctx.business_hub {
+            let hub = match &ctx.party_client {
                 Some(h) => h,
                 None => return Ok(CallToolResult::error(
                     "oracle.party.search: Oracle Fusion party backend disabled. \
@@ -293,7 +293,7 @@ fn tool_bp_get(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.party.get: invalid arguments: {e}"))),
             };
-            let hub = match &ctx.business_hub {
+            let hub = match &ctx.party_client {
                 Some(h) => h,
                 None => return Ok(CallToolResult::error(
                     "oracle.party.get: Oracle Fusion party backend disabled. Set ORACLE_FUSION_BASE_URL.".to_string()
@@ -399,7 +399,7 @@ fn tool_system_health(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let handler = ToolFn(move |_args: serde_json::Value| {
         let ctx = Arc::clone(&ctx);
         async move {
-            let pool = ctx.sap_client.pool_status();
+            let pool = ctx.erp_client.pool_status();
             let snap = serde_json::json!({
                 "pool": { "cap": pool.cap, "available": pool.available, "in_use": pool.cap - pool.available },
                 "read_only_mode": ctx.read_only,
@@ -434,7 +434,7 @@ fn tool_bapi_parse_return(_ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.parse_result: invalid arguments: {e}"))),
             };
-            let msgs = oracle_automate_erp::parse_bapiret2(&args.value);
+            let msgs = oracle_automate_erp::parse_erp_messages(&args.value);
             let any_failure = msgs.iter().any(|m| m.is_failure());
             let summary = serde_json::json!({
                 "messages": msgs,
@@ -474,7 +474,7 @@ fn tool_system_info(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let handler = ToolFn(move |_args: serde_json::Value| {
         let ctx = Arc::clone(&ctx);
         async move {
-            match ctx.sap_client.system_info().await {
+            match ctx.erp_client.system_info().await {
                 Ok(info) => render_json("oracle.system.info", &info),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.system.info: {e}"))),
             }
@@ -491,7 +491,7 @@ fn tool_system_info(ctx: &Arc<ServerContext>) -> ToolDescriptor {
 // --- oracle.rest.search --------------------------------------------------------
 
 #[derive(Deserialize)]
-struct RfcSearchArgs { query: String, #[serde(default = "default_limit_20")] limit: usize }
+struct ErpSearchArgs { query: String, #[serde(default = "default_limit_20")] limit: usize }
 fn default_limit_20() -> usize { 20 }
 
 fn tool_rfc_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
@@ -499,11 +499,11 @@ fn tool_rfc_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let handler = ToolFn(move |arguments: serde_json::Value| {
         let ctx = Arc::clone(&ctx);
         async move {
-            let args: RfcSearchArgs = match serde_json::from_value(arguments) {
+            let args: ErpSearchArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.search: invalid arguments: {e}"))),
             };
-            match ctx.sap_client.search_rfc(&args.query, args.limit).await {
+            match ctx.erp_client.search_operations(&args.query, args.limit).await {
                 Ok(result) => render_json("oracle.rest.search", &result),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.rest.search: {e}"))),
             }
@@ -528,7 +528,7 @@ fn tool_rfc_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
 // --- oracle.rest.metadata ------------------------------------------------------
 
 #[derive(Deserialize)]
-struct RfcMetaArgs { function: String, #[serde(default = "default_lang")] language: String }
+struct ErpMetaArgs { function: String, #[serde(default = "default_lang")] language: String }
 fn default_lang() -> String { "EN".into() }
 
 fn tool_rfc_metadata(ctx: &Arc<ServerContext>) -> ToolDescriptor {
@@ -536,11 +536,11 @@ fn tool_rfc_metadata(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let handler = ToolFn(move |arguments: serde_json::Value| {
         let ctx = Arc::clone(&ctx);
         async move {
-            let args: RfcMetaArgs = match serde_json::from_value(arguments) {
+            let args: ErpMetaArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.metadata: invalid arguments: {e}"))),
             };
-            match ctx.sap_client.rfc_metadata(&args.function, &args.language).await {
+            match ctx.erp_client.operation_metadata(&args.function, &args.language).await {
                 Ok(meta) => render_json("oracle.rest.metadata", &meta),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.rest.metadata: {e}"))),
             }
@@ -565,14 +565,14 @@ fn tool_rfc_metadata(ctx: &Arc<ServerContext>) -> ToolDescriptor {
 // --- oracle.rest.bulk_metadata -------------------------------------------------
 
 #[derive(Deserialize)]
-struct RfcBulkArgs { functions: Vec<String>, #[serde(default = "default_lang")] language: String }
+struct ErpBulkArgs { functions: Vec<String>, #[serde(default = "default_lang")] language: String }
 
 fn tool_rfc_bulk_metadata(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let ctx = Arc::clone(ctx);
     let handler = ToolFn(move |arguments: serde_json::Value| {
         let ctx = Arc::clone(&ctx);
         async move {
-            let args: RfcBulkArgs = match serde_json::from_value(arguments) {
+            let args: ErpBulkArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.bulk_metadata: invalid arguments: {e}"))),
             };
@@ -581,7 +581,7 @@ fn tool_rfc_bulk_metadata(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                     "oracle.rest.bulk_metadata: provide 1..=100 function names",
                 ));
             }
-            match ctx.sap_client.bulk_rfc_metadata(&args.functions, &args.language).await {
+            match ctx.erp_client.bulk_operation_metadata(&args.functions, &args.language).await {
                 Ok(out) => render_json("oracle.rest.bulk_metadata", &out),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.rest.bulk_metadata: {e}"))),
             }
@@ -610,10 +610,10 @@ fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let handler = ToolFn(move |arguments: serde_json::Value| {
         let ctx = Arc::clone(&ctx);
         async move {
-            // `commit` is read off the raw args (RfcCallRequest ignores it).
+            // `commit` is read off the raw args (ErpCallRequest ignores it).
             let commit = arguments.get("commit").and_then(|v| v.as_bool()).unwrap_or(false);
             let audit_args = arguments.clone();
-            let request: RfcCallRequest = match serde_json::from_value(arguments) {
+            let request: ErpCallRequest = match serde_json::from_value(arguments) {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.rest.call: invalid arguments: {e}"))),
             };
@@ -622,7 +622,7 @@ fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 // commit-or-rollback based on its BAPIRET2 (gated by
                 // --enable-writes).  Every attempt is audited.
                 let started = Instant::now();
-                return match execute_write_bapi(ctx.sap_client.as_ref(), request, ctx.read_only).await {
+                return match execute_write_bapi(ctx.erp_client.as_ref(), request, ctx.read_only).await {
                     Ok(outcome) => {
                         let audit_outcome = if outcome.committed {
                             AuditOutcome::ok(format!("{} committed", outcome.function))
@@ -643,7 +643,7 @@ fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                     }
                     Err(e) => {
                         let audit_outcome = match &e {
-                            RfcError::PermissionDenied(r) => AuditOutcome::denied(r.clone()),
+                            ErpError::PermissionDenied(r) => AuditOutcome::denied(r.clone()),
                             other => AuditOutcome::failed(other.code().as_i32(), other.to_string()),
                         };
                         record_write_audit(&ctx, "oracle.rest.call", &audit_args, audit_outcome, started).await;
@@ -651,7 +651,7 @@ fn tool_rfc_call(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                     }
                 };
             }
-            match ctx.sap_client.call_rfc(request, ctx.read_only).await {
+            match ctx.erp_client.call_operation(request, ctx.read_only).await {
                 Ok(result) => render_json("oracle.rest.call", &result),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.rest.call [{:?}]: {e}", e.code()))),
             }
@@ -687,7 +687,7 @@ fn tool_table_read(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.object.read: invalid arguments: {e}"))),
             };
-            match ctx.sap_client.read_table(request).await {
+            match ctx.erp_client.read_table(request).await {
                 Ok(rows) => render_json("oracle.object.read", &serde_json::json!({"rows": rows, "count": rows.len()})),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.object.read [{:?}]: {e}", e.code()))),
             }
@@ -725,7 +725,7 @@ fn tool_table_structure(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.object.structure: invalid arguments: {e}"))),
             };
-            match ctx.sap_client.table_structure(&args.table).await {
+            match ctx.erp_client.table_structure(&args.table).await {
                 Ok(s) => render_json("oracle.object.structure", &s),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.object.structure: {e}"))),
             }
@@ -847,7 +847,7 @@ fn adt_get_program(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_integration: {e}"))),
             };
-            match ctx.adt_client.get_program(&args.name).await {
+            match ctx.adt_client.get_integration(&args.name).await {
                 Ok(p) => render_json("oracle.oic.get_integration", &p),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_integration [{:?}]: {e}", e.code()))),
             }
@@ -867,7 +867,7 @@ fn adt_get_class(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_groovy_script: {e}"))),
             };
-            match ctx.adt_client.get_class(&args.name).await {
+            match ctx.adt_client.get_groovy_script(&args.name).await {
                 Ok(p) => render_json("oracle.oic.get_groovy_script", &p),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_groovy_script [{:?}]: {e}", e.code()))),
             }
@@ -887,7 +887,7 @@ fn adt_get_interface(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_connection: {e}"))),
             };
-            match ctx.adt_client.get_interface(&args.name).await {
+            match ctx.adt_client.get_connection(&args.name).await {
                 Ok(p) => render_json("oracle.oic.get_connection", &p),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_connection [{:?}]: {e}", e.code()))),
             }
@@ -907,7 +907,7 @@ fn adt_get_include(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_lookup: {e}"))),
             };
-            match ctx.adt_client.get_include(&args.name).await {
+            match ctx.adt_client.get_lookup(&args.name).await {
                 Ok(p) => render_json("oracle.oic.get_lookup", &p),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_lookup [{:?}]: {e}", e.code()))),
             }
@@ -930,7 +930,7 @@ fn adt_get_function_module(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_ess_job: {e}"))),
             };
-            match ctx.adt_client.get_function_module(&args.group, &args.name).await {
+            match ctx.adt_client.get_ess_job(&args.group, &args.name).await {
                 Ok(p) => render_json("oracle.oic.get_ess_job", &p),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_ess_job [{:?}]: {e}", e.code()))),
             }
@@ -962,7 +962,7 @@ fn adt_get_package_contents(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_project_contents: {e}"))),
             };
-            match ctx.adt_client.get_package_contents(&args.package).await {
+            match ctx.adt_client.get_project_contents(&args.package).await {
                 Ok(c) => render_json("oracle.oic.get_project_contents", &c),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_project_contents [{:?}]: {e}", e.code()))),
             }
@@ -988,7 +988,7 @@ fn adt_get_cds_view(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.get_bip_report: {e}"))),
             };
-            match ctx.adt_client.get_cds_view(&args.name).await {
+            match ctx.adt_client.get_bip_report(&args.name).await {
                 Ok(v) => render_json("oracle.oic.get_bip_report", &v),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.oic.get_bip_report [{:?}]: {e}", e.code()))),
             }
@@ -1000,7 +1000,7 @@ fn adt_get_cds_view(ctx: &Arc<ServerContext>) -> ToolDescriptor {
 }
 
 #[derive(Deserialize)]
-struct AdtSearchArgs {
+struct OicSearchArgs {
     query: String,
     #[serde(default)]
     kind: Option<OracleArtifactKind>,
@@ -1015,11 +1015,11 @@ fn adt_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
     let handler = ToolFn(move |arguments: serde_json::Value| {
         let ctx = Arc::clone(&ctx);
         async move {
-            let args: AdtSearchArgs = match serde_json::from_value(arguments) {
+            let args: OicSearchArgs = match serde_json::from_value(arguments) {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.search: {e}"))),
             };
-            let req = AdtSearchRequest { query: args.query, kind: args.kind, max_results: args.max_results };
+            let req = OicSearchRequest { query: args.query, kind: args.kind, max_results: args.max_results };
             match ctx.adt_client.search(req).await {
                 Ok(hits) => render_json("oracle.oic.search", &serde_json::json!({"hits": hits})),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.oic.search [{:?}]: {e}", e.code()))),
@@ -1095,7 +1095,7 @@ fn adt_get_table_contents(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Ok(a) => a,
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.preview_data: {e}"))),
             };
-            match ctx.adt_client.get_table_contents(&args.table, args.max_rows).await {
+            match ctx.adt_client.preview_data(&args.table, args.max_rows).await {
                 Ok(rows) => render_json("oracle.oic.preview_data", &serde_json::json!({
                     "rows": rows, "count": rows.len()
                 })),
@@ -1130,7 +1130,7 @@ fn adt_activate(ctx: &Arc<ServerContext>) -> ToolDescriptor {
                 Err(e) => return Ok(CallToolResult::error(format!("oracle.oic.activate: {e}"))),
             };
             let req = ActivationRequest { name: args.name, kind: args.kind };
-            let call_ctx = AdtCallContext { read_only: ctx.read_only };
+            let call_ctx = OicCallContext { read_only: ctx.read_only };
             match ctx.adt_client.activate(req, call_ctx).await {
                 Ok(outcome) => render_json("oracle.oic.activate", &outcome),
                 Err(e) => Ok(CallToolResult::error(format!("oracle.oic.activate [{:?}]: {e}", e.code()))),
@@ -1608,7 +1608,7 @@ async fn record_write_audit(
             tenant: None,
             actor: None,
             tool: tool.to_string(),
-            sap_system: ctx.sap_system.clone(),
+            erp_system: ctx.erp_system.clone(),
             arguments_redacted: arguments.clone(),
             outcome,
             duration_ms: started.elapsed().as_millis() as u64,

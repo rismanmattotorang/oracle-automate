@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mcp_server::Server;
-use oracle_automate_adt::{AdtClient, AdtDestination, MockAdtClient};
+use oracle_automate_adt::{OicClient, OicDestination, MockOicClient};
 use oracle_automate_graph::InMemoryGraph;
 use oracle_automate_ingest::{EmbeddingClient, MockEmbedder};
 use oracle_automate_kb::{InMemoryKb, KnowledgeStore};
@@ -67,23 +67,23 @@ pub async fn build_test_server(
 
     let inner = MockErpClient::new(4, serde_json::json!({}));
     let metadata_cache = MetadataCache::new(inner.clone(), opts.metadata_cache_ttl);
-    let sap_client: Arc<dyn ErpClient> = metadata_cache.clone();
+    let erp_client: Arc<dyn ErpClient> = metadata_cache.clone();
 
-    let adt_destination = AdtDestination::mock("test".to_string());
-    let adt_client: Arc<dyn AdtClient> = MockAdtClient::new(adt_destination);
+    let adt_destination = OicDestination::mock("test".to_string());
+    let adt_client: Arc<dyn OicClient> = MockOicClient::new(adt_destination);
 
     let ctx = Arc::new(ServerContext {
         rag,
         graph: graph_engine,
         embedder,
-        sap_client,
+        erp_client,
         metadata_cache: Some(metadata_cache),
         adt_client,
-        business_hub: None,
+        party_client: None,
         read_only: opts.read_only,
         agents_md: opts.agents_md.clone(),
         audit: Arc::new(AuditLog::new(Arc::new(JsonStderrSink::new()))),
-        sap_system: Some("MOCK/100".into()),
+        erp_system: Some("MOCK/100".into()),
     });
 
     let policy = if opts.read_only {

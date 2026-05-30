@@ -19,7 +19,7 @@
 //! Override the probed class with `ORACLE_AUTOMATE_TEST_CLASS` if the default
 //! is unavailable on your stack.
 
-use oracle_automate_adt::{AdtAuth, AdtClient, AdtDestination, HttpOicClient};
+use oracle_automate_adt::{OicAuth, OicClient, OicDestination, HttpOicClient};
 
 #[tokio::test]
 async fn live_adt_get_class_smoke() {
@@ -35,10 +35,10 @@ async fn live_adt_get_class_smoke() {
         return;
     }
 
-    let dest = AdtDestination::load(&name)
+    let dest = OicDestination::load(&name)
         .unwrap_or_else(|e| panic!("destination '{name}' load failed: {e}"));
     assert!(
-        !matches!(dest.auth, AdtAuth::Mock),
+        !matches!(dest.auth, OicAuth::Mock),
         "live test needs a non-mock destination; '{name}' declares auth=mock"
     );
 
@@ -49,9 +49,9 @@ async fn live_adt_get_class_smoke() {
         .unwrap_or_else(|_| "CL_ABAP_CHAR_UTILITIES".to_string());
 
     let src = client
-        .get_class(&class)
+        .get_groovy_script(&class)
         .await
-        .unwrap_or_else(|e| panic!("get_class({class}) against '{name}' failed: {e}"));
+        .unwrap_or_else(|e| panic!("get_groovy_script({class}) against '{name}' failed: {e}"));
 
     assert!(
         !src.source.is_empty(),

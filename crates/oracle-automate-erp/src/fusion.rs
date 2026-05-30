@@ -7,7 +7,7 @@
 //! - [`HttpFusionClient`] implements [`ErpClient`] against the Fusion REST
 //!   API (`/fscmRestApi/...`).  Read-only metadata / search / structure are
 //!   served from the curated catalogue (offline-safe, deterministic); live
-//!   HTTP is used for `system_info` and `call_rfc` (REST dispatch by
+//!   HTTP is used for `system_info` and `call_operation` (REST dispatch by
 //!   operation id).  Bulk tabular extracts go through BI Publisher
 //!   (`fusion.bip.runReport`) rather than a generic table read.
 //! - [`FusionPartyClient`] reads Trading Community Architecture parties
@@ -18,10 +18,10 @@
 //! `auth` label).
 
 use crate::client::{
-    BulkMetadata, ErpClient, ReadTableRequest, RfcCallRequest, RfcFunctionMeta, RfcSearchResult,
+    BulkMetadata, ErpClient, ReadTableRequest, ErpCallRequest, ErpOperationMeta, ErpSearchResult,
     SystemInfo, TableRow, TableStructure,
 };
-use crate::error::{RfcError, RfcResult};
+use crate::error::{ErpError, ErpResult};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -94,14 +94,14 @@ impl FusionConfig {
     }
 }
 
-fn map_http_err(e: reqwest::Error) -> RfcError {
+fn map_http_err(e: reqwest::Error) -> ErpError {
     if e.is_timeout() || e.is_connect() {
-        RfcError::DestinationDown {
+        ErpError::DestinationDown {
             destination: "oracle-fusion".into(),
             reason: format!("Fusion REST transport error: {e}"),
         }
     } else {
-        RfcError::Internal(format!("Fusion REST error: {e}"))
+        ErpError::Internal(format!("Fusion REST error: {e}"))
     }
 }
 
@@ -118,10 +118,10 @@ pub struct HttpFusionClient {
 }
 
 impl HttpFusionClient {
-    pub fn new(config: FusionConfig, catalogue: Arc<dyn ErpClient>) -> RfcResult<Self> {
+    pub fn new(config: FusionConfig, catalogue: Arc<dyn ErpClient>) -> ErpResult<Self> {
         let http = reqwest::Client::builder()
             .build()
-            .map_err(|e| RfcError::Internal(format!("failed to build HTTP client: {e}")))?;
+            .map_err(|e| ErpError::Internal(format!("failed to build HTTP client: {e}")))?;
         Ok(Self { http, config, catalogue })
     }
 
@@ -146,7 +146,7 @@ impl HttpFusionClient {
 
 #[async_trait]
 impl ErpClient for HttpFusionClient {
-    async fn system_info(&self) -> RfcResult<SystemInfo> {
+    async fn system_info(&self) -> ErpResult<SystemInfo> {
         // Touch the REST catalog root to confirm reachability + identity.
         let url = format!("{}{}", self.config.base_url, REST_BASE);
         let resp = self
@@ -180,36 +180,36 @@ impl ErpClient for HttpFusionClient {
         })
     }
 
-    async fn search_rfc(&self, query: &str, limit: usize) -> RfcResult<RfcSearchResult> {
-        self.catalogue.search_rfc(query, limit).await
+    async fn search_operations(&self, query: &str, limit: usize) -> ErpResult<ErpSearchResult> {
+        self.catalogue.search_operations(query, limit).await
     }
 
-    async fn rfc_metadata(&self, function: &str, language: &str) -> RfcResult<RfcFunctionMeta> {
-        self.catalogue.rfc_metadata(function, language).await
+    async fn operation_metadata(&self, function: &str, language: &str) -> ErpResult<ErpOperationMeta> {
+        self.catalogue.operation_metadata(function, language).await
     }
 
-    async fn bulk_rfc_metadata(&self, functions: &[String], language: &str) -> RfcResult<BulkMetadata> {
-        self.catalogue.bulk_rfc_metadata(functions, language).await
+    async fn bulk_operation_metadata(&self, functions: &[String], language: &str) -> ErpResult<BulkMetadata> {
+        self.catalogue.bulk_operation_metadata(functions, language).await
     }
 
-    async fn call_rfc(&self, request: RfcCallRequest, read_only_mode: bool) -> RfcResult<Value> {
+    async fn call_operation(&self, request: ErpCallRequest, read_only_mode: bool) -> ErpResult<Value> {
         // Fail-closed read-only gate via the curated catalogue.
-        match self.catalogue.rfc_metadata(&request.function, "EN").await {
+        match self.catalogue.operation_metadata(&request.function, "EN").await {
             Ok(meta) => {
                 if read_only_mode && !meta.read_only {
-                    return Err(RfcError::PermissionDenied(format!(
+                    return Err(ErpError::PermissionDenied(format!(
                         "operation '{}' modifies state; not callable in read-only mode",
                         request.function
                     )));
                 }
             }
-            Err(RfcError::NotFound(_)) if read_only_mode => {
-                return Err(RfcError::PermissionDenied(format!(
+            Err(ErpError::NotFound(_)) if read_only_mode => {
+                return Err(ErpError::PermissionDenied(format!(
                     "operation '{}' is not in the curated read-only catalogue; refusing in read-only mode",
                     request.function
                 )));
             }
-            Err(RfcError::NotFound(_)) => {}
+            Err(ErpError::NotFound(_)) => {}
             Err(e) => return Err(e),
         }
 
@@ -231,7 +231,7 @@ impl ErpClient for HttpFusionClient {
         }))
     }
 
-    async fn read_table(&self, request: ReadTableRequest) -> RfcResult<Vec<TableRow>> {
+    async fn read_table(&self, request: ReadTableRequest) -> ErpResult<Vec<TableRow>> {
         // Oracle Fusion has no generic table read; tabular extracts go through
         // BI Publisher (fusion.bip.runReport).  We serve the curated fixtures
         // for the modelled objects and direct callers to BI Publisher
@@ -239,7 +239,7 @@ impl ErpClient for HttpFusionClient {
         self.catalogue.read_table(request).await
     }
 
-    async fn table_structure(&self, table: &str) -> RfcResult<TableStructure> {
+    async fn table_structure(&self, table: &str) -> ErpResult<TableStructure> {
         self.catalogue.table_structure(table).await
     }
 }
@@ -266,14 +266,14 @@ pub struct FusionPartyClient {
 }
 
 impl FusionPartyClient {
-    pub fn new(config: FusionConfig) -> RfcResult<Self> {
+    pub fn new(config: FusionConfig) -> ErpResult<Self> {
         let http = reqwest::Client::builder()
             .build()
-            .map_err(|e| RfcError::Internal(format!("failed to build HTTP client: {e}")))?;
+            .map_err(|e| ErpError::Internal(format!("failed to build HTTP client: {e}")))?;
         Ok(Self { http, config })
     }
 
-    pub fn from_env() -> Option<RfcResult<Self>> {
+    pub fn from_env() -> Option<ErpResult<Self>> {
         FusionConfig::from_env().map(Self::new)
     }
 
@@ -282,7 +282,7 @@ impl FusionPartyClient {
     }
 
     /// Search suppliers by name substring (`suppliers?q=Supplier LIKE '%q%'`).
-    pub async fn search_parties(&self, query: &str, top: usize) -> RfcResult<Vec<Party>> {
+    pub async fn search_parties(&self, query: &str, top: usize) -> ErpResult<Vec<Party>> {
         let q = format!("Supplier LIKE '%{}%'", query.replace('\'', ""));
         let url = format!("{}{}/suppliers", self.config.base_url, REST_BASE);
         let resp = self
@@ -299,7 +299,7 @@ impl FusionPartyClient {
     }
 
     /// Fetch a single supplier by SupplierId.
-    pub async fn get_party(&self, id: &str) -> RfcResult<Party> {
+    pub async fn get_party(&self, id: &str) -> ErpResult<Party> {
         let url = format!("{}{}/suppliers/{}", self.config.base_url, REST_BASE, id);
         let resp = self
             .config
@@ -310,7 +310,7 @@ impl FusionPartyClient {
             .await
             .map_err(map_http_err)?;
         if resp.status() == reqwest::StatusCode::NOT_FOUND {
-            return Err(RfcError::NotFound(id.to_string()));
+            return Err(ErpError::NotFound(id.to_string()));
         }
         let body: Value = resp.json().await.map_err(map_http_err)?;
         Ok(party_from_obj(&body).unwrap_or(Party {
@@ -383,14 +383,14 @@ mod tests {
         let cat = MockErpClient::new(2, json!({}));
         let cfg = FusionConfig::new("https://kalbe.fa.ocs.oraclecloud.com", FusionAuth::Bearer("t".into()));
         let client = HttpFusionClient::new(cfg, cat).unwrap();
-        let req = RfcCallRequest {
+        let req = ErpCallRequest {
             function: "fusion.gl.journalEntries.post".into(),
             parameters: json!({ "JOURNAL_ENTRY": {} }),
             timeout_ms: 1000,
             require_read_only_safe: true,
         };
-        let err = client.call_rfc(req, true).await.unwrap_err();
-        assert!(matches!(err, RfcError::PermissionDenied(_)));
+        let err = client.call_operation(req, true).await.unwrap_err();
+        assert!(matches!(err, ErpError::PermissionDenied(_)));
     }
 
     #[test]

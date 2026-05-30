@@ -1,6 +1,6 @@
 //! Live Oracle artifact client over REST/JSON.
 //!
-//! `HttpOicClient` implements [`AdtClient`] against the live Oracle surfaces
+//! `HttpOicClient` implements [`OicClient`] against the live Oracle surfaces
 //! that hold custom code and configuration:
 //!
 //!   - **Oracle Integration Cloud (OIC)** REST API (`/ic/api/integration/v1/...`)
@@ -11,14 +11,14 @@
 //! Oracle is REST/JSON-homogeneous — there is no CSRF dance and no
 //! `X-SAP-Client` header — so this client is far leaner than an SAP ADT
 //! client. Auth is HTTP Basic or OAuth2/IDCS bearer, selected by
-//! [`AdtAuth`]. The artifact URL for each kind comes from
+//! [`OicAuth`]. The artifact URL for each kind comes from
 //! [`OracleArtifactKind::oic_path`].
 
-use crate::client::{AdtCallContext, AdtClient};
-use crate::destination::{AdtAuth, AdtDestination};
-use crate::error::{AdtError, AdtResult};
+use crate::client::{OicCallContext, OicClient};
+use crate::destination::{OicAuth, OicDestination};
+use crate::error::{OicError, OicResult};
 use crate::types::{
-    ActivationOutcome, ActivationRequest, AdtSearchHit, AdtSearchRequest, CdsView,
+    ActivationOutcome, ActivationRequest, OicSearchHit, OicSearchRequest, CdsView,
     OracleArtifactKind, PackageContents, PackageMember, ProgramSource, TableRow, WhereUsedHit,
     WhereUsedRequest, MAX_TABLE_ROWS,
 };
@@ -26,15 +26,15 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 pub struct HttpOicClient {
-    destination: AdtDestination,
+    destination: OicDestination,
     http: reqwest::Client,
 }
 
 impl HttpOicClient {
-    pub fn new(destination: AdtDestination) -> AdtResult<Self> {
+    pub fn new(destination: OicDestination) -> OicResult<Self> {
         let http = reqwest::Client::builder()
             .build()
-            .map_err(|e| AdtError::Internal(format!("failed to build HTTP client: {e}")))?;
+            .map_err(|e| OicError::Internal(format!("failed to build HTTP client: {e}")))?;
         Ok(Self { destination, http })
     }
 
@@ -44,15 +44,15 @@ impl HttpOicClient {
 
     fn authed(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         match &self.destination.auth {
-            AdtAuth::Basic { user, password } => rb.basic_auth(user, Some(password)),
-            AdtAuth::Bearer { token } => rb.bearer_auth(token),
+            OicAuth::Basic { user, password } => rb.basic_auth(user, Some(password)),
+            OicAuth::Bearer { token } => rb.bearer_auth(token),
             // ServiceKey (OAuth2 client-credentials) token resolution and mTLS
             // are configured at deploy time; treat as pre-authorised here.
             _ => rb,
         }
     }
 
-    async fn get_json(&self, path: &str) -> AdtResult<Value> {
+    async fn get_json(&self, path: &str) -> OicResult<Value> {
         let url = self.url(path);
         let resp = self
             .authed(self.http.get(&url))
@@ -64,26 +64,26 @@ impl HttpOicClient {
             s if s.is_success() => resp
                 .json()
                 .await
-                .map_err(|e| AdtError::Internal(format!("invalid JSON from {url}: {e}"))),
+                .map_err(|e| OicError::Internal(format!("invalid JSON from {url}: {e}"))),
             reqwest::StatusCode::NOT_FOUND => {
-                Err(AdtError::NotFound { kind: "artifact".into(), name: path.into() })
+                Err(OicError::NotFound { kind: "artifact".into(), name: path.into() })
             }
             reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN => {
-                Err(AdtError::AuthFailed(format!("{} on {url}", resp.status())))
+                Err(OicError::AuthFailed(format!("{} on {url}", resp.status())))
             }
-            s => Err(AdtError::Internal(format!("unexpected {s} from {url}"))),
+            s => Err(OicError::Internal(format!("unexpected {s} from {url}"))),
         }
     }
 
-    fn transport_err(&self, e: reqwest::Error) -> AdtError {
-        AdtError::DestinationDown {
+    fn transport_err(&self, e: reqwest::Error) -> OicError {
+        OicError::DestinationDown {
             destination: self.destination.base_url.clone(),
             reason: e.to_string(),
         }
     }
 
     /// Fetch an artifact and project the JSON into a `ProgramSource`.
-    async fn fetch_artifact(&self, kind: OracleArtifactKind, name: &str) -> AdtResult<ProgramSource> {
+    async fn fetch_artifact(&self, kind: OracleArtifactKind, name: &str) -> OicResult<ProgramSource> {
         let body = self.get_json(&kind.oic_path(name)).await?;
         let source = body
             .get("code")
@@ -123,28 +123,28 @@ fn value_to_text(v: &Value) -> String {
 }
 
 #[async_trait]
-impl AdtClient for HttpOicClient {
-    fn destination(&self) -> &AdtDestination {
+impl OicClient for HttpOicClient {
+    fn destination(&self) -> &OicDestination {
         &self.destination
     }
 
-    async fn get_program(&self, name: &str) -> AdtResult<ProgramSource> {
+    async fn get_integration(&self, name: &str) -> OicResult<ProgramSource> {
         self.fetch_artifact(OracleArtifactKind::Integration, name).await
     }
-    async fn get_class(&self, name: &str) -> AdtResult<ProgramSource> {
+    async fn get_groovy_script(&self, name: &str) -> OicResult<ProgramSource> {
         self.fetch_artifact(OracleArtifactKind::GroovyScript, name).await
     }
-    async fn get_interface(&self, name: &str) -> AdtResult<ProgramSource> {
+    async fn get_connection(&self, name: &str) -> OicResult<ProgramSource> {
         self.fetch_artifact(OracleArtifactKind::Connection, name).await
     }
-    async fn get_include(&self, name: &str) -> AdtResult<ProgramSource> {
+    async fn get_lookup(&self, name: &str) -> OicResult<ProgramSource> {
         self.fetch_artifact(OracleArtifactKind::Lookup, name).await
     }
-    async fn get_function_module(&self, _group: &str, name: &str) -> AdtResult<ProgramSource> {
+    async fn get_ess_job(&self, _group: &str, name: &str) -> OicResult<ProgramSource> {
         self.fetch_artifact(OracleArtifactKind::EssJob, name).await
     }
 
-    async fn get_package_contents(&self, package: &str) -> AdtResult<PackageContents> {
+    async fn get_project_contents(&self, package: &str) -> OicResult<PackageContents> {
         let body = self.get_json(&OracleArtifactKind::Project.oic_path(package)).await?;
         let members = body
             .get("integrations")
@@ -170,7 +170,7 @@ impl AdtClient for HttpOicClient {
         })
     }
 
-    async fn get_cds_view(&self, name: &str) -> AdtResult<CdsView> {
+    async fn get_bip_report(&self, name: &str) -> OicResult<CdsView> {
         let body = self.get_json(&OracleArtifactKind::BipReport.oic_path(name)).await?;
         let source = body.get("dataModel").or_else(|| body.get("sql")).map(value_to_text).unwrap_or_default();
         Ok(CdsView {
@@ -182,7 +182,7 @@ impl AdtClient for HttpOicClient {
         })
     }
 
-    async fn search(&self, request: AdtSearchRequest) -> AdtResult<Vec<AdtSearchHit>> {
+    async fn search(&self, request: OicSearchRequest) -> OicResult<Vec<OicSearchHit>> {
         // OIC integrations search: GET /ic/api/integration/v1/integrations?q=...
         let body = self
             .get_json(&format!(
@@ -199,7 +199,7 @@ impl AdtClient for HttpOicClient {
                     .take(request.max_results.max(1))
                     .filter_map(|it| {
                         let name = it.get("code").or_else(|| it.get("name")).and_then(|v| v.as_str())?;
-                        Some(AdtSearchHit {
+                        Some(OicSearchHit {
                             name: name.to_string(),
                             kind,
                             description: it.get("description").and_then(|v| v.as_str()).map(String::from),
@@ -213,7 +213,7 @@ impl AdtClient for HttpOicClient {
         Ok(hits)
     }
 
-    async fn where_used(&self, request: WhereUsedRequest) -> AdtResult<Vec<WhereUsedHit>> {
+    async fn where_used(&self, request: WhereUsedRequest) -> OicResult<Vec<WhereUsedHit>> {
         // OIC exposes dependents of a connection/lookup via the usage endpoint.
         let resource = match request.kind {
             OracleArtifactKind::Connection => "connections",
@@ -244,22 +244,22 @@ impl AdtClient for HttpOicClient {
         Ok(hits)
     }
 
-    async fn get_table_contents(&self, table: &str, max_rows: usize) -> AdtResult<Vec<TableRow>> {
+    async fn preview_data(&self, table: &str, max_rows: usize) -> OicResult<Vec<TableRow>> {
         if max_rows == 0 || max_rows > MAX_TABLE_ROWS {
-            return Err(AdtError::InvalidObjectName(format!(
+            return Err(OicError::InvalidObjectName(format!(
                 "max_rows must be in 1..={MAX_TABLE_ROWS}, got {max_rows}"
             )));
         }
         // Oracle exposes no generic table-preview REST endpoint; direct bulk
         // reads go through BI Publisher (oracle.bip.runReport).
-        Err(AdtError::DataPreviewBlocked(format!(
+        Err(OicError::DataPreviewBlocked(format!(
             "object {table} is not exposed for direct REST preview; use a BI Publisher extract (oracle.bip.runReport)"
         )))
     }
 
-    async fn activate(&self, request: ActivationRequest, ctx: AdtCallContext) -> AdtResult<ActivationOutcome> {
+    async fn activate(&self, request: ActivationRequest, ctx: OicCallContext) -> OicResult<ActivationOutcome> {
         if ctx.read_only {
-            return Err(AdtError::PermissionDenied(format!(
+            return Err(OicError::PermissionDenied(format!(
                 "activate({} {}) blocked: read-only mode",
                 request.kind.label(),
                 request.name

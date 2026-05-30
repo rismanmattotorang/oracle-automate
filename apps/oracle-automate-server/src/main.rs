@@ -24,7 +24,7 @@ use mcp_server::Server;
 use mcp_transport::{HttpServerConfig, HttpServerTransport, StdioTransport};
 use oracle_automate_observability::metrics::{MetricKind, MetricsRegistry};
 use oracle_automate_observability::{AuditEntry, AuditLog, AuditSink};
-use oracle_automate_adt::{AdtAuth, AdtClient, AdtDestination, HttpOicClient, MockAdtClient};
+use oracle_automate_adt::{OicAuth, OicClient, OicDestination, HttpOicClient, MockOicClient};
 use oracle_automate_graph::InMemoryGraph;
 use oracle_automate_rag::GraphEngine;
 use oracle_automate_skills::SkillRegistry;
@@ -68,7 +68,7 @@ struct Cli {
     #[arg(long, default_value_t = 256)]
     embedding_dim: usize,
 
-    /// ADT destination *label* for the offline MockAdtClient (cosmetic;
+    /// ADT destination *label* for the offline MockOicClient (cosmetic;
     /// shows up in the `oic-connection://info` resource).  Ignored when
     /// `--destination` selects a live SAP system.
     #[arg(long)]
@@ -123,7 +123,7 @@ struct TracingAuditSink;
 impl AuditSink for TracingAuditSink {
     async fn write(&self, entry: &AuditEntry) {
         let json = serde_json::to_string(entry).unwrap_or_else(|_| "{}".into());
-        tracing::info!(target: "sap_audit", audit = %json, "state-mutating tool call");
+        tracing::info!(target: "oracle_audit", audit = %json, "state-mutating tool call");
     }
 }
 
@@ -161,13 +161,13 @@ async fn main() -> anyhow::Result<()> {
     let creds_provider = LayeredCredentialProvider::new()
         .add(Arc::new(EnvCredentialProvider::new()))
         .add(Arc::new(StaticCredentialProvider::new(Credentials {
-            ashost: "mock.sap.example".into(),
-            sysnr: "00".into(),
+            base_url: "mock.fa.oraclecloud.com".into(),
+            instance: "00".into(),
             client: "100".into(),
             user: "DEMO".into(),
             password: "redacted".into(),
             language: "EN".into(),
-            saprouter: None,
+            proxy_url: None,
             source: CredentialSource::Static,
         })));
     let creds = creds_provider.fetch().await
@@ -193,7 +193,7 @@ async fn main() -> anyhow::Result<()> {
     // curated catalogue — reached through the metadata cache — supplies
     // metadata and drives the read-only safety gate, so the live path keeps
     // Oracle-Automate's curated safety annotations.
-    let sap_client: Arc<dyn ErpClient> = match FusionConfig::from_env() {
+    let erp_client: Arc<dyn ErpClient> = match FusionConfig::from_env() {
         Some(fusion_cfg) => {
             tracing::info!(
                 base_url = %fusion_cfg.base_url,
@@ -213,15 +213,15 @@ async fn main() -> anyhow::Result<()> {
     };
     let metadata_cache_handle = Some(metadata_cache);
 
-    // ADT client — offline MockAdtClient by default; a live HttpOicClient
+    // ADT client — offline MockOicClient by default; a live HttpOicClient
     // when --destination / ORACLE_AUTOMATE_DESTINATION selects a real SAP
     // system whose auth is not `mock` (Sprint 1: live dev-tenant wiring).
-    let adt_client: Arc<dyn AdtClient> = build_adt_client(&cli)?;
+    let adt_client: Arc<dyn OicClient> = build_adt_client(&cli)?;
 
     // TCA party client for the oracle.party.* tools — a live Oracle Fusion
     // pod when ORACLE_FUSION_BASE_URL is set.  Absent → tools stay registered
     // but return a friendly "feature disabled" error.
-    let business_hub: Option<Arc<oracle_automate_erp::FusionPartyClient>> =
+    let party_client: Option<Arc<oracle_automate_erp::FusionPartyClient>> =
         match oracle_automate_erp::FusionPartyClient::from_env() {
             None => {
                 tracing::info!(
@@ -264,11 +264,11 @@ async fn main() -> anyhow::Result<()> {
     // with the operator's log pipeline; production can swap the sink for a
     // tamper-evident store (Loki / S3 object-lock / Splunk HEC).
     let audit = Arc::new(AuditLog::new(Arc::new(TracingAuditSink)));
-    let sap_system = {
+    let erp_system = {
         let host = std::env::var("ORACLE_FUSION_BASE_URL")
             .ok()
             .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| creds.ashost.clone());
+            .unwrap_or_else(|| creds.base_url.clone());
         Some(format!("{host}/{}", creds.client))
     };
 
@@ -276,14 +276,14 @@ async fn main() -> anyhow::Result<()> {
         rag,
         graph: graph_engine,
         embedder,
-        sap_client,
+        erp_client,
         metadata_cache: metadata_cache_handle,
         adt_client,
-        business_hub,
+        party_client,
         read_only,
         agents_md: agents_md.clone(),
         audit,
-        sap_system,
+        erp_system,
     });
 
     let server = build_server(ctx.clone(), &agents_md, read_only, &skills);
@@ -425,11 +425,11 @@ fn build_instructions(agents_md: &Option<String>, read_only: bool) -> String {
 
 /// Build the ADT client from CLI/env configuration.
 ///
-/// - No `--destination` / `ORACLE_AUTOMATE_DESTINATION` → offline `MockAdtClient`.
-/// - A destination whose `auth = "mock"` → `MockAdtClient` (lets operators
+/// - No `--destination` / `ORACLE_AUTOMATE_DESTINATION` → offline `MockOicClient`.
+/// - A destination whose `auth = "mock"` → `MockOicClient` (lets operators
 ///   stage a destination file before credentials exist).
 /// - Any other auth → live `HttpOicClient` against the Oracle endpoint.
-fn build_adt_client(cli: &Cli) -> anyhow::Result<Arc<dyn AdtClient>> {
+fn build_adt_client(cli: &Cli) -> anyhow::Result<Arc<dyn OicClient>> {
     let dest_name = cli
         .destination
         .clone()
@@ -438,19 +438,19 @@ fn build_adt_client(cli: &Cli) -> anyhow::Result<Arc<dyn AdtClient>> {
 
     let Some(name) = dest_name else {
         let label = cli.adt_destination.clone().unwrap_or_else(|| "default".into());
-        tracing::info!("ADT client: offline MockAdtClient (no --destination configured)");
-        return Ok(MockAdtClient::new(AdtDestination::mock(label)));
+        tracing::info!("ADT client: offline MockOicClient (no --destination configured)");
+        return Ok(MockOicClient::new(OicDestination::mock(label)));
     };
 
-    let dest = AdtDestination::load(&name)
+    let dest = OicDestination::load(&name)
         .map_err(|e| anyhow::anyhow!("ADT destination '{name}' could not be loaded: {e}"))?;
 
-    if matches!(dest.auth, AdtAuth::Mock) {
+    if matches!(dest.auth, OicAuth::Mock) {
         tracing::warn!(
             destination = %name,
-            "destination declares auth=mock — using offline MockAdtClient"
+            "destination declares auth=mock — using offline MockOicClient"
         );
-        return Ok(MockAdtClient::new(dest));
+        return Ok(MockOicClient::new(dest));
     }
 
     tracing::info!(
