@@ -1212,8 +1212,7 @@ mod tests {
     // -----------------------------------------------------------------
     // Oracle-correctness invariants.  These tests enforce the rules that
     // hold across the Oracle Fusion Cloud ERP operation/object catalogue,
-    // so any drift in our fixtures fails CI loudly.  They are the Oracle
-    // analog of the SAP precision gates (see docs/PORTING_STRATEGY.md §2.5).
+    // so any drift in our fixtures fails CI loudly (see docs/ORACLE_CORRECTNESS.md).
     // -----------------------------------------------------------------
 
     /// Every write operation must surface the FND standard return contract

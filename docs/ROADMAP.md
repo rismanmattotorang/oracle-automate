@@ -1,14 +1,14 @@
-> **⚠️ Provenance note.** This is the original *SAP-Automate* document, retained for
-> reference. The **authoritative plan and full SAP→Oracle mapping for the
-> oracle-automate port** is [`PORTING_STRATEGY.md`](PORTING_STRATEGY.md); the
-> correctness story is [`ORACLE_CORRECTNESS.md`](ORACLE_CORRECTNESS.md). Sections
-> below may still describe SAP specifics that the Oracle port supersedes.
+> **⚠️ Legacy note.** This is an earlier design document, retained for reference.
+> The authoritative production plan is
+> [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md) and the correctness story is
+> [`ORACLE_CORRECTNESS.md`](ORACLE_CORRECTNESS.md). Sections below may describe
+> earlier design specifics that those documents supersede.
 
 # Oracle-Automate Development Roadmap
 
 > **Status: v1.3.0 released — 2026-05-25.**  v1.0 paper phases ✅ complete; v1.1 shipped three convergence passes (skills + apps + KB/RAG/crawler); v1.2 filled in optional MCP 2025-06-18 spec utilities; v1.3 ships the Live SAP backend tier — `BusinessHubClient` against the SAP Business Accelerator Hub sandbox (OData v4, `API_BUSINESS_PARTNER`), with `sap.bp.search` / `sap.bp.get` MCP tools.  See [`CHANGELOG.md`](../CHANGELOG.md) for release notes and [`docs/INTEGRATION.md`](INTEGRATION.md) for the 3-tier integration strategy.
 
-This document translates the Oracle-Automate paper (Gaussian Technologies TPO R&D, 2026)
+This document translates the Oracle-Automate paper (Gaussian Technologies, 2026)
 into an executable Rust roadmap.
 
 ## Strategic goals
@@ -298,7 +298,7 @@ Replace the current keyword-based intent router with LLM-driven reasoning.
 - **`LlmRouter` trait** + reference implementations against Claude, GPT, Gemini, local Llama via `llama.cpp`.
 - **Reflection loop** (paper §IX-B P3-self-improvement): trajectory capture → LLM critique → memory consolidation into episodic store.
 - **Sub-agent runtime** (paper §IX-B): contained child agents share the parent's MCP surface but with restricted exposure policies.
-- **Skill Commons** (paper §X-L): private registry at `commons.paragoncorp.example` for signed, code-reviewed skills.  Skills carry an Ed25519 signature; unsigned skills refuse to load in production deployments.
+- **Skill Commons** (paper §X-L): private registry at `commons.gaussian.example` for signed, code-reviewed skills.  Skills carry an Ed25519 signature; unsigned skills refuse to load in production deployments.
 - **Streaming responses** through the HTTP/SSE transport (`notifications/progress` per MCP 2025-06-18) so the web UI renders tokens as they arrive.
 
 ### v1.6 — Multi-tenancy + multi-system  (Q2 2027, ~6 weeks)
@@ -370,4 +370,4 @@ To keep the project focused:
 
 ---
 
-*Reference design: PC-TR-2026-SAP-AUTOMATE-01.  Whitepaper: [`docs/OracleAutomate.pdf`](OracleAutomate.pdf).*
+*Reference design: GT-TR-2026-ORACLE-AUTOMATE-01.  Whitepaper: [`docs/OracleAutomate.pdf`](OracleAutomate.pdf).*

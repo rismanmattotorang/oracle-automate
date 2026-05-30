@@ -1,11 +1,10 @@
 # Production Readiness — Strategy & Phased Execution
 
 > **Authoritative production plan for `oracle-automate`.** Supersedes the
-> SAP-era `PRODUCTION_PLAN.md` (kept for provenance). Reads alongside
-> [`PORTING_STRATEGY.md`](PORTING_STRATEGY.md) (what was ported) and
-> [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) (SAP independence). This document is
-> about taking the *ported, building, test-green* codebase to **production
-> against a real Oracle Fusion Cloud ERP pod for Gaussian Technologies**.
+> earlier `PRODUCTION_PLAN.md` (kept for reference); the correctness story is
+> [`ORACLE_CORRECTNESS.md`](ORACLE_CORRECTNESS.md). This document is about taking
+> the *building, test-green* codebase to **production against a real Oracle
+> Fusion Cloud ERP pod for Gaussian Technologies**.
 >
 > Method follows the project's own [Karpathy guidelines](../skills/karpathy-guidelines.md):
 > *think before coding, simplicity first, surgical changes, goal-driven —

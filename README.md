@@ -172,7 +172,6 @@ oracle-automate/
 ├── deploy/                          ← Dockerfile · K8s manifests · docker-compose demo
 └── docs/
     ├── PRODUCTION_READINESS.md      ← phased path to a production pod (authoritative)
-    ├── PORTING_STRATEGY.md          ← domain mapping + architecture
     └── ORACLE_CORRECTNESS.md        ← the correctness invariants, as tests
 ```
 
@@ -187,15 +186,7 @@ a Rust-native, on-premise agent runtime for Oracle Fusion Cloud ERP. We believe
 the safe path to enterprise AI is local-first software with guardrails written
 down as code — not another cloud sitting between a company and its core systems.
 
-## Credit
-
-Oracle-Automate's architecture, layering, and MCP/RAG engineering originate from
-**SAP-Automate** by **ParagonCorp** (TPO R&D), released under Apache-2.0.
-Gaussian Technologies re-fitted the ERP-domain layer from SAP S/4HANA to Oracle
-Fusion Cloud ERP. The upstream attribution is retained as the license requires.
-
----
-
 ## License
 
+Oracle-Automate is built by **Gaussian Technologies** and released under
 [Apache-2.0](LICENSE).

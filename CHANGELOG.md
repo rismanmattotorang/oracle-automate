@@ -1,23 +1,22 @@
 # Changelog
 
-## oracle-automate — port from SAP-Automate (2026-05)
+## oracle-automate — foundations (2026-05)
 
-Ported the ParagonCorp SAP-Automate platform to **Oracle Fusion Cloud ERP** for
-**Gaussian Technologies**, in 8 phases (see [`docs/PORTING_STRATEGY.md`](docs/PORTING_STRATEGY.md)):
+Gaussian Technologies' **Oracle Fusion Cloud ERP** agent platform, built up in
+8 phases:
 
-- **P1** foundation/rebrand (sap-automate → oracle-automate, ParagonCorp → Gaussian Technologies).
+- **P1** foundation: workspace + generic MCP / RAG / graph / KB layers.
 - **P2** core ERP crate → `oracle-automate-erp`: `ErpClient`, Fusion REST/FBDI/BIP
   operation catalogue, Oracle object fixtures (`GL_JE_LINES`, `XLA_AE_LINES`,
   `EGP_SYSTEM_ITEMS_B`, …), 7 Oracle-correctness invariants.
 - **P3** custom-code surface → `OracleArtifactKind` (OIC / Groovy / BIP / lookups).
 - **P4** retrieval `Domain` enum + Oracle seed corpus.
-- **P5** MCP surface re-namespaced (`oracle.*`, `oracle.oic.*`) + resources + prompts.
-- **P6** 13 skills, scheduler jobs, gateway routing → Oracle.
-- **P7** Ratatui TUI + Next.js web UI → Oracle.
+- **P5** MCP surface (`oracle.*`, `oracle.oic.*`) + resources + prompts.
+- **P6** 13 skills, scheduler jobs, gateway routing.
+- **P7** Ratatui TUI + Next.js web UI.
 - **P8** deploy manifests, CI Oracle-correctness gate, docs.
 
-Apache-2.0, on-prem by default. The architecture, layering, and MCP/RAG
-engineering are ParagonCorp's; this port re-fits the ERP-domain layer for Oracle.
+Apache-2.0, on-prem by default.
 
 ---
 
@@ -100,8 +99,7 @@ comments, docs, fixtures, and the LICENSE copyright:
   (`PT Sumber Daya Komputasi`, `PT Nusantara Semikonduktor`, `PT Andalan Cloud
   Indonesia`); item class `ACTIVE_INGREDIENT` → `COMPONENT`.
 - Rewrote `README.md` as a deep-tech-startup product page for Gaussian
-  Technologies. The Apache-2.0 attribution to ParagonCorp / SAP-Automate is
-  retained (license requirement).
+  Technologies.
 - No behaviour change; source and test assertions updated in lockstep — 205
   tests still green, fmt/clippy clean.
 
@@ -636,7 +634,7 @@ tests, and exposing it to operators (TUI + web).
 
 The first general-availability release of **Oracle-Automate** — a
 Rust-native, MCP-native agentic interface for SAP S/4HANA built by
-the **Gaussian Technologies TPO R&D team**.
+the **Gaussian Technologies R&D team**.
 
 ### Highlights
 
@@ -787,5 +785,5 @@ the **Gaussian Technologies TPO R&D team**.
 
 ## Reference
 
-- Architecture whitepaper: *Oracle-Automate: An MCP-Native RAG Architecture for SAP S/4HANA*, Gaussian Technologies Technical Review Vol. 1 No. 1 (2026).  Reference design code `PC-TR-2026-SAP-AUTOMATE-01`.
+- Architecture whitepaper: *Oracle-Automate: An MCP-Native RAG Architecture for Oracle Fusion Cloud ERP*, Gaussian Technologies Technical Review Vol. 1 No. 1 (2026).  Reference design code `GT-TR-2026-ORACLE-AUTOMATE-01`.
 - MCP specification: <https://modelcontextprotocol.io/specification/2025-06-18>.

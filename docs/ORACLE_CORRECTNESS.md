@@ -1,10 +1,8 @@
 # Oracle Fusion Cloud ERP Correctness Audit
 
-> The Oracle analog of the original SAP correctness audit. Every fixture in
-> `oracle-automate-erp` is mapped to its Oracle source-of-truth, and seven
-> precision tests fail CI the moment a fixture drifts. See
-> [`PORTING_STRATEGY.md`](PORTING_STRATEGY.md) §2.5 for how these replace the
-> SAP precision gates.
+> Every fixture in `oracle-automate-erp` is mapped to its Oracle
+> source-of-truth, and seven precision tests fail CI the moment a fixture
+> drifts.
 
 ## Why correctness-as-tests
 
