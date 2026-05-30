@@ -56,8 +56,8 @@ pub struct LatencyBreakdown {
 }
 
 /// Per-query retrieval diagnostics.  Surfaces *why* the engine picked what
-/// it picked — invaluable for SAP queries where exact transaction codes,
-/// BAPI names, and table identifiers matter as much as semantic similarity.
+/// it picked — invaluable for Oracle queries where exact table/column names,
+/// REST resource names, and integration identifiers matter as much as semantic similarity.
 ///
 /// Pure additive: the existing `hits` ordering is unchanged.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -72,7 +72,7 @@ pub struct RetrievalDiagnostics {
     /// identifier-only query that BM25 nails but dense misses).
     pub rrf_overlap: usize,
     /// Query terms that were *tokenised* — the actual signal BM25 saw,
-    /// after the SAP-identifier-preserving tokenizer.  Surfacing this
+    /// after the Oracle-identifier-preserving tokenizer.  Surfacing this
     /// lets the agent / operator immediately see whether a typo or a
     /// stop-word ate the search.
     pub query_terms: Vec<String>,
@@ -167,7 +167,7 @@ impl RagEngine {
                 chunk: oracle_automate_kb::Chunk {
                     id: view.document_id.clone(),
                     document_id: view.document_id,
-                    domain: Domain::SapHelp, // placeholder; reconstruct from store on demand
+                    domain: Domain::OracleHelp, // placeholder; reconstruct from store on demand
                     ordinal: 0,
                     text: view.snippet,
                     embedding: None,
@@ -328,7 +328,7 @@ mod tests {
             chunk: Chunk {
                 id: id.into(),
                 document_id: id.into(),
-                domain: Domain::SapHelp,
+                domain: Domain::OracleHelp,
                 ordinal: 0,
                 text: text.into(),
                 embedding: None,
@@ -363,10 +363,10 @@ mod tests {
     }
 
     #[test]
-    fn tokenize_query_preserves_sap_identifiers() {
-        let t = tokenize_query("BAPI_ACC_DOCUMENT_POST and the period close");
-        // BAPI identifier survives intact, joined by underscores.
-        assert!(t.iter().any(|x| x == "bapi_acc_document_post"));
+    fn tokenize_query_preserves_oracle_identifiers() {
+        let t = tokenize_query("GL_JE_LINES and the period close");
+        // Oracle table/column identifier survives intact, joined by underscores.
+        assert!(t.iter().any(|x| x == "gl_je_lines"));
         // Stop-word-shaped single chars are dropped (need ≥ 2 chars).
         assert!(t.iter().all(|x| x.len() >= 2));
     }

@@ -1,7 +1,7 @@
 //! Oracle-Automate ingestion pipeline.
 //!
 //! Phase 1A scope (paper §X-B):
-//!   - HTML extraction for the SAP Help Portal page model
+//!   - HTML extraction for the Oracle Help Center page model
 //!   - chunker that prepends a normalised breadcrumb (paper §VI-E)
 //!   - pluggable `EmbeddingClient` with a deterministic mock + OpenAI adapter
 //!   - `IngestionPipeline` orchestrator: crawl -> parse -> chunk -> embed ->

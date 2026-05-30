@@ -31,10 +31,10 @@ use std::time::Instant;
 
 pub fn rag_tools(ctx: &Arc<ServerContext>) -> Vec<ToolDescriptor> {
     vec![
-        make_rag_tool(ctx, "abap.search", "Hybrid search over the ABAP corpus.", Domain::Abap),
+        make_rag_tool(ctx, "abap.search", "Hybrid search over the ABAP corpus.", Domain::Integration),
         make_rag_tool(ctx, "bpmn.find_process", "Search the Signavio BPMN process repository.", Domain::Bpmn),
-        make_rag_tool(ctx, "eam.search_apps", "Search the LeanIX EAM application fact sheets.", Domain::Leanix),
-        make_rag_tool(ctx, "sap.help.search", "Search the SAP Help Portal corpus.", Domain::SapHelp),
+        make_rag_tool(ctx, "eam.search_apps", "Search the LeanIX EAM application fact sheets.", Domain::AppCatalog),
+        make_rag_tool(ctx, "sap.help.search", "Search the SAP Help Portal corpus.", Domain::OracleHelp),
         tool_kb_navigate(ctx),
     ]
 }
@@ -766,10 +766,10 @@ fn tool_docs_search(ctx: &Arc<ServerContext>) -> ToolDescriptor {
             };
             let domain = match args.domain.as_deref() {
                 None | Some("all") => None,
-                Some("sap_help") => Some(Domain::SapHelp),
-                Some("abap") => Some(Domain::Abap),
+                Some("sap_help") => Some(Domain::OracleHelp),
+                Some("abap") => Some(Domain::Integration),
                 Some("bpmn") => Some(Domain::Bpmn),
-                Some("leanix") => Some(Domain::Leanix),
+                Some("leanix") => Some(Domain::AppCatalog),
                 Some(other) => return Ok(CallToolResult::error(format!("sap.docs.search: unknown domain '{other}'"))),
             };
             let q_vec = ctx.embedder.embed(&[args.query.clone()]).await.ok().and_then(|mut v| v.pop());

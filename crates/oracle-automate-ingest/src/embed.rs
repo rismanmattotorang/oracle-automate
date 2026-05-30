@@ -179,9 +179,9 @@ mod tests {
     async fn mock_embedder_similarity() {
         let e = MockEmbedder::new(128);
         let v = e.embed(&[
-            "period close in SAP FI".into(),
+            "period close in Oracle General Ledger".into(),
             "period-end close FI module".into(),
-            "goods movement MM transaction".into(),
+            "receiving inventory transaction".into(),
         ]).await.unwrap();
         let cos = |a: &Vec<f32>, b: &Vec<f32>| -> f32 {
             a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f32>()

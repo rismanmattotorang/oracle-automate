@@ -350,10 +350,10 @@ mod tests {
     #[tokio::test]
     async fn text_search_filters_by_domain() {
         let kb = InMemoryKb::new();
-        kb.insert_chunk(sample_chunk("a", Domain::SapHelp, "period close in FI", None));
-        kb.insert_chunk(sample_chunk("b", Domain::Abap, "period close routine", None));
+        kb.insert_chunk(sample_chunk("a", Domain::OracleHelp, "period close in FI", None));
+        kb.insert_chunk(sample_chunk("b", Domain::Integration, "period close routine", None));
 
-        let hits = kb.search(SearchQuery::text("period close", 10).with_domain(Domain::SapHelp))
+        let hits = kb.search(SearchQuery::text("period close", 10).with_domain(Domain::OracleHelp))
             .await
             .unwrap();
         assert_eq!(hits.len(), 1);
@@ -363,8 +363,8 @@ mod tests {
     #[tokio::test]
     async fn vector_search_orders_by_cosine() {
         let kb = InMemoryKb::new();
-        kb.insert_chunk(sample_chunk("near", Domain::SapHelp, "x", Some(vec![1.0, 0.0, 0.0])));
-        kb.insert_chunk(sample_chunk("far",  Domain::SapHelp, "y", Some(vec![0.0, 1.0, 0.0])));
+        kb.insert_chunk(sample_chunk("near", Domain::OracleHelp, "x", Some(vec![1.0, 0.0, 0.0])));
+        kb.insert_chunk(sample_chunk("far",  Domain::OracleHelp, "y", Some(vec![0.0, 1.0, 0.0])));
 
         let q = SearchQuery::text("", 10).with_embedding(vec![1.0, 0.0, 0.0]);
         let hits = kb.search(q).await.unwrap();
@@ -381,7 +381,7 @@ mod tests {
     #[tokio::test]
     async fn upsert_dedup_skips_identical_chunk() {
         let kb = InMemoryKb::new();
-        let chunk = sample_chunk("c-1", Domain::SapHelp, "identical body", None);
+        let chunk = sample_chunk("c-1", Domain::OracleHelp, "identical body", None);
         kb.insert_chunk(chunk.clone());
         kb.insert_chunk(chunk.clone());
         kb.insert_chunk(chunk.clone());
@@ -394,8 +394,8 @@ mod tests {
     #[tokio::test]
     async fn upsert_dedup_treats_changed_text_as_new() {
         let kb = InMemoryKb::new();
-        let c1 = sample_chunk("c-1", Domain::SapHelp, "v1", None);
-        let c2 = sample_chunk("c-1", Domain::SapHelp, "v2", None);
+        let c1 = sample_chunk("c-1", Domain::OracleHelp, "v1", None);
+        let c2 = sample_chunk("c-1", Domain::OracleHelp, "v2", None);
         kb.insert_chunk(c1);
         kb.insert_chunk(c2);
         // Same id, different text: the second write wins (overwrite), but
@@ -409,7 +409,7 @@ mod tests {
     async fn get_document_tree_uses_default_builder() {
         let kb = InMemoryKb::new();
         let doc = Document::new(
-            "sap_help:demo", Domain::SapHelp, "u", "Demo",
+            "sap_help:demo", Domain::OracleHelp, "u", "Demo",
             "# Top\nbody\n## Sub\nmore\n",
         );
         kb.insert_document(doc.clone());

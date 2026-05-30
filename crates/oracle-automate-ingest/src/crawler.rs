@@ -1,4 +1,4 @@
-//! SAP Help Portal crawler.
+//! Oracle Help Center crawler.
 //!
 //! Phase 1A focuses on a single source family (Help Portal HTML pages).  The
 //! crawler is split into two surfaces:
@@ -111,7 +111,7 @@ pub struct HelpPortalCrawler {
 }
 
 impl HelpPortalCrawler {
-    pub fn new() -> Self { Self { domain: Domain::SapHelp } }
+    pub fn new() -> Self { Self { domain: Domain::OracleHelp } }
 
     pub fn with_domain(mut self, domain: Domain) -> Self {
         self.domain = domain;
@@ -219,18 +219,18 @@ mod tests {
 <!doctype html>
 <html>
 <head>
-  <title>Period-End Close in SAP FI - SAP Help Portal</title>
-  <meta name="module" content="FI"/>
+  <title>Period-End Close in Oracle General Ledger - Oracle Help Center</title>
+  <meta name="module" content="GL"/>
 </head>
 <body>
   <nav class="breadcrumb">
     <a>Finance</a> &gt; <a>General Ledger</a> &gt; <a>Period Close</a>
   </nav>
-  <h1>Period-End Close in SAP FI</h1>
+  <h1>Period-End Close in Oracle General Ledger</h1>
   <main>
-    <p>Open and close posting periods via T001B.</p>
+    <p>Open and close accounting periods via GL_PERIOD_STATUSES.</p>
     <p>Execute foreign-currency revaluation.</p>
-    <p>Post accruals and deferrals; run BSEG -> FAGLFLEXA reconciliation.</p>
+    <p>Post accruals and deferrals; run XLA_AE_LINES -> GL_JE_LINES reconciliation.</p>
   </main>
 </body>
 </html>
@@ -239,11 +239,11 @@ mod tests {
     #[test]
     fn parses_title_breadcrumb_body() {
         let p = parse_help_portal_html(SAMPLE).unwrap();
-        assert_eq!(p.title, "Period-End Close in SAP FI");
+        assert_eq!(p.title, "Period-End Close in Oracle General Ledger");
         assert_eq!(p.breadcrumbs, vec!["Finance", "General Ledger", "Period Close"]);
-        assert!(p.body.contains("T001B"));
-        assert!(p.body.contains("FAGLFLEXA"));
-        assert_eq!(p.module.as_deref(), Some("FI"));
+        assert!(p.body.contains("GL_PERIOD_STATUSES"));
+        assert!(p.body.contains("GL_JE_LINES"));
+        assert_eq!(p.module.as_deref(), Some("GL"));
     }
 
     #[test]

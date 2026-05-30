@@ -1,8 +1,8 @@
-//! Seed corpus: small, illustrative documents across the four SAP domains.
+//! Seed corpus: small, illustrative documents across the four Oracle domains
+//! (Integration, BPMN process, application catalog, Oracle Help Center).
 //!
-//! Phase 1A: runs the documents through the chunker and embedder so the
-//! KnowledgeStore exposes the same chunk-level surface as a real ingestion
-//! pipeline does.
+//! Runs the documents through the chunker and embedder so the KnowledgeStore
+//! exposes the same chunk-level surface as a real ingestion pipeline does.
 
 use oracle_automate_ingest::{chunk_document, ChunkerConfig, EmbeddingClient};
 use oracle_automate_kb::{Document, Domain, KnowledgeStore, UpsertBatch};
@@ -32,37 +32,42 @@ fn seed_documents() -> Vec<Document> {
 
     out.push({
         let mut d = Document::new(
-            "abap:ZFIN/ZFIN_POST_JE", Domain::Abap, "abap-obj://ZFIN/ZFIN_POST_JE",
-            "ZFIN_POST_JE",
-            "ABAP report ZFIN_POST_JE posts financial journal entries via BAPI_ACC_DOCUMENT_POST. \
-             Validates cost-centre against table CSKS, blocks postings to closed periods (T001B), \
-             and routes inter-company entries through BAPI_ACC_GL_POSTING_CHECK before commit.",
+            "integration:KLB/KLB_GL_JOURNAL_IMPORT", Domain::Integration,
+            "oic-int://KLB/KLB_GL_JOURNAL_IMPORT",
+            "KLB_GL_JOURNAL_IMPORT",
+            "OIC integration KLB_GL_JOURNAL_IMPORT posts GL journals via FBDI. It builds the \
+             JournalImportTemplate, calls erpintegrations.importBulkData to stage rows into \
+             GL_INTERFACE, then runs the Journal Import (JournalImportLauncher) ESS job. \
+             It enriches the ledger from the KLB_COMPANY_XREF lookup and skips closed periods \
+             checked against GL_PERIOD_STATUSES before submission.",
         );
-        d.metadata.insert("package".into(), "ZFIN".into());
-        d.metadata.insert("type".into(), "REPORT".into());
+        d.metadata.insert("package".into(), "KLB_FINANCE_INTEGRATIONS".into());
+        d.metadata.insert("type".into(), "INTEGRATION".into());
         d
     });
 
     out.push({
         let mut d = Document::new(
-            "abap:ZMM/ZMM_GRN_CHECK", Domain::Abap, "abap-obj://ZMM/ZMM_GRN_CHECK",
-            "ZMM_GRN_CHECK",
-            "Function module ZMM_GRN_CHECK reconciles goods receipt with purchase order \
-             quantities; triggers tolerance check, batch management, and material valuation flow. \
-             Calls BAPI_GOODSMVT_CREATE on success.",
+            "integration:KLB/KLB_PO_RECEIPT_SYNC", Domain::Integration,
+            "oic-int://KLB/KLB_PO_RECEIPT_SYNC",
+            "KLB_PO_RECEIPT_SYNC",
+            "OIC integration KLB_PO_RECEIPT_SYNC syncs warehouse goods receipts to Fusion \
+             Receiving. It posts to the receivingReceiptRequests REST resource against a \
+             purchase order, triggering receipt accounting events in Subledger Accounting (XLA) \
+             that later transfer to GL_JE_LINES via Create Accounting.",
         );
-        d.metadata.insert("package".into(), "ZMM".into());
-        d.metadata.insert("type".into(), "FUNCTION".into());
+        d.metadata.insert("package".into(), "KLB_FINANCE_INTEGRATIONS".into());
+        d.metadata.insert("type".into(), "INTEGRATION".into());
         d
     });
 
     out.push({
         let mut d = Document::new(
-            "bpmn:core/P2P-001", Domain::Bpmn, "bpmn-proc://core/P2P-001",
+            "bpmn:core/P2P-001", Domain::Bpmn, "process://core/P2P-001",
             "Procure-to-Pay (P2P)",
-            "Signavio BPMN process P2P-001: purchase requisition into PO approval into goods receipt into \
-             invoice verification into payment release. Mined throughput drops 18% at PO approval \
-             due to manager-cost-centre coverage gaps.",
+            "Oracle Procurement P2P process P2P-001: purchase requisition into PO approval into \
+             receiving into invoice matching into payment. Process mining shows throughput drops \
+             18% at PO approval due to approval-hierarchy coverage gaps in the procurement BU.",
         );
         d.breadcrumbs = vec!["core".into()];
         d
@@ -70,55 +75,59 @@ fn seed_documents() -> Vec<Document> {
 
     out.push({
         let mut d = Document::new(
-            "bpmn:core/O2C-002", Domain::Bpmn, "bpmn-proc://core/O2C-002",
+            "bpmn:core/O2C-002", Domain::Bpmn, "process://core/O2C-002",
             "Order-to-Cash (O2C)",
-            "Signavio BPMN process O2C-002: sales order entry into ATP check into delivery into \
-             billing into cash application. Mining shows 12% rework loop between billing and \
-             delivery, primarily caused by incomplete delivery addresses.",
+            "Oracle Order Management O2C process O2C-002: order capture into availability check \
+             into fulfillment into billing (AR) into receipt application. Mining shows a 12% rework \
+             loop between billing and shipping, primarily caused by incomplete ship-to addresses \
+             on the TCA party.",
         );
         d.breadcrumbs = vec!["core".into()];
         d
     });
 
     out.push(Document::new(
-        "leanix:FS-12001", Domain::Leanix, "leanix-fs://FS-12001",
-        "S/4HANA Finance",
-        "LeanIX application fact sheet for S/4HANA Finance (FS-12001). Lifecycle: active. \
-         Business capabilities: general ledger, accounts payable, accounts receivable, asset \
-         accounting. Integrations: ZFIN_POST_JE, Concur, Datasphere. EOL: 2031-12.",
+        "app_catalog:FS-12001", Domain::AppCatalog, "appcat://FS-12001",
+        "Oracle Financials Cloud",
+        "Application fact sheet for Oracle Financials Cloud (FS-12001). Lifecycle: active. \
+         Business capabilities: general ledger, payables, receivables, asset accounting, cash \
+         management. Integrations: KLB_GL_JOURNAL_IMPORT, Oracle Integration Cloud, ADW reporting. \
+         Release: 24D.",
     ));
 
     out.push(Document::new(
-        "leanix:FS-08823", Domain::Leanix, "leanix-fs://FS-08823",
+        "app_catalog:FS-08823", Domain::AppCatalog, "appcat://FS-08823",
         "Legacy Billing Engine",
-        "LeanIX application fact sheet for Legacy Billing Engine (FS-08823). Lifecycle: \
-         phase-out. Integrations: ZSD_BILL_GEN, mainframe. EOL: 2026-09. Replacement: S/4HANA \
-         SD billing.",
+        "Application fact sheet for Legacy Billing Engine (FS-08823). Lifecycle: phase-out. \
+         Integrations: KLB_LEGACY_BILL_FEED, mainframe. EOL: 2026-09. Replacement: Oracle \
+         Receivables Cloud (AutoInvoice).",
     ));
 
     out.push({
         let mut d = Document::new(
-            "sap_help:FI/period-close", Domain::SapHelp, "sap-help://FI/period-close",
-            "Period-End Close in SAP FI",
-            "SAP Help Portal page on FI period-end close: open and close posting periods via T001B, \
-             execute foreign-currency revaluation, post accruals and deferrals, run BSEG to FAGLFLEXA \
-             reconciliation, and generate balance audit trail.",
+            "oracle_help:GL/period-close", Domain::OracleHelp, "oracle-help://GL/period-close",
+            "Period-End Close in Oracle General Ledger",
+            "Oracle Help Center page on GL period-end close: open and close accounting periods \
+             via Manage Accounting Periods (GL_PERIOD_STATUSES), run revaluation for foreign-currency \
+             balances, create accounting and transfer subledger entries (XLA_AE_LINES) to GL_JE_LINES, \
+             run the GL period close program, and review the close monitor and trial balance.",
         );
-        d.breadcrumbs = vec!["Finance".into(), "General Ledger".into()];
-        d.metadata.insert("module".into(), "FI".into());
+        d.breadcrumbs = vec!["Financials".into(), "General Ledger".into()];
+        d.metadata.insert("module".into(), "GL".into());
         d
     });
 
     out.push({
         let mut d = Document::new(
-            "sap_help:MM/goods-movement", Domain::SapHelp, "sap-help://MM/goods-movement",
-            "Goods Movement Posting",
-            "SAP Help Portal page describing goods movement postings (transaction MIGO). \
-             Movement types 101 (GR for PO), 102 (reversal), 122 (return delivery). \
-             Updates MSEG, MKPF, and material valuation.",
+            "oracle_help:INV/receiving", Domain::OracleHelp, "oracle-help://INV/receiving",
+            "Receiving Receipts",
+            "Oracle Help Center page describing receiving receipts (Receiving work area / \
+             receivingReceiptRequests REST). Receipt routing: standard receipt, inspection required, \
+             direct delivery. Creates receiving transactions and accrual accounting events that flow \
+             through Subledger Accounting to the General Ledger.",
         );
-        d.breadcrumbs = vec!["Logistics".into(), "Inventory Management".into()];
-        d.metadata.insert("module".into(), "MM".into());
+        d.breadcrumbs = vec!["Supply Chain".into(), "Inventory Management".into()];
+        d.metadata.insert("module".into(), "INV".into());
         d
     });
 

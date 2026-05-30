@@ -36,7 +36,7 @@ async fn connect_and_seed() -> Arc<Client> {
 
     // Seed one document directly through the in-process store.
     let store = ctx.rag.store();
-    let doc = Document::new("sap_help:demo-pec", Domain::SapHelp, "u://demo", "Period-End Close", SEED_BODY);
+    let doc = Document::new("oracle_help:demo-pec", Domain::OracleHelp, "u://demo", "Period-End Close", SEED_BODY);
     store.upsert(UpsertBatch { documents: vec![doc], chunks: vec![] })
         .await
         .expect("seed upsert");
@@ -73,12 +73,12 @@ async fn navigate_root_returns_top_level_children() {
     let client = connect_and_seed().await;
     let result = client
         .call_tool("sap.kb.navigate", Some(serde_json::json!({
-            "document_id": "sap_help:demo-pec",
+            "document_id": "oracle_help:demo-pec",
         })))
         .await
         .expect("call");
     let body = extract_json(&result);
-    assert_eq!(body["document_id"].as_str(), Some("sap_help:demo-pec"));
+    assert_eq!(body["document_id"].as_str(), Some("oracle_help:demo-pec"));
     assert!(body["max_depth"].as_u64().unwrap_or(0) >= 3);
     // The root's children should be the H1s — just "Period-End Close".
     let node = &body["node"];
@@ -93,7 +93,7 @@ async fn navigate_subpath_returns_named_section() {
     let client = connect_and_seed().await;
     let result = client
         .call_tool("sap.kb.navigate", Some(serde_json::json!({
-            "document_id": "sap_help:demo-pec",
+            "document_id": "oracle_help:demo-pec",
             "path": "1.1",
             "depth": 2,
         })))
@@ -113,7 +113,7 @@ async fn navigate_missing_doc_returns_clean_error() {
     let client = connect_and_seed().await;
     let result = client
         .call_tool("sap.kb.navigate", Some(serde_json::json!({
-            "document_id": "sap_help:does-not-exist",
+            "document_id": "oracle_help:does-not-exist",
         })))
         .await
         .expect("call");

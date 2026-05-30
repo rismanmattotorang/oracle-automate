@@ -10,7 +10,7 @@ use oracle_automate_kb::{Chunk, Document};
 pub struct ChunkerConfig {
     /// Approximate target chunk size in characters.  Defaults to 1600
     /// (~400 tokens), which is the operating point identified for the
-    /// SAP Help Portal corpus in §VI-E.
+    /// Oracle Help Center corpus in §VI-E.
     pub target_chars: usize,
     /// Overlap between adjacent chunks, in characters.
     pub overlap_chars: usize,
@@ -163,11 +163,11 @@ mod tests {
     #[test]
     fn breadcrumb_is_prepended() {
         let mut doc = Document::new(
-            "sap_help:FI/period-close",
-            Domain::SapHelp,
+            "oracle_help:GL/period-close",
+            Domain::OracleHelp,
             "sap-help://FI/period-close",
             "Period-End Close",
-            "Open posting periods via T001B. Execute foreign-currency revaluation.",
+            "Open accounting periods via GL_PERIOD_STATUSES. Execute foreign-currency revaluation.",
         );
         doc.breadcrumbs = vec!["Finance".into(), "General Ledger".into()];
         let chunks = chunk_document(&doc, &ChunkerConfig::default());
@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn long_body_splits_into_multiple_chunks() {
         let body = "Sentence one. ".repeat(200); // ~2800 chars
-        let doc = Document::new("d:1", Domain::SapHelp, "u", "T", body);
+        let doc = Document::new("d:1", Domain::OracleHelp, "u", "T", body);
         let chunks = chunk_document(&doc, &ChunkerConfig::default());
         assert!(chunks.len() >= 2, "expected at least 2 chunks, got {}", chunks.len());
         // Ordinals are dense.

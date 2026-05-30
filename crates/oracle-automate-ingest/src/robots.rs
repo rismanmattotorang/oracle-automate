@@ -5,7 +5,7 @@
 //!   - `Allow:` / `Disallow:` rules, longest-prefix-wins semantics.
 //!   - `Crawl-delay:` for the token-bucket rate limiter in `rate_limit.rs`.
 //!
-//! Not implemented (because we do not need them for the SAP Help Portal +
+//! Not implemented (because we do not need them for the Oracle Help Center +
 //! Signavio + LeanIX sources we target): sitemap links, wildcard `*` /
 //! end-anchor `$` patterns.  Easy to add behind a feature flag if a future
 //! source demands it.

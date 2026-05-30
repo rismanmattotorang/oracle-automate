@@ -1,7 +1,8 @@
 //! Document and chunk schema (paper §VI-D).
 //!
-//! Every Help Portal page, ABAP object, BPMN process, and LeanIX fact sheet
-//! is a first-class `Document` with stable URI + rich metadata.  Documents
+//! Every Oracle Help Center page, OIC integration / custom-code artifact,
+//! process model, and application-catalog fact sheet is a first-class
+//! `Document` with stable URI + rich metadata.  Documents
 //! are split into one or more `Chunk`s for embedding and retrieval; each
 //! chunk preserves its parent document linkage and breadcrumb so reranking
 //! and citation rendering work without an extra DB round-trip.
@@ -13,26 +14,30 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum Domain {
-    SapHelp,
-    Abap,
+    /// Oracle Help Center / Fusion Applications documentation.
+    OracleHelp,
+    /// OIC integrations + custom-code artifacts (Application Composer, BIP).
+    Integration,
+    /// Process models (Oracle Process Automation / BPMN).
     Bpmn,
-    Leanix,
+    /// Application portfolio / enterprise-architecture fact sheets.
+    AppCatalog,
 }
 
 impl Domain {
     /// Canonical Qdrant collection name for the domain.
     pub fn collection(self) -> &'static str {
         match self {
-            Domain::SapHelp => "sap_help",
-            Domain::Abap => "abap",
+            Domain::OracleHelp => "oracle_help",
+            Domain::Integration => "integration",
             Domain::Bpmn => "bpmn",
-            Domain::Leanix => "leanix",
+            Domain::AppCatalog => "app_catalog",
         }
     }
 }
 
 /// Stable document identifier.  Format: `<domain>:<external-id>` — e.g.
-/// `sap_help:FI/period-close` or `abap:ZFIN/ZFIN_POST_JE`.
+/// `oracle_help:GL/period-close` or `integration:KLB/KLB_GL_JOURNAL_IMPORT`.
 pub type DocumentId = String;
 pub type ChunkId = String;
 

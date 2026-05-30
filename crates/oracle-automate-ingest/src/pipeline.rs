@@ -99,19 +99,19 @@ mod tests {
         let docs = vec![
             {
                 let mut d = Document::new(
-                    "sap_help:FI/period-close", Domain::SapHelp,
-                    "sap-help://FI/period-close",
-                    "Period-End Close in SAP FI",
-                    "Open and close posting periods via transaction T001B. Execute foreign-currency revaluation. Post accruals and deferrals; reconcile BSEG to FAGLFLEXA.",
+                    "oracle_help:GL/period-close", Domain::OracleHelp,
+                    "oracle-help://GL/period-close",
+                    "Period-End Close in Oracle General Ledger",
+                    "Open and close accounting periods via Manage Accounting Periods (GL_PERIOD_STATUSES). Execute foreign-currency revaluation. Post accruals and deferrals; transfer XLA_AE_LINES to GL_JE_LINES.",
                 );
-                d.breadcrumbs = vec!["Finance".into(), "General Ledger".into()];
+                d.breadcrumbs = vec!["Financials".into(), "General Ledger".into()];
                 d
             },
             Document::new(
-                "sap_help:MM/goods-movement", Domain::SapHelp,
-                "sap-help://MM/goods-movement",
-                "Goods Movement Posting",
-                "Post goods movements with transaction MIGO. Movement types 101 receipt, 102 reversal, 122 return.",
+                "oracle_help:INV/receiving", Domain::OracleHelp,
+                "oracle-help://INV/receiving",
+                "Receiving Receipts",
+                "Create receiving receipts against a purchase order via receivingReceiptRequests. Routing: standard receipt, inspection required, direct delivery.",
             ),
         ];
 
@@ -120,11 +120,11 @@ mod tests {
         assert!(report.chunks >= 2);
 
         // Search by intent: query embedded to vector, store returns the right page.
-        let q_vec = embedder.embed(&vec!["period close FAGLFLEXA reconciliation".to_string()]).await.unwrap();
+        let q_vec = embedder.embed(&vec!["period close GL_JE_LINES transfer".to_string()]).await.unwrap();
         let hits = store.search(
-            SearchQuery::text("period close FAGLFLEXA reconciliation", 5)
+            SearchQuery::text("period close GL_JE_LINES transfer", 5)
                 .with_embedding(q_vec[0].clone())
-                .with_domain(Domain::SapHelp),
+                .with_domain(Domain::OracleHelp),
         ).await.unwrap();
 
         assert!(!hits.is_empty());

@@ -6,7 +6,7 @@
 //!
 //! This implementation is deliberately tiny — one mutex, one map of
 //! `(host -> last_tick)` — because we run a single-tenant crawler.  It's
-//! enough to keep the well-known SAP Help Portal happy and to model
+//! enough to keep the well-known Oracle Help Center happy and to model
 //! correctness under tests.  Swap in `governor` or a real distributed
 //! rate limiter when the crawl matrix grows beyond a single node.
 

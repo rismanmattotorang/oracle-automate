@@ -44,7 +44,7 @@ impl QdrantStore {
 
     /// Ensure all four domain collections exist with the expected shape.
     pub async fn ensure_collections(&self) -> Result<(), StoreError> {
-        for domain in [Domain::SapHelp, Domain::Abap, Domain::Bpmn, Domain::Leanix] {
+        for domain in [Domain::OracleHelp, Domain::Integration, Domain::Bpmn, Domain::AppCatalog] {
             self.ensure_collection(domain).await?;
         }
         Ok(())
@@ -159,7 +159,7 @@ impl KnowledgeStore for QdrantStore {
             StoreError::Backend("qdrant search requires an embedding".into())
         })?;
         let targets: Vec<Domain> = if query.domains.is_empty() {
-            vec![Domain::SapHelp, Domain::Abap, Domain::Bpmn, Domain::Leanix]
+            vec![Domain::OracleHelp, Domain::Integration, Domain::Bpmn, Domain::AppCatalog]
         } else {
             query.domains.clone()
         };
@@ -193,7 +193,7 @@ impl KnowledgeStore for QdrantStore {
     async fn chunk_count(&self) -> Result<usize, StoreError> {
         // Qdrant exposes per-collection counts; sum across the four domains.
         let mut total = 0usize;
-        for domain in [Domain::SapHelp, Domain::Abap, Domain::Bpmn, Domain::Leanix] {
+        for domain in [Domain::OracleHelp, Domain::Integration, Domain::Bpmn, Domain::AppCatalog] {
             let url = format!("{}/collections/{}", self.base_url, domain.collection());
             let resp = self.http.get(&url).send().await.map_err(req_err)?;
             if !resp.status().is_success() { continue; }

@@ -474,7 +474,7 @@ mod tests {
     use crate::schema::Domain;
 
     fn mk(body: &str) -> Document {
-        Document::new("d:1", Domain::SapHelp, "u://1", "Title", body)
+        Document::new("d:1", Domain::OracleHelp, "u://1", "Title", body)
     }
 
     #[test]

@@ -36,11 +36,11 @@ pub trait Reranker: Send + Sync {
 /// Deterministic mock reranker.  Combines:
 ///   - exact-match term-overlap (cheap proxy for cross-encoder relevance)
 ///   - position-decay (preserves some of the base ordering as a tie-breaker)
-///   - identifier bonus (SAP tx codes, BAPIs, transport IDs — anything that
+///   - identifier bonus (Oracle table/column names, REST resources, integration/PO IDs — anything that
 ///     looks like `[A-Z0-9_]{3,}` and is also in the query — score boost)
 ///
 /// Crude but it pushes consensus hits up the way a real cross-encoder
-/// would on identifier-heavy SAP queries.
+/// would on identifier-heavy Oracle queries.
 pub struct MockReranker;
 
 impl MockReranker {

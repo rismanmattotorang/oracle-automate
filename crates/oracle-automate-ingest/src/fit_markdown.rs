@@ -182,14 +182,14 @@ mod tests {
         let body = "\
 Home > Finance > Period Close
 
-This page explains foreign currency revaluation for SAP FI. The procedure runs at month-end and produces postings against FAGLFLEXA. The tcode is F.05 and the underlying program is SAPF100.
+This page explains foreign currency revaluation for Oracle General Ledger. The procedure runs at month-end and produces postings to GL_JE_LINES. The process is Revalue Balances and is submitted as a scheduled ESS job.
 
-Cookie banner.\n\nNext\n\nPrevious\n\nThe SAP standard procedure operates on company code BUKRS and currency type WAERS, with the resulting clearing document written through BAPI_ACC_DOCUMENT_POST. Operators should verify open items via FBL3N before running the revaluation, otherwise reversals get tangled.";
+Cookie banner.\n\nNext\n\nPrevious\n\nThe standard procedure operates on a ledger and currency type, with the resulting clearing journal written through the journalEntries REST resource. Operators should verify open items via the Account Inspector before running the revaluation, otherwise reversals get tangled.";
         let cfg = FitConfig::default();
         let (out, stats) = fit_markdown_filter(body, "foreign currency revaluation period close", &cfg);
         // The content blocks should remain.
         assert!(out.contains("foreign currency revaluation"));
-        assert!(out.contains("BAPI_ACC_DOCUMENT_POST"));
+        assert!(out.contains("journalEntries"));
         // The "Next" / "Previous" / "Cookie banner" / breadcrumb blocks should be dropped.
         assert!(!out.contains("Cookie banner"));
         assert!(!out.contains("Next"));
@@ -220,7 +220,7 @@ Cookie banner.\n\nNext\n\nPrevious\n\nThe SAP standard procedure operates on com
     #[test]
     fn retention_ratios_make_sense() {
         let body = "short\n\nshort\n\nshort\n\n".to_string()
-            + &"This is a medium-length sentence about period close and FBL3N. ".repeat(8);
+            + &"This is a medium-length sentence about period close and the Account Inspector. ".repeat(8);
         let cfg = FitConfig::default();
         let (_out, stats) = fit_markdown_filter(&body, "period close", &cfg);
         assert!(stats.block_retention() <= 1.0);

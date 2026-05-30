@@ -242,4 +242,15 @@ Each phase ends with a **green `cargo build` / `cargo test`** (the workspace
   the legacy transport pending the Oracle OIC/BIP/Fusion-REST rewrite, and the
   trait method names + the `abap.adt.*` tool namespace are renamed alongside the
   server tools in P5. **Whole workspace builds; 208 tests pass.**
-- _Subsequent phases (P4+) update this section as they land._
+- **P4 — done (retrieval & seed corpus).** `Domain` enum re-modeled:
+  `SapHelp`→`OracleHelp`, `Abap`→`Integration`, `Leanix`→`AppCatalog`, `Bpmn`
+  kept (Qdrant collections `oracle_help`/`integration`/`app_catalog`/`bpmn`).
+  The server seed corpus is now Oracle/Kalbe across all four domains: OIC
+  integrations (`KLB_GL_JOURNAL_IMPORT`, `KLB_PO_RECEIPT_SYNC`), Oracle P2P/O2C
+  process docs, `Oracle Financials Cloud` + legacy-billing app-catalog fact
+  sheets, and Oracle Help Center pages (`oracle_help:GL/period-close`,
+  `oracle_help:INV/receiving`). The ingest crate's crawler/pipeline/fit-markdown
+  fixtures and the RAG reranker/tokenizer comments + identifier test are Oracle
+  (the identifier-preserving tokenizer already handles `GL_JE_LINES`-style
+  names; logic unchanged). **Whole workspace builds; 208 tests pass.**
+- _Subsequent phases (P5+) update this section as they land._
