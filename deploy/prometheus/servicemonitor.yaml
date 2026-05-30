@@ -1,19 +1,20 @@
 # Oracle-Automate — Prometheus Operator ServiceMonitor.
 #
-# Scrapes the server's /metrics endpoint. Assumes a Service named
-# `oracle-automate` (label app.kubernetes.io/name: oracle-automate) exposing a
-# port named `http` on 3030. The resulting scrape job is `oracle-automate`,
-# which the alert rules in alerts.yaml match on (`job=~"oracle-automate.*"`).
+# Scrapes the server's /metrics endpoint. Matches the Service in
+# `deploy/k8s/service.yaml` (label app.kubernetes.io/name: oracle-automate-server,
+# port `http` 3030). The resulting scrape job name starts with the namespace +
+# service, which the alert rules in alerts.yaml match on (`job=~"oracle-automate.*"`).
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: oracle-automate
+  name: oracle-automate-server
   labels:
-    app.kubernetes.io/name: oracle-automate
+    app.kubernetes.io/name: oracle-automate-server
+    app.kubernetes.io/part-of: oracle-automate
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: oracle-automate
+      app.kubernetes.io/name: oracle-automate-server
   endpoints:
     - port: http
       path: /metrics

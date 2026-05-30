@@ -303,10 +303,32 @@ recorded. Definitions in [`SLO.md`](SLO.md).
 - **Follow-up:** an OpenTelemetry (OTLP) trace exporter on the existing
   `tracing` spans is the remaining observability item.
 
-> **Remaining phases to production** (tracked in the project plan): **7** live
-> dev-pod validation (🔒 needs an Oracle pod + IDCS app), **9** perf/resilience
-> tuning, **11** real retrieval quality (needs an embedding endpoint), **12**
-> CD/release plumbing. Phase 12 is unblocked and can proceed now.
+### Phase 12 — CD / release plumbing ✅ DONE
+**Goal:** a tag produces signed, scanned, reproducible artifacts and a
+documented promote/rollback path. Runbook in [`RELEASING.md`](../RELEASING.md).
+
+**Shipped:**
+- **Hardened `release.yml`:** on a `v*.*.*` tag — build amd64 → **Trivy scan
+  (fails on fixable CRITICAL/HIGH before any push)** → multi-arch push to GHCR
+  with **SBOM + SLSA provenance** → **keyless cosign signature** (Sigstore /
+  GitHub OIDC). Toolchain pinned to `1.94.1` (matches CI); binaries ship with
+  `.sha256` checksums; release notes carry the `cosign verify` command.
+- **`RELEASING.md`:** version cut + CHANGELOG convention, what the pipeline
+  does, image verification + digest pinning, GitOps promotion (Kustomize image
+  pin, staging→prod), and the **rollback runbook** (imperative `rollout undo` +
+  GitOps revert) with explicit rollback triggers.
+- **Fixed a Phase-10 scrape miss:** the `ServiceMonitor` selector now matches the
+  Service's real label (`oracle-automate-server`), so `/metrics` is actually
+  scraped.
+- **Skills:** `code-review`; `security-review` patterns (scan/sign).
+- **Gate:** ✅ release + prometheus YAML validated; pipeline gates the push on a
+  clean scan and signs every image.
+
+> **Remaining phases to production** (need external dependencies): **7** live
+> dev-pod validation (🔒 Oracle pod + IDCS app), **9** perf/resilience tuning
+> (needs real-pod latency), **11** real retrieval quality (needs an embedding
+> endpoint). Every phase that does **not** require a live Oracle pod or model
+> endpoint is now complete.
 
 ---
 

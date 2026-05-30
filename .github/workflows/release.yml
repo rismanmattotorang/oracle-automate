@@ -6,10 +6,16 @@ on:
 
 permissions:
   contents: write
-  packages: write
+
+env:
+  # Pinned toolchain — matches rust-toolchain.toml + CI (reproducible builds).
+  RUST_PINNED: "1.94.1"
+  IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
-  # Build release binaries for Linux x86_64 + ARM64.
+  # ─────────────────────────────────────────────────────────────────────
+  # Release binaries for Linux x86_64 + ARM64.
+  # ─────────────────────────────────────────────────────────────────────
   binaries:
     name: Build (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
@@ -23,62 +29,108 @@ jobs:
             cross: true
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ env.RUST_PINNED }}
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
       - name: Install cross
         if: matrix.cross
         run: cargo install cross --locked
-      - name: Build server
+      - name: Build server + gateway
         run: |
-          if [ "${{ matrix.cross }}" = "true" ]; then
-            cross build --release --target ${{ matrix.target }} \
-              --bin oracle-automate-server --bin oracle-automate-gw \
-              --features oracle-automate-adt/http
-          else
-            cargo build --release --target ${{ matrix.target }} \
-              --bin oracle-automate-server --bin oracle-automate-gw \
-              --features oracle-automate-adt/http
-          fi
-      - name: Package
+          BUILD="cargo"
+          [ "${{ matrix.cross }}" = "true" ] && BUILD="cross"
+          $BUILD build --release --target ${{ matrix.target }} \
+            --bin oracle-automate-server --bin oracle-automate-gw \
+            --features oracle-automate-adt/http
+      - name: Package + checksum
         run: |
           mkdir -p dist
           cp target/${{ matrix.target }}/release/oracle-automate-server dist/
           cp target/${{ matrix.target }}/release/oracle-automate-gw     dist/
-          tar -C dist -czf oracle-automate-${{ github.ref_name }}-${{ matrix.target }}.tar.gz .
+          TARBALL="oracle-automate-${{ github.ref_name }}-${{ matrix.target }}.tar.gz"
+          tar -C dist -czf "$TARBALL" .
+          sha256sum "$TARBALL" > "$TARBALL.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: binaries-${{ matrix.target }}
-          path: oracle-automate-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+          path: |
+            oracle-automate-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+            oracle-automate-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256
 
-  # Build + push the container image to GHCR.
+  # ─────────────────────────────────────────────────────────────────────
+  # Container: build → scan (gate) → push (with SBOM + provenance) → sign.
+  # The amd64 image is built and Trivy-scanned BEFORE any push, so a
+  # CRITICAL/HIGH CVE fails the release rather than shipping a vulnerable image.
+  # ─────────────────────────────────────────────────────────────────────
   container:
-    name: Container image
+    name: Container (scan · push · sign)
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      id-token: write   # keyless cosign signing via GitHub OIDC
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
+
+      # 1. Build amd64 locally (no push) so we can scan before shipping.
+      - name: Build (amd64, local)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./deploy/Dockerfile
+          load: true
+          tags: ${{ env.IMAGE }}:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 2. Scan — fail the release on fixable CRITICAL/HIGH vulnerabilities.
+      - name: Trivy scan (gate)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE }}:scan
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      # 3. Login + push multi-arch with an SBOM + SLSA provenance attestation.
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - name: Build + push (multi-arch, attested)
+        id: push
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./deploy/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
+          sbom: true
+          provenance: mode=max
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            ghcr.io/${{ github.repository }}:latest
+            ${{ env.IMAGE }}:${{ github.ref_name }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-  # Cut a GitHub Release with the binary artifacts + container image refs.
+      # 4. Keyless sign the pushed image by digest (Sigstore / Fulcio / Rekor).
+      - uses: sigstore/cosign-installer@v3
+      - name: Cosign sign (keyless)
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+        env:
+          IMAGE: ${{ env.IMAGE }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Cut the GitHub Release with binaries, checksums, and verify instructions.
+  # ─────────────────────────────────────────────────────────────────────
   publish:
     name: Publish release
     runs-on: ubuntu-latest
@@ -91,22 +143,24 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: ./artifacts/**/*.tar.gz
+          files: ./artifacts/**/*
           generate_release_notes: true
           body: |
-            ## Container images
+            ## Container image
 
             ```
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            ghcr.io/${{ github.repository }}:latest
+            ${{ env.IMAGE }}:${{ github.ref_name }}
             ```
 
-            ## Quick start
+            Multi-arch (amd64 + arm64), Trivy-scanned (no fixable CRITICAL/HIGH),
+            with an SBOM + SLSA provenance attestation, **keyless-signed** with
+            cosign. Verify before deploying:
 
             ```
-            docker run --rm -p 3030:3030 ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            cosign verify ${{ env.IMAGE }}:${{ github.ref_name }} \
+              --certificate-identity-regexp "^https://github.com/${{ github.repository }}/" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com
             ```
 
-            See [docs/ROADMAP.md](docs/ROADMAP.md) for the changelog and
-            [deploy/k8s/README.md](deploy/k8s/README.md) for the
-            Kubernetes deployment runbook.
+            See [`CHANGELOG.md`](CHANGELOG.md) for changes and
+            [`RELEASING.md`](RELEASING.md) for the deploy / rollback runbook.

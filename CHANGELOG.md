@@ -30,6 +30,22 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased] — Production readiness
 
+### Added — Phase 12: CD / release pipeline
+
+See [`RELEASING.md`](RELEASING.md) for the release + rollback runbook.
+
+- **Hardened `release.yml`:** a `v*.*.*` tag now builds the amd64 image, **Trivy-
+  scans it and fails on fixable CRITICAL/HIGH before any push**, then pushes the
+  multi-arch image to GHCR with an **SBOM + SLSA provenance** attestation and a
+  **keyless cosign signature** (Sigstore / GitHub OIDC). Toolchain pinned to
+  `1.94.1`; release binaries ship with `.sha256` checksums; release notes carry
+  the `cosign verify` command.
+- **`RELEASING.md`** — version-cut + CHANGELOG convention, image verification +
+  digest pinning, GitOps promotion via Kustomize (staging→prod), and a rollback
+  runbook (`rollout undo` + GitOps revert) with explicit rollback triggers.
+- **Fixed a scrape miss:** the Phase-10 `ServiceMonitor` selector now matches the
+  Service label (`oracle-automate-server`).
+
 ### Added — Phase 10: observability & SLOs
 
 See [`docs/SLO.md`](docs/SLO.md) for the SLI/SLO definitions.
