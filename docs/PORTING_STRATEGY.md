@@ -328,10 +328,18 @@ operation/object catalogue, custom-code surface, retrieval corpus, MCP tool /
 resource / prompt surface, skills, scheduler, gateway, TUI, web UI, deploy
 manifests, CI gate, and docs all speak **Oracle Fusion Cloud ERP** for **Kalbe**.
 
-**Remaining (explicitly deferred, non-user-facing):** the live SOAP/OData/ADT
-HTTP transport is still the legacy SAP implementation (kept compiling, behind
-feature flags) pending a from-scratch rewrite against Oracle Fusion REST / SOAP
-ERP Integration / BI Publisher; and the internal cosmetic identifier renames
-(`Rfc*` request structs, `BapiRet2*`→`ErpMessage`, trait methods
-`get_program`→`get_integration`). Both are tracked here for a follow-up
-"live-transport" sub-phase.
+**P9 — done (live transport + full independence).** The previously-deferred
+items are closed (see [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md)):
+- SAP SOAP RFC + Business-Hub OData clients **removed**, replaced by
+  `oracle-automate-erp::fusion` (`HttpFusionClient` + `FusionPartyClient`) over
+  Oracle Fusion REST/JSON.
+- SAP ADT HTTP client **removed**, replaced by `HttpOicClient` over Oracle OIC /
+  BI Publisher / Fusion REST.
+- All SAP-jargon identifiers renamed Oracle-native (`Rfc*`→`Erp*`,
+  `BapiRet2*`→`ErpMessage`, `Adt*`→`Oic*`, trait methods, credential fields/env).
+- The GraphRAG demo corpus rewritten to Oracle nodes/edges.
+**Oracle-Automate no longer depends on SAP-Automate to build, test, or run** —
+173 tests green, zero SAP code in the runtime path. The only retained SAP
+mentions are the Apache-2.0 attribution (license-required provenance) and a
+handful of explanatory comments. Oracle-specific follow-ups are listed in
+`GAP_ANALYSIS.md`.
